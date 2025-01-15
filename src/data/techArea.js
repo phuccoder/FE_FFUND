@@ -1,4 +1,4 @@
-import logo from "@/images/tech-logo.jpg";
+import logo from "../../public/assets/images/tech-logo.jpg";
 
 export const techArea = {
   title: "The New Tech that Get People Talking",

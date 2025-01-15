@@ -2,8 +2,9 @@ import SearchIcon from "@/components/Header/SearchIcon";
 import Link from "@/components/Reuseable/Link";
 import { blogDetailsSidebar } from "@/data/newsArea";
 import handleSubmit from "@/utils/handleSubmit";
+import Image from "next/image";
 import React from "react";
-import { Image } from "react-bootstrap";
+
 
 const { categories, tags, posts } = blogDetailsSidebar;
 
@@ -14,10 +15,14 @@ const SidebarPostSingle = ({ post = {} }) => {
     <div className="sidebar__post__single">
       <div className="sidebar__post-image">
         <div className="inner-block">
-          <Image
-            src={require(`src/assets/images/${image}`).default.src}
-            alt="Awesome Image"
-          />
+        <Image 
+        src={`/assets/images/${image}`} 
+        alt={'Awesome Image'} 
+        width={300}  
+        height={200} 
+        unoptimized
+        style={{ width: '100%', height: 'auto' }}
+      />
         </div>
       </div>
       <div className="sidebar__post-content">

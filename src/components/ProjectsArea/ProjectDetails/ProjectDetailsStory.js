@@ -1,6 +1,7 @@
 import { projectDetailsStory } from "@/data/projectsArea";
 import React from "react";
-import { Col, Image, Row } from "react-bootstrap";
+import { Col, Row } from "react-bootstrap";
+import Image from "next/image";
 
 const { id, text, lists, text2, items, text3, image, images } =
   projectDetailsStory;

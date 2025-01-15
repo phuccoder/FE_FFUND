@@ -1,4 +1,4 @@
-import image from "@/images/brand.png";
+import image from "../../public/assets/images/brand.png";
 
 export const brands = [
   {

@@ -1,9 +1,10 @@
 import footerData from "@/data/siteFooter";
 import handleSubmit from "@/utils/handleSubmit";
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 import Link from "../Reuseable/Link";
 import FooterList from "./FooterList";
+import Image from "next/image";
 
 const { bg, logo, text, author, year, links, socials, text2, shape } =
   footerData;

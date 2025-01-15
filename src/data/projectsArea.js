@@ -1,19 +1,19 @@
-import image1 from "@/images/explore-projects-1.jpg";
-import image2 from "@/images/explore-projects-2.jpg";
-import image3 from "@/images/explore-projects-3.jpg";
-import image4 from "@/images/explore-projects-4.jpg";
-import image5 from "@/images/explore-projects-5.jpg";
-import image6 from "@/images/explore-projects-6.jpg";
-import flag from "@/images/flag.png";
-import info from "@/images/info.jpg";
-import bg1 from "@/images/project-bg-1.jpg";
-import bg2 from "@/images/project-bg-2.jpg";
-import projectDetails1 from "@/images/project-details-1.jpg";
-import projectDetails2 from "@/images/project-details-2.jpg";
-import thumb2 from "@/images/project-details-thumb.jpg";
-import projectInfo from "@/images/project-info.jpg";
-import projectPerk from "@/images/project-perk.jpg";
-import thumb from "@/images/single-project-thumb.jpg";
+import image1 from "../../public/assets/images/explore-projects-1.jpg";
+import image2 from "../../public/assets/images/explore-projects-2.jpg";
+import image3 from "../../public/assets/images/explore-projects-3.jpg";
+import image4 from "../../public/assets/images/explore-projects-4.jpg";
+import image5 from "../../public/assets/images/explore-projects-5.jpg";
+import image6 from "../../public/assets/images/explore-projects-6.jpg";
+import flag from "../../public/assets/images/flag.png";
+import info from "../../public/assets/images/info.jpg";
+import bg1 from "../../public/assets/images/project-bg-1.jpg";
+import bg2 from "../../public/assets/images/project-bg-2.jpg";
+import projectDetails1 from "../../public/assets/images/project-details-1.jpg";
+import projectDetails2 from "../../public/assets/images/project-details-2.jpg";
+import thumb2 from "../../public/assets/images/project-details-thumb.jpg";
+import projectInfo from "../../public/assets/images/project-info.jpg";
+import projectPerk from "../../public/assets/images/project-perk.jpg";
+import thumb from "../../public/assets/images/single-project-thumb.jpg";
 import { faqs } from "./faqArea";
 
 export const socials3 = [

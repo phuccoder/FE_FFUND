@@ -1,5 +1,6 @@
 import React from "react";
-import { Col, Image, Row } from "react-bootstrap";
+import { Col, Row } from "react-bootstrap";
+import Image from "next/image";
 
 const TestimonialsBox = ({ testimonial = {} }) => {
   const { name, text, image } = testimonial;
@@ -16,8 +17,11 @@ const TestimonialsBox = ({ testimonial = {} }) => {
         <Col lg={5}>
           <div className="testimonials-thumb text-right">
             <Image
-              src={require(`src/assets/images/${image}`).default.src}
-              alt=""
+              src={`/assets/images/${image}`}
+              alt={name}
+              width="100%"
+              height="100%"
+              unoptimized
             />
             <div className="quote">
               <i className="flaticon-left-quotes-sign"></i>

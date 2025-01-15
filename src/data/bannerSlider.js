@@ -1,7 +1,7 @@
-import banner3 from "@/images/banner-color-shadow.png";
-import banner from "@/images/banner-line.png";
-import banner1 from "@/images/shape/banner-line-1.png";
-import banner2 from "@/images/shape/banner-line-2.png";
+import banner3 from "../../public/assets/images/banner-color-shadow.png";
+import banner from "../../public/assets/images/banner-line.png";
+import banner1 from "../../public/assets/images/shape/banner-line-1.png";
+import banner2 from "../../public/assets/images/shape/banner-line-2.png";
 
 export const bannerSlider = [
   {

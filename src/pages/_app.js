@@ -1,7 +1,7 @@
 import ContextProvider from "@/context/ContextProvider";
-import "@/vendors/animate.min.css";
-import "@/vendors/font-awesome.min.css";
-import "@/vendors/flaticon.css";
+import "../../public/assets/vendors/animate.min.css";
+import "../../public/assets/vendors/font-awesome.min.css";
+import "../../public/assets/vendors/flaticon.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "node_modules/swiper/swiper-bundle.min.css";
 import "react-modal-video/css/modal-video.css";

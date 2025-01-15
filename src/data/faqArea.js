@@ -1,4 +1,4 @@
-import bg from "@/images/faq-bg.jpg";
+import bg from "../../public/assets/images/faq-bg.jpg";
 
 export const faqs = [
   {

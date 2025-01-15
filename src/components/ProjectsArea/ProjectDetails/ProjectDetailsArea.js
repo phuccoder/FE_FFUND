@@ -1,6 +1,7 @@
 import { projectDetailsArea } from "@/data/projectsArea";
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
+import Image from "next/image";
 
 const {
   thumb,

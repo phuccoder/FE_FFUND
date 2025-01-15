@@ -1,4 +1,4 @@
-import bg from "@/images/together-bg.jpg";
+import bg from "../../public/assets/images/together-bg.jpg";
 
 export const togetherArea = {
   bg,

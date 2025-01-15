@@ -1,4 +1,4 @@
-import bg from "@/images/team-bg.jpg";
+import bg from "../../public/assets/images/team-bg.jpg";
 import { socials2 } from "./siteFooter";
 
 export const teamArea = {

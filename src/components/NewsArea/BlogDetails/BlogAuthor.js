@@ -1,6 +1,7 @@
 import { blogAuthor } from "@/data/newsArea";
+import Image from "next/image";
 import React from "react";
-import { Image } from "react-bootstrap";
+
 
 const { image, name, text } = blogAuthor;
 

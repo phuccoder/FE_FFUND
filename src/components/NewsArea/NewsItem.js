@@ -1,11 +1,14 @@
 import React from "react";
-import { Col, Image } from "react-bootstrap";
+import { Col } from "react-bootstrap";
 import Link from "../Reuseable/Link";
+import Image from "next/image";
 
 const NewsItem = ({ news = {}, index = 0, newsTwo = false }) => {
   const { image, date, admin, comments, title, image2 } = news;
   const newImage = newsTwo && image2 ? image2 : image;
   const isEven = (index + 1) % 2 === 0;
+
+  const imagePath = `/assets/images/${newImage}`;
 
   return (
     <Col lg={newsTwo ? 4 : 3} md={newsTwo ? 7 : 6}>
@@ -14,10 +17,18 @@ const NewsItem = ({ news = {}, index = 0, newsTwo = false }) => {
           !newsTwo && isEven ? " d-flex flex-column flex-md-column-reverse" : ""
         }`}
       >
-        <div className="news-thumb">
-          <Image
-            src={require(`src/assets/images/${newImage}`).default.src}
-            alt="news"
+        <div className="news-thumb" style={{ position: 'relative', minHeight: '200px' }}>
+          <img
+            src={imagePath}
+            alt={title}
+            style={{ 
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              position: 'absolute',
+              top: 0,
+              left: 0
+            }}
           />
         </div>
         <div className="news-content">

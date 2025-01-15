@@ -1,6 +1,7 @@
 import { whyChoose } from "@/data/whyChoose";
+import Image from "next/image";
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 
 const { title, thumb, thumb2, tagline, title2, items } = whyChoose;
 

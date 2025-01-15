@@ -1,6 +1,7 @@
 import { blogDetailsMain } from "@/data/newsArea";
+import Image from "next/image";
 import React, { Fragment } from "react";
-import { Image } from "react-bootstrap";
+
 
 const { image, date, admin, comments, title, text1, text2, tags, socials } =
   blogDetailsMain;

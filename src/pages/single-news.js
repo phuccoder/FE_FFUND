@@ -5,10 +5,11 @@ import PageTitle from "@/components/Reuseable/PageTitle";
 import React from "react";
 
 const SingleNews = () => {
+  const title = "News";
   return (
     <Layout>
       <Header />
-      <PageTitle title="News" />
+      <PageTitle title={title} />
       <BlogDetails />
     </Layout>
   );

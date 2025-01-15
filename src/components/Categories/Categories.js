@@ -1,31 +1,12 @@
-import { categoriesSection } from "@/data/categories";
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import Image from "next/image";
+import { Container, Row, Col } from "react-bootstrap";
 
-const { bg, tagline, title, text, categoriesUser, signIn, categories } =
-  categoriesSection;
-
-const CategoriesBoxItem = ({ categories = [] }) => {
-  return (
-    <div className="categories-box-item">
-      {categories.map(({ id, icon, title }) => (
-        <div key={id} className="item">
-          <a href="#">
-            <i className={icon}></i>
-            <br />
-            <span>{title}</span>
-          </a>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const Categories = () => {
+const Categories = ({ tagline, title, text }) => {
   return (
     <section
       className="categories-area bg_cover"
-      style={{ backgroundImage: `url(${bg.src})` }}
+      style={{ backgroundImage: `url(/assets/images/categories-bg.jpg)` }}
     >
       <Container>
         <Row className="align-items-center">
@@ -36,16 +17,22 @@ const Categories = () => {
               <p>{text}</p>
               <div className="item d-flex align-items-center">
                 <div className="thumb">
-                  <Image src={categoriesUser.src} alt="" />
+                  <Image 
+                    src="/assets/images/categories-user.jpg"
+                    alt="categories user"
+                    width={100}  // Adjust based on your needs
+                    height={100} // Adjust based on your needs
+                    unoptimized
+                  />
                 </div>
-                <Image src={signIn.src} alt="singin" />
+                <Image 
+                  src="/assets/images/sign-in.jpg"
+                  alt="sign in"
+                  width={100}  // Adjust based on your needs
+                  height={100} // Adjust based on your needs
+                  unoptimized
+                />
               </div>
-            </div>
-          </Col>
-          <Col lg={7}>
-            <div className="categories-box">
-              <CategoriesBoxItem categories={categories.slice(0, 3)} />
-              <CategoriesBoxItem categories={categories.slice(3)} />
             </div>
           </Col>
         </Row>
