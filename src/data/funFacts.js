@@ -1,5 +1,5 @@
-import shape1 from "@/images/fun-facts-shape-1.png";
-import shape2 from "@/images/fun-facts-shape-2.png";
+import shape1 from "../../public/assets/images/fun-facts-shape-1.png";
+import shape2 from "../../public/assets/images/fun-facts-shape-2.png";
 
 export const funFacts = {
   facts: [

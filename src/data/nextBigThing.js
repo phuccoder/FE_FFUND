@@ -1,4 +1,4 @@
-import image from "@/images/next-big-thing-thumb.png";
+import image from "../../public/assets/images/next-big-thing-thumb.png";
 
 const text =
   "There are many variations of passages of available but the majority have in some form, by injected humou or words which don't look even slightly believable. There are many variations of but the majority have suffered.";

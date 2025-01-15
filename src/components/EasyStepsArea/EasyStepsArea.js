@@ -1,8 +1,9 @@
 import { easyStepsArea } from "@/data/easyStepsArea";
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 import Link from "../Reuseable/Link";
 import Title from "../Reuseable/Title";
+import Image from "next/image";
 
 const { tagline, title, steps, text } = easyStepsArea;
 
@@ -14,8 +15,12 @@ const StepsItem = ({ step = {} }) => {
       <div className="easy-steps-item mt-50 text-center">
         <div className="thumb">
           <Image
-            src={require(`src/assets/images/${image}`).default.src}
-            alt=""
+            src={`/assets/images/${image}`}
+            alt={title} 
+            width={300}  
+            height={200} 
+            unoptimized
+            style={{ width: '100%', height: 'auto' }} 
           />
           <i className={icon}></i>
         </div>

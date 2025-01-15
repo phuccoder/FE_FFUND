@@ -1,7 +1,8 @@
 import React from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 import { useSwiperSlide } from "swiper/react";
 import Link from "../Reuseable/Link";
+import Image from "next/image";
 
 const SingleBanner = ({
   singleSlide = {},
@@ -9,7 +10,6 @@ const SingleBanner = ({
   isBannerThree = false,
 }) => {
   const { isActive } = useSwiperSlide();
-
   const { bg, text, title, banner, banner1, banner2 } = singleSlide;
 
   return (
@@ -18,9 +18,7 @@ const SingleBanner = ({
         isBannerThree ? "banner-3-area align-items-end" : "align-items-center"
       }`}
       style={{
-        backgroundImage: `url(${
-          require(`src/assets/images/${bg}`).default.src
-        })`,
+        backgroundImage: `url(/assets/images/${bg})`
       }}
     >
       <Container>
@@ -67,19 +65,43 @@ const SingleBanner = ({
         <div
           className={`banner-line${isActive ? " animated fadeInRightBig" : ""}`}
         >
-          <Image src={banner.src} alt="" />
+          <Image 
+            src={`/assets/images/${banner}`}
+            alt="banner"
+            width={500}
+            height={300}
+            unoptimized
+          />
         </div>
       )}
       {isBannerTwo && (
         <>
           <div className="banner-color-shadow">
-            <Image src={banner.src} alt="" />
+            <Image 
+              src={`/assets/images/${banner}`}
+              alt="banner"
+              width={500}
+              height={300}
+              unoptimized
+            />
           </div>
           <div className="banner-line">
-            <Image src={banner1.src} alt="" />
+            <Image 
+              src={`/assets/images/${banner1}`}
+              alt="banner line 1"
+              width={500}
+              height={300}
+              unoptimized
+            />
           </div>
           <div className="banner-line-2">
-            <Image src={banner2.src} alt="" />
+            <Image 
+              src={`/assets/images/${banner2}`}
+              alt="banner line 2"
+              width={500}
+              height={300}
+              unoptimized
+            />
           </div>
         </>
       )}

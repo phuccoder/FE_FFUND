@@ -1,6 +1,6 @@
-import icon from "@/images/header-icon.png";
-import logo2 from "@/images/logo-2.png";
-import logo from "@/images/logo.png";
+import icon from "../../public/assets/images/header-icon.png";
+import logo2 from "../../public/assets/images/logo-2.png";
+import logo from "../../public/assets/images/logo.png";
 
 export const navItems = [
   {

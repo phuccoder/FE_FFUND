@@ -1,7 +1,8 @@
 import { funFacts } from "@/data/funFacts";
 import React from "react";
-import { Container, Image, Row } from "react-bootstrap";
+import { Container, Row } from "react-bootstrap";
 import FunFactsItem from "./FunFactsItem";
+import Image from "next/image";
 
 const { facts, shape1, shape2 } = funFacts;
 

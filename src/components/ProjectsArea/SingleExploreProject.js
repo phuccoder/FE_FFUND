@@ -1,5 +1,5 @@
 import React from "react";
-import { Image } from "react-bootstrap";
+import Image from "next/image";
 import Link from "../Reuseable/Link";
 
 const SingleExploreProject = ({ project = {} }) => {
@@ -7,7 +7,14 @@ const SingleExploreProject = ({ project = {} }) => {
 
   return (
     <div className="explore-projects-item mt-30">
-      <Image src={require(`src/assets/images/${image}`).default.src} alt="" />
+      <Image
+        src={`/assets/images/${image}`}
+        alt={title}
+        width={300}
+        height={200}
+        unoptimized
+        style={{ width: '100%', height: 'auto' }}
+      />
       <div className="icon">
         <a href="#">
           <i className="fa fa-heart"></i>

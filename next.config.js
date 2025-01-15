@@ -1,19 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
   images: {
     unoptimized: true,
-    disableStaticImages: false,
-    domains: [],
-    remotePatterns: [],
+    disableStaticImages: true  // Add this line
   },
   webpack: (config) => {
+    config.resolve.fallback = { fs: false };
+    
+    // Add this configuration for handling static assets
     config.module.rules.push({
-      test: /\.(png|jpg|gif|svg|eot|ttf|woff|woff2)$/,
-      type: 'asset',
+      test: /\.(png|jpe?g|gif|svg|webp)$/i,
+      use: [
+        {
+          loader: 'file-loader',
+          options: {
+            publicPath: '/_next/static/images',
+            outputPath: 'static/images',
+          },
+        },
+      ],
     });
+    
     return config;
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

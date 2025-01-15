@@ -1,6 +1,7 @@
 import { clientArea } from "@/data/clientArea";
+import Image from "next/image";
 import React from "react";
-import { Container, Image } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import SwiperCore, { Autoplay } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 
@@ -32,7 +33,7 @@ const options = {
 const { title, clients } = clientArea;
 
 const ClientItem = ({ client = {} }) => {
-  const { text, image, name } = client;
+  const { text, name, image } = client;
 
   return (
     <div className="client-item text-center">
@@ -40,8 +41,11 @@ const ClientItem = ({ client = {} }) => {
       <p>{text}</p>
       <h5 className="title">- {name}</h5>
       <Image
-        src={require(`src/assets/images/${image}`).default.src}
-        alt="client"
+        src={`/assets/images/${image}`}
+        alt={name}
+        width="100%"  
+        height="100%"
+        unoptimized
       />
     </div>
   );

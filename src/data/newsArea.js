@@ -1,5 +1,5 @@
-import author from "@/images/author.jpg";
-import image from "@/images/blog-details-thumb.jpg";
+import author from "../../public/assets/images/author.jpg";
+import image from "../../public/assets/images/blog-details-thumb.jpg";
 import { socials } from "./headerData";
 
 export const newsArea = {
@@ -8,8 +8,8 @@ export const newsArea = {
   newses: [
     {
       id: 1,
-      image: "news-1.jpg",
-      image2: "news-item-1.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-1.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -17,8 +17,8 @@ export const newsArea = {
     },
     {
       id: 2,
-      image: "news-1.jpg",
-      image2: "news-item-2.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-2.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -26,8 +26,8 @@ export const newsArea = {
     },
     {
       id: 3,
-      image: "news-1.jpg",
-      image2: "news-item-3.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-3.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -35,8 +35,8 @@ export const newsArea = {
     },
     {
       id: 4,
-      image: "news-1.jpg",
-      image2: "news-item-4.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-4.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -44,8 +44,8 @@ export const newsArea = {
     },
     {
       id: 5,
-      image: "news-1.jpg",
-      image2: "news-item-5.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-5.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -53,8 +53,8 @@ export const newsArea = {
     },
     {
       id: 6,
-      image: "news-1.jpg",
-      image2: "news-item-6.jpg",
+      image: "/assets/images/news-1.jpg",
+      image2: "/assets/images/news-item-6.jpg",
       date: "3 April, 2020",
       admin: "Admin",
       comments: 2,
@@ -66,14 +66,14 @@ export const newsArea = {
 export const comments = [
   {
     id: 1,
-    image: "comment-1-1.jpg",
+    image: "/assets/images/comment-1-1.jpg",
     name: "Kevin Martin",
     date: "3 March, 2020",
     text: "Lorem Ipsum is simply dummy text of the rinting and typesetting been the industry standard dummy text ever sincer condimentum purus. In non ex at ligula fringilla lobortis.",
   },
   {
     id: 2,
-    image: "comment-1-2.jpg",
+    image: "/assets/images/comment-1-2.jpg",
     name: "Sarah albert",
     date: "3 March, 2020",
     text: "Lorem Ipsum is simply dummy text of the rinting and typesetting been the industry standard dummy text ever sincer condimentum purus. In non ex at ligula fringilla lobortis.",
@@ -121,17 +121,17 @@ export const blogDetailsSidebar = {
   posts: [
     {
       id: 1,
-      image: "post-1.jpg",
+      image: "/assets/images/post-1.jpg",
       title: "A day in the life of entrepreneur & co-founder",
     },
     {
       id: 2,
-      image: "post-2.jpg",
+      image: "/assets/images/post-2.jpg",
       title: "A day in the life of entrepreneur & co-founder",
     },
     {
       id: 3,
-      image: "post-3.jpg",
+      image: "/assets/images/post-3.jpg",
       title: "A day in the life of entrepreneur & co-founder",
     },
   ],

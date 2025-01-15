@@ -3661,7 +3661,7 @@ p {
 }
 
 .brand-area-2 {
-  background-image: url(../assets/images/next-big-thing-bg.png);
+  background-image: url(../../public/assets/images/next-big-thing-bg.png);
   border-top: 1px solid #e9e9ee;
 }
 .brand-area-2 .brand-item img {
@@ -5240,7 +5240,7 @@ p {
 .next-big-thing-area {
   padding-top: 120px;
   padding-bottom: 111px;
-  background-image: url(../assets/images/next-big-thing-bg.png);
+  background-image: url(../../public/assets/images/next-big-thing-bg.png);
 }
 .next-big-thing-area .next-big-thing-content > span {
   font-size: 18px;
@@ -5466,13 +5466,13 @@ p {
   height: 100%;
   width: 100%;
   max-width: 595px;
-  background-image: url(../assets/images/shape/shape-line-1.jpg);
+  background-image: url(../../public/assets/images/shape/shape-line-1.jpg);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 .the-tech-area .the-tech-title {
-  background-image: url(../assets/images/the-tech-thumb.jpg);
+  background-image: url(../../public/assets/images/shape/shape-line-1.jpg);
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;

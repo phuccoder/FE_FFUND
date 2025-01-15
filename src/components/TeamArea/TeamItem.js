@@ -1,16 +1,22 @@
+import Image from "next/image";
 import React from "react";
-import { Col, Image } from "react-bootstrap";
+import { Col  } from "react-bootstrap";
+
 
 const TeamItem = ({ team = {} }) => {
-  const { image, socials, name, tagline } = team;
+  const { image, socials, name, tagline, title } = team;
 
   return (
     <Col lg={4} md={7}>
       <div className="team-item mt-30">
         <div className="team-thumb">
           <Image
-            src={require(`src/assets/images/${image}`).default.src}
-            alt="team"
+           src={`/assets/images/${image}`}
+           alt={title} 
+           width={300}  
+           height={200} 
+           unoptimized
+           style={{ width: '100%', height: 'auto' }}
           />
           <div className="share">
             <i className="fa fa-share-alt"></i>

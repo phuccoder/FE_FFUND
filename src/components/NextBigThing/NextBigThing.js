@@ -1,6 +1,7 @@
 import { nextBigThing } from "@/data/nextBigThing";
+import Image from "next/image";
 import React, { useState } from "react";
-import { Col, Container, Image, Row } from "react-bootstrap";
+import { Col, Container, Row } from "react-bootstrap";
 
 const { tagline, title, tabs, text, image, lists } = nextBigThing;
 

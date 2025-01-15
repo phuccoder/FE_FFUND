@@ -1,8 +1,9 @@
 import { useRootContext } from "@/context/context";
 import React from "react";
-import { Image } from "react-bootstrap";
+
 import SearchIcon from "./SearchIcon";
 import Social from "./Social";
+import Image from "next/image";
 
 const HeaderInfo = ({ socials, icon, phone = "", searchColor }) => {
   const { toggleMenu, toggleSearch } = useRootContext();

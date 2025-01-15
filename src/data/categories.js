@@ -1,6 +1,6 @@
-import bg from "@/images/categories-bg.jpg";
-import categoriesUser from "@/images/categories-user.png";
-import signIn from "@/images/singin.png";
+import bg from "../../public/assets/images/categories-bg.jpg";
+import categoriesUser from "../../public/assets/images/categories-user.png";
+import signIn from "../../public/assets/images/singin.png";
 
 export const categoriesSection = {
   bg,

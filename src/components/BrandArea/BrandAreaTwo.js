@@ -1,6 +1,7 @@
 import { brands } from "@/data/brandArea";
+import Image from "next/image";
 import React from "react";
-import { Container, Image } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import SwiperCore, { Autoplay } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 

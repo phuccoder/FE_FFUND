@@ -1,5 +1,5 @@
 import React from "react";
-import { Image } from "react-bootstrap";
+import Image from "next/image";
 import Link from "../Reuseable/Link";
 
 const SingleProject = ({ project = {} }) => {

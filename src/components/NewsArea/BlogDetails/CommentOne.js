@@ -1,13 +1,21 @@
+import Image from "next/image";
 import React from "react";
-import { Image } from "react-bootstrap";
+
 
 const CommentOneSingle = ({ comment = {} }) => {
-  const { image, name, date, text } = comment;
+  const { image, name, date, text, title } = comment;
 
   return (
     <div className="comment-one__single">
       <div className="comment-one__image">
-        <Image src={require(`src/assets/images/${image}`).default.src} alt="" />
+      <Image 
+        src={`/assets/images/${image}`} 
+        alt={title} 
+        width={300}  
+        height={200} 
+        unoptimized
+        style={{ width: '100%', height: 'auto' }}
+      />
       </div>
       <div className="comment-one__content">
         <h3>

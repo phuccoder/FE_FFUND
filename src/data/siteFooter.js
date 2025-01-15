@@ -1,6 +1,6 @@
-import bg from "@/images/footer-bg.jpg";
-import shape from "@/images/footer-shape.png";
-import logo from "@/images/logo-2.png";
+import bg from "../../public/assets/images/footer-bg.jpg";
+import shape from "../../public/assets/images/footer-shape.png";
+import logo from "../../public/assets/images/logo-2.png";
 
 export const socials2 = [
   {

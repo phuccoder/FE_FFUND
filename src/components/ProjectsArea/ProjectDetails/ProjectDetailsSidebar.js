@@ -1,6 +1,6 @@
 import { projectDetailsSidebar } from "@/data/projectsArea";
 import React from "react";
-import { Image } from "react-bootstrap";
+import Image from "next/image";
 
 const { info, perks } = projectDetailsSidebar;
 
