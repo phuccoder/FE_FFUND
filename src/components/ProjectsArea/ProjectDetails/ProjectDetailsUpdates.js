@@ -16,8 +16,6 @@ const ProjectDetailsUpdate = ({ update = {} }) => {
             <Image
               src={`/assets/images/${info.image}`}
               alt={info.name}
-              width={300}
-              height={200}
               unoptimized
               style={{ width: '100%', height: 'auto' }} 
               />
