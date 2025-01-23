@@ -18,8 +18,6 @@ const SidebarPostSingle = ({ post = {} }) => {
         <Image 
         src={`/assets/images/${image}`} 
         alt={'Awesome Image'} 
-        width={300}  
-        height={200} 
         unoptimized
         style={{ width: '100%', height: 'auto' }}
       />

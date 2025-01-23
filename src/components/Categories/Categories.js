@@ -20,16 +20,12 @@ const Categories = ({ tagline, title, text }) => {
                   <Image 
                     src="/assets/images/categories-user.jpg"
                     alt="categories user"
-                    width={100}  // Adjust based on your needs
-                    height={100} // Adjust based on your needs
                     unoptimized
                   />
                 </div>
                 <Image 
                   src="/assets/images/sign-in.jpg"
                   alt="sign in"
-                  width={100}  // Adjust based on your needs
-                  height={100} // Adjust based on your needs
                   unoptimized
                 />
               </div>

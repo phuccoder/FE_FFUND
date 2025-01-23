@@ -19,8 +19,6 @@ const TestimonialsBox = ({ testimonial = {} }) => {
             <Image
               src={`/assets/images/${image}`}
               alt={name}
-              width="100%"
-              height="100%"
               unoptimized
             />
             <div className="quote">

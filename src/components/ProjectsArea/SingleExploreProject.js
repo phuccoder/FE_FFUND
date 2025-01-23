@@ -10,8 +10,6 @@ const SingleExploreProject = ({ project = {} }) => {
       <Image
         src={`/assets/images/${image}`}
         alt={title}
-        width={300}
-        height={200}
         unoptimized
         style={{ width: '100%', height: 'auto' }}
       />

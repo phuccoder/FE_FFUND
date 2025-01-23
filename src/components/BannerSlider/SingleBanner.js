@@ -68,8 +68,6 @@ const SingleBanner = ({
           <Image 
             src={`/assets/images/${banner}`}
             alt="banner"
-            width={500}
-            height={300}
             unoptimized
           />
         </div>
@@ -80,8 +78,6 @@ const SingleBanner = ({
             <Image 
               src={`/assets/images/${banner}`}
               alt="banner"
-              width={500}
-              height={300}
               unoptimized
             />
           </div>
@@ -89,8 +85,6 @@ const SingleBanner = ({
             <Image 
               src={`/assets/images/${banner1}`}
               alt="banner line 1"
-              width={500}
-              height={300}
               unoptimized
             />
           </div>
@@ -98,8 +92,6 @@ const SingleBanner = ({
             <Image 
               src={`/assets/images/${banner2}`}
               alt="banner line 2"
-              width={500}
-              height={300}
               unoptimized
             />
           </div>
