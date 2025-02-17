@@ -26,7 +26,7 @@ const FaqTitleArea = () => {
                       name="search"
                     />
                     <button>
-                      <SearchIcon color="#674df0" />
+                      <SearchIcon color="#FC914e" />
                     </button>
                   </form>
                 </Col>

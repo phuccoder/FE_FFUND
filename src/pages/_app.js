@@ -9,7 +9,8 @@ import "react-modal-video/css/modal-video.css";
 // extra css
 import "@/styles/default.css";
 import "@/styles/style.css";
-
+import '@/styles/tailwind.css';
+import 'react-toastify/dist/ReactToastify.css';
 const MyApp = ({ Component, pageProps }) => {
   return (
     <ContextProvider>
