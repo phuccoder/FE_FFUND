@@ -112,7 +112,7 @@ const Authenticate = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                   <input
                     type="password"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                     placeholder="Create a password"
                     value={googleSetupData.password}
                     onChange={(e) => setGoogleSetupData({ ...googleSetupData, password: e.target.value })}
@@ -124,7 +124,7 @@ const Authenticate = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
                   <input
                     type="password"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                     placeholder="Confirm your password"
                     value={googleSetupData.confirmPassword}
                     onChange={(e) => setGoogleSetupData({ ...googleSetupData, confirmPassword: e.target.value })}
@@ -168,7 +168,7 @@ const Authenticate = () => {
                                     {role.name}
                                   </span>
                                   {selected ? (
-                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-600">
+                                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-yellow-500">
                                       <CheckIcon className="h-5 w-5" aria-hidden="true" />
                                     </span>
                                   ) : null}
@@ -184,7 +184,7 @@ const Authenticate = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-indigo-400"
+                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-indigo-400"
                   disabled={isLoading}
                 >
                   {isLoading ? (

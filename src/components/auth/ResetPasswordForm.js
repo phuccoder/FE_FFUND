@@ -128,7 +128,7 @@ export const ResetPasswordForm = () => {
                 
                 <button
                   type="button"
-                  onClick={() => router.push('/login')}
+                  onClick={() => router.push('/login-register')}
                   className="w-full text-center text-yellow-500 hover:text-yellow-600"
                 >
                   Back to signin
