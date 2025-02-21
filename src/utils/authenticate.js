@@ -26,6 +26,10 @@ export const authenticate = {
       throw error;
     }
   },
+  logout: () => {
+    localStorage.removeItem('token');
+    window.location.href = '/login-register';
+  },
 
   initiateGoogleLogin: () => {
     const targetUrl = `${GOOGLE_AUTH_URL}?redirect_uri=${encodeURIComponent(
