@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { authenticate } from '@/utils/authenticate';
 import { ToastContainer, toast } from 'react-toastify';
 import { Listbox, Transition } from '@headlessui/react';
-import { CheckIcon, ChevronUpDownIcon } from 'lucide-react';
+import { CheckIcon, ChevronsUpDownIcon } from 'lucide-react';
 
 const roles = [
   { id: 1, name: 'Founder', value: 'FOUNDER' },
@@ -142,7 +142,7 @@ const Authenticate = () => {
                       <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-3 pl-4 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                         <span className="block truncate">{googleSetupData.role.name}</span>
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                          <ChevronsUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                         </span>
                       </Listbox.Button>
                       <Transition

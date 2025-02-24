@@ -3,10 +3,27 @@ import { useRootContext } from "@/context/context";
 import SearchIcon from "./SearchIcon";
 import Social from "./Social";
 import { ChevronDown, LogOut, User, FileText, Users, ClipboardList } from "lucide-react";
-import jwt_decode from "jwt-decode";
 import { authenticate } from "@/utils/authenticate";
 import Link from "../Reuseable/Link";
- 
+
+const MENU_ITEMS = {
+  FOUNDER: [
+    { label: 'Profile', icon: User, href: '/profile' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
+    { label: 'Manage Project', icon: FileText, href: '/project-management' },
+    { label: 'Manage Team', icon: Users, href: '/team' }
+  ],
+  INVESTOR: [
+    { label: 'Profile', icon: User, href: '/profile' },
+    { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
+  ],
+  // Add fallback just in case
+  DEFAULT: [
+    { label: 'Profile', icon: User, href: '/profile' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/requests' }
+  ]
+};
 
 const HeaderInfo = ({ socials, searchColor }) => {
   const { toggleMenu, toggleSearch } = useRootContext();
@@ -15,40 +32,89 @@ const HeaderInfo = ({ socials, searchColor }) => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwt_decode(token);
+    const checkAuthStatus = () => {
+      const token = localStorage.getItem('accessToken');
+      const role = localStorage.getItem('role');
+      
+      console.log('Retrieved from localStorage - Role:', role);
+      
+      if (token && role) {
         setIsLoggedIn(true);
-        setUserRole(decoded.role);
-      } catch (error) {
-        console.error('Token decode error:', error);
-        localStorage.removeItem('token');
+        setUserRole(role);
+      } else {
+        setIsLoggedIn(false);
+        setUserRole(null);
       }
-    }
+    };
+
+    // Run immediately on mount
+    checkAuthStatus();
+    
+    // Add storage event listener
+    window.addEventListener('storage', checkAuthStatus);
+    
+    // Also add a regular check to handle edge cases
+    const interval = setInterval(checkAuthStatus, 2000);
+    
+    return () => {
+      window.removeEventListener('storage', checkAuthStatus);
+      clearInterval(interval);
+    };
   }, []);
 
-  const menuItems = {
-    FOUNDER: [
-      { label: 'Profile', icon: User, href: '/profile' },
-      { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
-      { label: 'Request/Report', icon: ClipboardList, href: '/requests' }
-    ],
-    INVESTOR: [
-      { label: 'Profile', icon: User, href: '/profile' },
-      { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
-      { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
-      { label: 'Team Management', icon: Users, href: '/team' }
-    ]
+  // Log when userRole changes (useful for debugging)
+  useEffect(() => {
+    console.log('Current userRole state:', userRole);
+  }, [userRole]);
+
+  const handleLogout = async () => {
+    try {
+      await authenticate.logout();
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('role');
+      setIsLoggedIn(false);
+      setUserRole(null);
+      setShowDropdown(false);
+      window.dispatchEvent(new Event('storage'));
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Function to determine which menu items to show
+  const getMenuItems = () => {
+    if (!userRole) {
+      return MENU_ITEMS.DEFAULT;
+    }
+    
+    // Check if the exact role exists in our MENU_ITEMS
+    if (MENU_ITEMS[userRole]) {
+      return MENU_ITEMS[userRole];
+    }
+    
+    // Alternative: the role might be in the format "ROLE_FOUNDER", so check for that
+    const roleWithoutPrefix = userRole.replace('ROLE_', '');
+    if (MENU_ITEMS[roleWithoutPrefix]) {
+      return MENU_ITEMS[roleWithoutPrefix];
+    }
+    
+    // Fallback to default menu
+    return MENU_ITEMS.DEFAULT;
   };
 
   return (
     <div className="header-info d-flex align-items-center">
       {socials && <Social socials={socials} />}
+      
       <div className="search d-none d-lg-block">
-        <a className="cursor-pointer" onClick={toggleSearch}>
+        <button 
+          className="cursor-pointer bg-transparent border-0" 
+          onClick={toggleSearch}
+          aria-label="Search"
+        >
           <SearchIcon color={searchColor} />
-        </a>
+        </button>
       </div>
 
       {isLoggedIn ? (
@@ -56,29 +122,36 @@ const HeaderInfo = ({ socials, searchColor }) => {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center space-x-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+            aria-expanded={showDropdown}
+            aria-label="User menu"
           >
             <User size={20} />
             <ChevronDown size={16} />
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-              {menuItems[userRole]?.map((item, index) => {
+            <div 
+              className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+              role="menu"
+            >
+              {getMenuItems().map((item, index) => {
                 const ItemIcon = item.icon;
                 return (
-                  <a
+                  <Link
                     key={index}
                     href={item.href}
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    role="menuitem"
                   >
                     <ItemIcon size={16} className="mr-2" />
                     {item.label}
-                  </a>
+                  </Link>
                 );
               })}
               <button
-                onClick={authenticate.logout}
+                onClick={handleLogout}
                 className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                role="menuitem"
               >
                 <LogOut size={16} className="mr-2" />
                 Logout
@@ -94,12 +167,13 @@ const HeaderInfo = ({ socials, searchColor }) => {
         </div>
       )}
 
-      <div
+      <button
         onClick={toggleMenu}
-        className="toggle-btn ml-30 canvas_open d-lg-none d-block"
+        className="toggle-btn ml-30 canvas_open d-lg-none d-block bg-transparent border-0"
+        aria-label="Toggle menu"
       >
         <i className="fa fa-bars"></i>
-      </div>
+      </button>
     </div>
   );
 };
