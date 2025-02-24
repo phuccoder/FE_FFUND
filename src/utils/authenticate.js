@@ -5,6 +5,27 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth';
 const GOOGLE_CLIENT_ID = '304094440461-in6615ihk31rar586rh7nndp19ojoi2h.apps.googleusercontent.com';
 const CALLBACK_URL = 'http://localhost:3000/authenticate';
 
+const authenticatedFetch = async (url, options = {}) => {
+  const token = await tokenManager.getValidToken();
+  
+  if (!token) {
+    // Redirect to login if we can't get a valid token
+    window.location.href = '/login-register';
+    throw new Error('Authentication required');
+  }
+  
+  // Clone the options to avoid mutating the original
+  const authOptions = { ...options };
+  
+  // Set headers with authorization
+  authOptions.headers = {
+    ...authOptions.headers,
+    'Authorization': `Bearer ${token}`
+  };
+  
+  return fetch(url, authOptions);
+};
+
 export const authenticate = {
   login: async (formData) => {
     try {
@@ -14,6 +35,7 @@ export const authenticate = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(formData),
+        
       });
       
       if (!response.ok) {
@@ -25,10 +47,6 @@ export const authenticate = {
       console.error('Login error:', error);
       throw error;
     }
-  },
-  logout: () => {
-    localStorage.removeItem('token');
-    window.location.href = '/login-register';
   },
 
   initiateGoogleLogin: () => {
@@ -93,5 +111,26 @@ export const authenticate = {
       console.error('Setup error:', error);
       throw error;
     }
-  }
+  },
+   // Refresh the authentication token
+   refreshToken: (refreshData) => {
+    return fetch(`${API_BASE_URL}/api/auth/refreshToken`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(refreshData)
+    });
+  },
+  
+  // Check if user is authenticated
+  isAuthenticated: async () => {
+    return await tokenManager.getValidToken() !== null;
+  },
+  logout: () => {
+    localStorage.removeItem('token');
+    window.location.href = '/login-register';
+  },
+  
+  getAuthenticatedFetch: () => authenticatedFetch
 };

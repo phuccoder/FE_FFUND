@@ -2,46 +2,72 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { ToastContainer, toast } from 'react-toastify';
-import Link from 'next/link';
-import Image from 'next/image';
-import { authenticate } from '@/utils/authenticate';
 import 'react-toastify/dist/ReactToastify.css';
+import { authenticate } from '@/utils/authenticate';
 
 export const LoginForm = () => {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+  
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     rememberMe: false,
   });
+  
   const [googleSetupData, setGoogleSetupData] = useState({
     password: '',
     confirmPassword: '',
     role: '',
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [showGoogleSetup, setShowGoogleSetup] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const showGoogleSetupParam = urlParams.get('showGoogleSetup');
-    if (showGoogleSetupParam) {
-      setShowGoogleSetup(true);
-    }
+    setShowGoogleSetup(urlParams.has('showGoogleSetup'));
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    
     try {
-      await authenticate.login(formData);
-      router.push('/');
+      const response = await authenticate.login(formData);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+      
+      handleAuthSuccess(data.data); // Access the data property of the response
     } catch (error) {
-      toast.error('Login failed');
+      toast.error(error.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  const handleAuthSuccess = (data) => {
+    console.log('Auth success:', data); // Add logging
+    
+    // Make sure we're accessing the correct properties
+    if (!data || !data.accessToken || !data.role) {
+      console.error('Invalid auth data:', data);
+      toast.error('Login successful but received invalid data');
+      return;
+    }
+    
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('role', data.role); // Store role in localStorage
+    
+    // For debugging - verify role was stored correctly
+    console.log('Role stored in localStorage:', data.role);
+    console.log('Verifying localStorage value:', localStorage.getItem('role'));
+    
+    window.dispatchEvent(new Event('storage'));
+    router.push('/');
   };
 
   const handleGoogleLogin = () => {
@@ -57,16 +83,23 @@ export const LoginForm = () => {
 
     setIsLoading(true);
     try {
-      await authenticate.completeGoogleSetup(googleSetupData);
+      const response = await authenticate.completeGoogleSetup(googleSetupData);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Setup failed');
+      }
+      
       toast.success('Account setup complete');
-      router.push('/');
+      handleAuthSuccess(data.data); // Access the data property of the response
     } catch (error) {
-      toast.error('Failed to complete account setup');
+      toast.error(error.message || 'Failed to complete account setup');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Rest of your code remains the same...
   if (showGoogleSetup) {
     return (
       <div className="flex min-h-screen bg-orange-100 p-10">
@@ -76,8 +109,11 @@ export const LoginForm = () => {
               <h2 className="text-2xl font-bold mb-6 text-center">Complete Your Google Account Setup</h2>
               <form onSubmit={handleGoogleSetupSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
+                    Password
+                  </label>
                   <input
+                    id="password"
                     type="password"
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                     placeholder="Create a password"
@@ -88,8 +124,11 @@ export const LoginForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="confirmPassword">
+                    Confirm Password
+                  </label>
                   <input
+                    id="confirmPassword"
                     type="password"
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                     placeholder="Confirm your password"
@@ -100,14 +139,17 @@ export const LoginForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="role">
+                    Select Role
+                  </label>
                   <select
+                    id="role"
                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                     value={googleSetupData.role}
                     onChange={(e) => setGoogleSetupData({ ...googleSetupData, role: e.target.value })}
                     required
                   >
-                    <option value="" disabled>Select a role</option>
+                    <option value="">Select a role</option>
                     <option value="FOUNDER">Founder</option>
                     <option value="INVESTOR">Investor</option>
                   </select>
@@ -142,8 +184,11 @@ export const LoginForm = () => {
           <div className="max-w-md mx-auto">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="email">
+                  Email
+                </label>
                 <input
+                  id="email"
                   type="email"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Enter your email"
@@ -154,8 +199,11 @@ export const LoginForm = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
+                  Password
+                </label>
                 <input
+                  id="password"
                   type="password"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="••••••••"
@@ -168,12 +216,15 @@ export const LoginForm = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <input
+                    id="rememberMe"
                     type="checkbox"
                     className="h-4 w-4 text-orange-600 focus:ring-yellow-500 border-gray-300 rounded"
                     checked={formData.rememberMe}
                     onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
                   />
-                  <label className="ml-2 text-sm text-gray-600">Remember for 30 days</label>
+                  <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-600">
+                    Remember for 30 days
+                  </label>
                 </div>
                 <button
                   type="button"

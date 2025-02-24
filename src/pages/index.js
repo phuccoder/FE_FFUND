@@ -21,7 +21,6 @@ const Home = () => {
     <Layout>
       <Header />
       <BannerSlider />
-      <SuperstarsArea />
       <CtaArea />
       <ProjectsArea />
       <WhyChoose />

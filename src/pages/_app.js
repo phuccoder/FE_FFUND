@@ -11,10 +11,13 @@ import "@/styles/default.css";
 import "@/styles/style.css";
 import '@/styles/tailwind.css';
 import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from "@/context/AuthContext";
 const MyApp = ({ Component, pageProps }) => {
   return (
     <ContextProvider>
+      <AuthProvider>
       <Component {...pageProps} />
+      </AuthProvider>
     </ContextProvider>
   );
 };
