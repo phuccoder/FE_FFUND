@@ -25,7 +25,6 @@ function Login() {
         setLoading(true);
 
         try {
-            console.log("🔄 Sending request with:", loginObj);
 
             const response = await fetch("http://localhost:8080/api/v1/auth/login", {
                 method: "POST",
@@ -42,8 +41,6 @@ function Login() {
             }
 
             const data = await response.json();
-
-            console.log("✅ Response received:", data);
 
             const { accessToken, refreshToken, role } = data.data; 
 
@@ -62,7 +59,6 @@ function Login() {
             navigate('/app/welcome');
 
         } catch (error) {
-            console.log("❌ Login error:", error);
             setErrorMessage(error.message || "An error occurred. Please try again.");
         } finally {
             setLoading(false);

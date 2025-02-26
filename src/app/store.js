@@ -4,6 +4,7 @@ import modalSlice from '../features/common/modalSlice'
 import rightDrawerSlice from '../features/common/rightDrawerSlice'
 import leadsSlice from '../features/leads/leadSlice'
 import categorySlice from '../features/category/categorySlice'
+import userSlice from '../features/userManger/userSlice'
 
 const combinedReducer = {
   header: headerSlice,
@@ -11,6 +12,8 @@ const combinedReducer = {
   modal: modalSlice,
   lead: leadsSlice,
   category: categorySlice,
+  user: userSlice,
+
 }
 
 export default configureStore({
