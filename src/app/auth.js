@@ -5,7 +5,7 @@ const checkAuth = async () => {
     const refreshToken = localStorage.getItem("refreshToken");
     const userRole = localStorage.getItem("role");
 
-    const PUBLIC_ROUTES = ["login", "forgot-password", "register", "documentation"];
+    const PUBLIC_ROUTES = ["login", "forgot-password", "auth/reset-password", "register", "documentation"];
     const isPublicPage = PUBLIC_ROUTES.some(r => window.location.href.includes(r));
 
     if (!accessToken && !isPublicPage) {

@@ -13,14 +13,17 @@ function ResetPassword() {
 
     // Lấy token từ query string
     useEffect(() => {
+    
         const params = new URLSearchParams(location.search);
         const tokenFromURL = params.get('token');
+    
         if (tokenFromURL) {
             setToken(tokenFromURL);
         } else {
             setErrorMessage('Invalid or expired link');
         }
     }, [location.search]);
+    
 
     const handleSubmit = async (e) => {
         e.preventDefault();

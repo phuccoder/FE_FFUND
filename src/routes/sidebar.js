@@ -11,7 +11,6 @@ import DocumentTextIcon from '@heroicons/react/24/outline/DocumentTextIcon'
 import CodeBracketSquareIcon from '@heroicons/react/24/outline/CodeBracketSquareIcon'
 import UsersIcon from '@heroicons/react/24/outline/UsersIcon'
 import WalletIcon from '@heroicons/react/24/outline/WalletIcon'
-import KeyIcon from '@heroicons/react/24/outline/KeyIcon'
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon'
 import ArrowRightOnRectangleIcon from '@heroicons/react/24/outline/ArrowRightOnRectangleIcon'
 import UserIcon from '@heroicons/react/24/outline/UserIcon'
@@ -65,16 +64,6 @@ const routes = [
         path: '/login',
         icon: <ArrowRightOnRectangleIcon className={submenuIconClasses}/>,
         name: 'Login',
-      },
-      {
-        path: '/reset-password',
-        icon: <KeyIcon className={submenuIconClasses}/>,
-        name: 'Reset Password',
-      },
-      {
-        path: '/forgot-password',
-        icon: <KeyIcon className={submenuIconClasses}/>,
-        name: 'Forgot Password',
       },
       {
         path: '/app/blank',
