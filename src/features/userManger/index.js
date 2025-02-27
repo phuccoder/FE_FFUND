@@ -1,19 +1,54 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getUsersContent } from './userSlice';
-import { PlusIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Sử dụng MagnifyingGlassIcon
+import { getUsersContent, banUser, unbanUser } from './userSlice'; // Import các actions
+import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 
 const UserManager = () => {
   const dispatch = useDispatch();
   const { users, error, status } = useSelector(state => state.user || { users: [], error: null, status: 'idle' });
 
   const [name, setName] = useState('');
-  const [sortField, setSortField] = useState('id'); 
+  const [sortField, setSortField] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [openDropdown, setOpenDropdown] = useState(null); // Trạng thái để mở/đóng dropdown
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false); // Trạng thái cho modal xác nhận
+  const [userToConfirm, setUserToConfirm] = useState(null); // Người dùng cần xác nhận ban/unban
 
   // Hàm ban user
   const handleBanUser = (userId) => {
-    console.log(`User with ID ${userId} has been banned`);
+    setUserToConfirm(userId);
+    setIsConfirmOpen(true);
+    setOpenDropdown(null);
+  };
+
+  // Hàm unban user
+  const handleUnbanUser = (userId) => {
+    setUserToConfirm(userId);
+    setIsConfirmOpen(true);
+    setOpenDropdown(null);
+  };
+
+  // Xử lý xác nhận ban/unban
+  const confirmBanUnban = () => {
+    if (userToConfirm) {
+      if (users.find(user => user.id === userToConfirm).isBanned) {
+        dispatch(unbanUser(userToConfirm)).then(() => {
+          // Sau khi unban thành công, lấy lại danh sách người dùng
+          dispatch(getUsersContent({ name, sortField, sortOrder }));
+        });
+      } else {
+        dispatch(banUser(userToConfirm)).then(() => {
+          // Sau khi ban thành công, lấy lại danh sách người dùng
+          dispatch(getUsersContent({ name, sortField, sortOrder }));
+        });
+      }
+    }
+    setIsConfirmOpen(false); // Đóng modal sau khi xác nhận
+  };
+
+  // Mở hoặc đóng dropdown
+  const toggleDropdown = (userId) => {
+    setOpenDropdown(openDropdown === userId ? null : userId);
   };
 
   // Giữ lại giá trị name và chỉ gửi yêu cầu khi nhấn Enter hoặc khi nhấn nút search
@@ -28,10 +63,6 @@ const UserManager = () => {
     }
   };
 
-  useEffect(() => {
-    // Lúc này sẽ không gọi API mỗi lần nhập, mà chỉ khi nhấn Enter hoặc nhấn nút Search
-  }, [dispatch, name, sortField, sortOrder]);
-
   if (status === 'loading') {
     return <div>Loading...</div>;
   }
@@ -43,19 +74,6 @@ const UserManager = () => {
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4">
       <div className="max-w-7xl mx-auto bg-white shadow-lg rounded-lg p-8">
-        {/* Nút Create New User */}
-        <div className="mb-6 text-right relative group">
-          <button
-            onClick={() => {/* Mở modal tạo người dùng */}}
-            className="bg-orange-500 text-white p-3 rounded-full hover:bg-orange-700 transition duration-200"
-          >
-            <PlusIcon className="w-5 h-5 inline-block" />
-          </button>
-          <span className="absolute left-1/2 transform -translate-x-1/2 top-12 text-sm text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            Add new User
-          </span>
-        </div>
-
         {/* Tìm kiếm và Sắp xếp */}
         <div className="mb-6 flex items-center">
           <input
@@ -107,7 +125,7 @@ const UserManager = () => {
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Telephone Number</th>
                 <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Actions</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -127,11 +145,38 @@ const UserManager = () => {
                   <td className="px-4 py-2 text-sm text-gray-600">{user.roles}</td>
                   <td className="px-4 py-2 text-sm text-center">
                     <button
-                      onClick={() => handleBanUser(user.id)}  // Gọi hàm ban user
-                      className="bg-red-500 text-white px-3 py-1 rounded-full hover:bg-red-700 transition duration-200"
+                      onClick={() => toggleDropdown(user.id)} // Mở dropdown
+                      className="bg-orange-500 text-white px-3 py-1 rounded-full hover:bg-orange-700 transition duration-200"
                     >
-                      <XMarkIcon className="w-5 h-5 inline-block" />
+                      <EllipsisHorizontalIcon className="w-5 h-5 inline-block" />
                     </button>
+
+                    {/* Dropdown menu */}
+                    {openDropdown === user.id && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-10">
+                        <ul className="py-1">
+                          {!user.isBanned ? (
+                            <li>
+                              <button
+                                onClick={() => handleBanUser(user.id)} // Ban user
+                                className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                Ban User
+                              </button>
+                            </li>
+                          ) : (
+                            <li>
+                              <button
+                                onClick={() => handleUnbanUser(user.id)} // Unban user
+                                className="block px-4 py-2 text-sm text-green-600 hover:bg-gray-100"
+                              >
+                                Unban User
+                              </button>
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )) : (
@@ -143,6 +188,31 @@ const UserManager = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal xác nhận ban/unban */}
+      {isConfirmOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white rounded-lg p-6 w-full sm:w-96 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
+              Are you sure you want to {users.find(user => user.id === userToConfirm)?.isBanned ? 'unban' : 'ban'} this user?
+            </h3>
+            <div className="flex justify-around mt-4">
+              <button
+                onClick={confirmBanUnban}
+                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition duration-200 w-24"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setIsConfirmOpen(false)}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition duration-200 w-24"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
