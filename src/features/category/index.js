@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCategoriesContent, deleteCategory, updateCategory, createCategory } from './categorySlice';
 import { PlusIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline'; // Thêm EllipsisHorizontalIcon
+import { toast } from 'react-toastify'; // Import toast
 
 function Categories() {
   const dispatch = useDispatch();
@@ -15,8 +16,6 @@ function Categories() {
     categoryDescription: '',
     subCategories: [{ subCategoryName: '', subCategoryDescription: '' }]
   });
-  const [message, setMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null); // Trạng thái để mở/đóng dropdown
@@ -29,14 +28,12 @@ function Categories() {
     if (categoryToDelete) {
       dispatch(deleteCategory(categoryToDelete.id))
         .then(() => {
-          setMessage('Category deleted successfully!');
-          setTimeout(() => setMessage(''), 3000);
+          toast.success('Category deleted successfully!');
           setIsDeleteConfirmOpen(false);
           setCategoryToDelete(null);
         })
         .catch((error) => {
-          setMessage('Error deleting category');
-          setTimeout(() => setMessage(''), 3000);
+          toast.error('Error deleting category');
         });
     }
   };
@@ -48,24 +45,22 @@ function Categories() {
       const categoryExists = categories.some(category => category.categoryName.toLowerCase() === categoryForm.categoryName.toLowerCase());
 
       if (categoryExists) {
-        setErrorMessage("Category already exists.");
+        toast.error("Category already exists.");
         return;
       }
     }
 
     dispatch(action(categoryForm))
       .then(() => {
-        setMessage(isEdit ? 'Category updated successfully!' : 'Category created successfully!');
+        toast.success(isEdit ? 'Category updated successfully!' : 'Category created successfully!');
         resetForm();
-        setTimeout(() => setMessage(''), 3000);
       })
       .catch((error) => {
         if (error?.response?.data?.error === "Category already exists.") {
-          setErrorMessage("Category already exists.");
+          toast.error("Category already exists.");
         } else {
-          setErrorMessage("An error occurred. Please try again.");
+          toast.error("An error occurred. Please try again.");
         }
-        setTimeout(() => setErrorMessage(''), 3000);
       });
   };
 
@@ -149,13 +144,6 @@ function Categories() {
             Add new Category
           </span>
         </div>
-
-        {message && !isCreateModalOpen && (
-          <div className={`p-4 mb-4 fixed top-20 left-1/2 transform -translate-x-1/2 rounded-lg text-center 
-            ${message.includes('Error') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}`}>
-            {message}
-          </div>
-        )}
 
         <div className="overflow-x-auto">
           <table className="table-auto w-full bg-white shadow-md rounded-lg">
@@ -249,12 +237,6 @@ function Categories() {
                 placeholder="Enter Category Name"
               />
             </div>
-
-            {errorMessage && (
-              <div className="p-4 mb-4 bg-yellow-200 text-yellow-800 rounded-lg text-center">
-                {errorMessage}
-              </div>
-            )}
 
             <div className="mb-4">
               <label htmlFor="categoryDescription" className="block text-sm text-gray-700">Category Description</label>
