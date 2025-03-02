@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getUsersContent, banUser, unbanUser } from './userSlice'; // Import các actions
+import { getUsersContent, banUser, unbanUser, setUsers } from './userSlice'; // Import setUsers
 import { MagnifyingGlassIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-toastify';
 
 const UserManager = () => {
   const dispatch = useDispatch();
-  const { users, error, status } = useSelector(state => state.user || { users: [], error: null, status: 'idle' });
+  const { users, error, status, totalPages } = useSelector(state => state.user || { users: [], error: null, status: 'idle' });
 
   const [name, setName] = useState('');
   const [sortField, setSortField] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [openDropdown, setOpenDropdown] = useState(null); // Trạng thái để mở/đóng dropdown
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false); // Trạng thái cho modal xác nhận
-  const [userToConfirm, setUserToConfirm] = useState(null); // Người dùng cần xác nhận ban/unban
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [userToConfirm, setUserToConfirm] = useState(null);
+
+  // Fetch dữ liệu khi component mount hoặc khi currentPage thay đổi
+  useEffect(() => {
+    dispatch(getUsersContent({ name, page: currentPage, sortField, sortOrder }));
+  }, [dispatch, name, currentPage, sortField, sortOrder]);
 
   // Hàm ban user
   const handleBanUser = (userId) => {
@@ -31,19 +38,29 @@ const UserManager = () => {
   // Xử lý xác nhận ban/unban
   const confirmBanUnban = () => {
     if (userToConfirm) {
-      if (users.find(user => user.id === userToConfirm).isBanned) {
-        dispatch(unbanUser(userToConfirm)).then(() => {
-          // Sau khi unban thành công, lấy lại danh sách người dùng
-          dispatch(getUsersContent({ name, sortField, sortOrder }));
+      const user = users.find(u => u.id === userToConfirm);
+      if (user.isBanned) {
+        dispatch(unbanUser(userToConfirm)).then((result) => {
+          if (!result.error) {
+            toast.success('User unbanned successfully!');
+            // Cập nhật trạng thái ngay lập tức
+            const updatedUsers = users.map(u => u.id === userToConfirm ? { ...u, isBanned: false } : u);
+            dispatch(setUsers(updatedUsers));  // Cập nhật danh sách người dùng
+            setIsConfirmOpen(false);
+          }
         });
       } else {
-        dispatch(banUser(userToConfirm)).then(() => {
-          // Sau khi ban thành công, lấy lại danh sách người dùng
-          dispatch(getUsersContent({ name, sortField, sortOrder }));
+        dispatch(banUser(userToConfirm)).then((result) => {
+          if (!result.error) {
+            toast.success('User banned successfully!');
+            // Cập nhật trạng thái ngay lập tức
+            const updatedUsers = users.map(u => u.id === userToConfirm ? { ...u, isBanned: true } : u);
+            dispatch(setUsers(updatedUsers));  // Cập nhật danh sách người dùng
+            setIsConfirmOpen(false);
+          }
         });
       }
     }
-    setIsConfirmOpen(false); // Đóng modal sau khi xác nhận
   };
 
   // Mở hoặc đóng dropdown
@@ -53,7 +70,8 @@ const UserManager = () => {
 
   // Giữ lại giá trị name và chỉ gửi yêu cầu khi nhấn Enter hoặc khi nhấn nút search
   const handleSearch = () => {
-    dispatch(getUsersContent({ name, sortField, sortOrder }));
+    setCurrentPage(0);
+    dispatch(getUsersContent({ name, page: 0, sortField, sortOrder }));
   };
 
   // Giữ lại giá trị name và chỉ gửi yêu cầu khi nhấn Enter
@@ -67,6 +85,12 @@ const UserManager = () => {
     return <div>Loading...</div>;
   }
 
+  const handlePageChange = (newPage) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   if (status === 'failed') {
     return <div>Error: {error}</div>;
   }
@@ -75,7 +99,7 @@ const UserManager = () => {
     <div className="min-h-screen bg-gray-100 py-6 px-4">
       <div className="max-w-7xl mx-auto bg-white shadow-lg rounded-lg p-8">
         {/* Tìm kiếm và Sắp xếp */}
-        <div className="mb-6 flex items-center">
+        <div className="mb-6 flex items-center space-x-4">
           <input
             type="text"
             value={name}
@@ -87,7 +111,7 @@ const UserManager = () => {
           <select
             value={sortField}
             onChange={(e) => setSortField(e.target.value)}  // Chọn trường sắp xếp
-            className="ml-4 px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border rounded-lg"
           >
             <option value="id">ID</option>
             <option value="fullName">Full Name</option>
@@ -95,14 +119,14 @@ const UserManager = () => {
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}  // Chọn chiều sắp xếp
-            className="ml-4 px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border rounded-lg"
           >
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
           </select>
           <button
             onClick={handleSearch} // Gọi hàm search khi nhấn nút
-            className="ml-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-700 transition duration-200 relative group"
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-700 transition duration-200 relative group"
           >
             <MagnifyingGlassIcon className="w-5 h-5 inline-block" />
             <span className="absolute left-1/2 transform -translate-x-1/2 top-12 text-sm text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -155,25 +179,23 @@ const UserManager = () => {
                     {openDropdown === user.id && (
                       <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-10">
                         <ul className="py-1">
-                          {!user.isBanned ? (
-                            <li>
+                          <li>
+                            {user.isBanned ? (
                               <button
-                                onClick={() => handleBanUser(user.id)} // Ban user
-                                className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                              >
-                                Ban User
-                              </button>
-                            </li>
-                          ) : (
-                            <li>
-                              <button
-                                onClick={() => handleUnbanUser(user.id)} // Unban user
+                                onClick={() => handleUnbanUser(user.id)}
                                 className="block px-4 py-2 text-sm text-green-600 hover:bg-gray-100"
                               >
                                 Unban User
                               </button>
-                            </li>
-                          )}
+                            ) : (
+                              <button
+                                onClick={() => handleBanUser(user.id)}
+                                className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                Ban User
+                              </button>
+                            )}
+                          </li>
                         </ul>
                       </div>
                     )}
@@ -186,6 +208,13 @@ const UserManager = () => {
               )}
             </tbody>
           </table>
+        </div>
+        
+        {/* Phân trang */}
+        <div className="mt-4 flex justify-center space-x-4">
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 0} className="px-4 py-2 bg-gray-300 rounded-lg">Previous</button>
+          <span className="px-4 py-2">{currentPage + 1} / {totalPages}</span>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages - 1} className="px-4 py-2 bg-gray-300 rounded-lg">Next</button>
         </div>
       </div>
 

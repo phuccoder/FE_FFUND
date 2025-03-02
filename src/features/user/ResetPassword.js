@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';  // Import toast
 import ErrorText from '../../components/Typography/ErrorText';
 
 function ResetPassword() {
@@ -13,28 +14,53 @@ function ResetPassword() {
 
     // Lấy token từ query string
     useEffect(() => {
-    
         const params = new URLSearchParams(location.search);
         const tokenFromURL = params.get('token');
-    
+
         if (tokenFromURL) {
             setToken(tokenFromURL);
         } else {
             setErrorMessage('Invalid or expired link');
+            toast.error('Invalid or expired link', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: "colored",
+            });
         }
     }, [location.search]);
-    
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (newPassword !== confirmPassword) {
             setErrorMessage('Passwords do not match');
+            toast.error('Passwords do not match', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: "colored",
+            });
             return;
         }
 
         if (!token) {
             setErrorMessage('Invalid token');
+            toast.error('Invalid token', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: "colored",
+            });
             return;
         }
 
@@ -57,14 +83,41 @@ function ResetPassword() {
 
             if (response.status === 200) {
                 setErrorMessage('Password reset successful!');
+                toast.success('Password reset successful!', {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    theme: "colored",
+                });
                 setTimeout(() => {
                     navigate('/login');
                 }, 3000);
             } else {
                 setErrorMessage(data.message || 'An error occurred. Please try again.');
+                toast.error(data.message || 'An error occurred. Please try again.', {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                    theme: "colored",
+                });
             }
         } catch (error) {
             setErrorMessage('An error occurred. Please try again later.');
+            toast.error('An error occurred. Please try again later.', {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                theme: "colored",
+            });
         } finally {
             setLoading(false);
         }

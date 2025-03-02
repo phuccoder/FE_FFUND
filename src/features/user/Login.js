@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import ErrorText from '../../components/Typography/ErrorText';
+import { toast } from 'react-toastify';
 import InputText from '../../components/Input/InputText';
 
 function Login() {
@@ -12,20 +12,39 @@ function Login() {
     };
 
     const [loading, setLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
     const [loginObj, setLoginObj] = useState(INITIAL_LOGIN_OBJ);
 
     const submitForm = async (e) => {
         e.preventDefault();
-        setErrorMessage(""); 
 
-        if (loginObj.username.trim() === "") return setErrorMessage("Username is required!");
-        if (loginObj.password.trim() === "") return setErrorMessage("Password is required!");
+        if (loginObj.username.trim() === "") {
+            return toast.error("Username is required!", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored"
+            });
+        }
+        if (loginObj.password.trim() === "") {
+            return toast.error("Password is required!", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored"
+            });
+        }
 
         setLoading(true);
 
         try {
-
             const response = await fetch("http://localhost:8080/api/v1/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -36,13 +55,12 @@ function Login() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json(); // Get error details from response
+                const errorData = await response.json();
                 throw new Error(errorData.error || `Error: ${response.statusText}`);
             }
 
             const data = await response.json();
-
-            const { accessToken, refreshToken, role } = data.data; 
+            const { accessToken, refreshToken, role } = data.data;
 
             if (!accessToken) {
                 throw new Error("No access token received. Login failed!");
@@ -55,47 +73,49 @@ function Login() {
             localStorage.setItem("accessToken", accessToken);
             localStorage.setItem("refreshToken", refreshToken);
             localStorage.setItem("role", role);
-
-            navigate('/app/welcome');
-
+            
+            toast.success("Login successful!", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored"
+            });
+            setTimeout(() => navigate('/app/welcome'), 1500);
         } catch (error) {
-            setErrorMessage(error.message || "An error occurred. Please try again.");
+            toast.error(error.message || "An error occurred. Please try again.", {
+                position: "top-right",
+                autoClose: 3000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+                progress: undefined,
+                theme: "colored"
+            });
         } finally {
             setLoading(false);
         }
     };
 
     const updateFormValue = ({ updateType, value }) => {
-        setErrorMessage("");
         setLoginObj({ ...loginObj, [updateType]: value });
     };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-orange-500 to-yellow-400">
             <div className="card w-full max-w-4xl shadow-xl rounded-xl bg-white flex md:flex-row flex-col">
-                
-                {/* Phần video minh họa */}
                 <div className="md:w-1/2 hidden md:flex items-center justify-center bg-orange-100 rounded-l-xl overflow-hidden">
-                    <video 
-                        src="/login.mp4" 
-                        autoPlay 
-                        muted 
-                        loop 
-                        className="w-full h-full object-cover" 
-                    />
+                    <video src="/login.mp4" autoPlay muted loop className="w-full h-full object-cover" />
                 </div>
-
-                {/* Phần form login */}
                 <div className="md:w-1/2 w-full py-12 px-8">
                     <div className="text-center mb-4">
-                        <img 
-                            src="/signin.gif" 
-                            alt="Sign In Animation" 
-                            className="mx-auto mb-4 w-24 border-4 border-white rounded-full shadow-lg"
-                        />
+                        <img src="/signin.gif" alt="Sign In Animation" className="mx-auto mb-4 w-24 border-4 border-white rounded-full shadow-lg" />
                         <p className="text-center text-gray-600 mb-6">Welcome back! Please enter your credentials.</p>
                     </div>
-                    
                     <form onSubmit={submitForm}>
                         <div className="mb-5">
                             <InputText 
@@ -115,7 +135,6 @@ function Login() {
                                 updateFormValue={updateFormValue} 
                             />
                         </div>
-
                         <div className="text-right text-orange-600">
                             <Link to="/forgot-password">
                                 <span className="text-sm hover:underline cursor-pointer transition duration-200">
@@ -123,12 +142,9 @@ function Login() {
                                 </span>
                             </Link>
                         </div>
-
-                        <ErrorText styleClass="mt-4">{errorMessage}</ErrorText>
-
                         <button 
                             type="submit" 
-                            className={"btn mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-semibold transition duration-200" + (loading ? " loading" : "")}
+                            className={`btn mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-semibold transition duration-200 ${loading ? "loading" : ""}`}
                         >
                             {loading ? "Logging in..." : "Login"}
                         </button>
