@@ -12,11 +12,16 @@ import "@/styles/style.css";
 import '@/styles/tailwind.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { ToastContainer } from "react-toastify";
 const MyApp = ({ Component, pageProps }) => {
   return (
     <ContextProvider>
       <AuthProvider>
-      <Component {...pageProps} />
+        <NotificationProvider>
+          <ToastContainer />
+          <Component {...pageProps} />
+        </NotificationProvider>
       </AuthProvider>
     </ContextProvider>
   );
