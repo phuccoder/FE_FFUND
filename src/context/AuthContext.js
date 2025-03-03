@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authenticate } from '@/utils/authenticate';
+import { authenticate } from 'src/services/authenticate';
 import { tokenManager } from '@/utils/tokenManager';
 
 const AuthContext = createContext(null);

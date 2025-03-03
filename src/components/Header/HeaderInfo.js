@@ -2,26 +2,23 @@ import React, { useState, useEffect } from "react";
 import { useRootContext } from "@/context/context";
 import SearchIcon from "./SearchIcon";
 import Social from "./Social";
-import { ChevronDown, LogOut, User, FileText, Users, ClipboardList } from "lucide-react";
-import { authenticate } from "@/utils/authenticate";
+import { ChevronDown, LogOut, User, FileText, Users, ClipboardList, Mail, Bell } from "lucide-react";
+import { authenticate } from "src/services/authenticate";
 import Link from "../Reuseable/Link";
+import NotificationDropdown from "@/components/Notifications/NotificationDropdown";
 
 const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
     { label: 'Manage Project', icon: FileText, href: '/project-management' },
-    { label: 'Manage Team', icon: Users, href: '/team' }
+    { label: 'Manage Team', icon: Users, href: '/team-members' },
+    { label: 'Manage Invitation', icon: Mail, href: '/invitation' }
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
     { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
-  ],
-  // Add fallback just in case
-  DEFAULT: [
-    { label: 'Profile', icon: User, href: '/profile' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/requests' }
   ]
 };
 
@@ -30,6 +27,7 @@ const HeaderInfo = ({ socials, searchColor }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     const checkAuthStatus = () => {
@@ -53,12 +51,8 @@ const HeaderInfo = ({ socials, searchColor }) => {
     // Add storage event listener
     window.addEventListener('storage', checkAuthStatus);
     
-    // Also add a regular check to handle edge cases
-    const interval = setInterval(checkAuthStatus, 2000);
-    
     return () => {
       window.removeEventListener('storage', checkAuthStatus);
-      clearInterval(interval);
     };
   }, []);
 
@@ -85,7 +79,7 @@ const HeaderInfo = ({ socials, searchColor }) => {
   // Function to determine which menu items to show
   const getMenuItems = () => {
     if (!userRole) {
-      return MENU_ITEMS.DEFAULT;
+      return [];
     }
     
     // Check if the exact role exists in our MENU_ITEMS
@@ -99,8 +93,8 @@ const HeaderInfo = ({ socials, searchColor }) => {
       return MENU_ITEMS[roleWithoutPrefix];
     }
     
-    // Fallback to default menu
-    return MENU_ITEMS.DEFAULT;
+    // Fallback to an empty array if no matching role is found
+    return [];
   };
 
   return (
@@ -118,47 +112,54 @@ const HeaderInfo = ({ socials, searchColor }) => {
       </div>
 
       {isLoggedIn ? (
-        <div className="info d-none d-sm-block relative">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center space-x-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
-            aria-expanded={showDropdown}
-            aria-label="User menu"
-          >
-            <User size={20} />
-            <ChevronDown size={16} />
-          </button>
+        <>
+          {/* Notification Dropdown */}
+          <div className="notification-dropdown d-none d-sm-block ml-15">
+            <NotificationDropdown />
+          </div>
 
-          {showDropdown && (
-            <div 
-              className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
-              role="menu"
+          <div className="info d-none d-sm-block relative">
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="flex items-center space-x-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+              aria-expanded={showDropdown}
+              aria-label="User menu"
             >
-              {getMenuItems().map((item, index) => {
-                const ItemIcon = item.icon;
-                return (
-                  <Link
-                    key={index}
-                    href={item.href}
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    role="menuitem"
-                  >
-                    <ItemIcon size={16} className="mr-2" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <button
-                onClick={handleLogout}
-                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                role="menuitem"
+              <User size={20} />
+              <ChevronDown size={16} />
+            </button>
+
+            {showDropdown && (
+              <div 
+                className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50"
+                role="menu"
               >
-                <LogOut size={16} className="mr-2" />
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
+                {getMenuItems().map((item, index) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      role="menuitem"
+                    >
+                      <ItemIcon size={16} className="mr-2" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  role="menuitem"
+                >
+                  <LogOut size={16} className="mr-2" />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <div className="info d-none d-sm-block">
           <Link href="/login-register" className="text-gray-700 hover:text-gray-900">

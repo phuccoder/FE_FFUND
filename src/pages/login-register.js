@@ -4,6 +4,7 @@ import { RegisterForm } from '@/components/auth/RegisterForm';
 import Layout from '@/components/Layout/Layout';
 import Header from '@/components/Header/Header';
 import Image from 'next/image';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('login');
@@ -22,14 +23,15 @@ export default function AuthPage() {
       <div className="min-h-screen min-w-full bg-gray-100 flex items-center justify-center p-2">
         <div className="bg-white rounded-lg shadow-md w-full max-w-full flex overflow-hidden">
           {/* Left side with illustration */}
-          <div className="hidden md:flex md:w-1/2 bg-yellow-500 p-12 flex-col justify-between">
-            <div className="relative">
-              <Image 
-                src="/api/placeholder/300/200" 
-                alt="Illustration" 
-                className="mx-auto"
-                width={300}
-                height={200}
+          <div className="hidden md:flex md:w-1/2 bg-yellow-500 flex-col justify-center items-center">
+            <div className="flex justify-center items-center w-full h-full">
+              <DotLottieReact
+                src="https://lottie.host/7faa2db2-5024-43ed-b5b1-b50a3d408a2f/lSRyqte73w.lottie"
+                background="transparent" 
+                speed="1" 
+                className="w-4/5 h-4/5 max-w-2xl"
+                loop 
+                autoplay
               />
             </div>
           </div>

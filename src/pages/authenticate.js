@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useRouter } from 'next/router';
-import { authenticate } from '@/utils/authenticate';
+import { authenticate } from 'src/services/authenticate';
 import { ToastContainer, toast } from 'react-toastify';
 import { Listbox, Transition } from '@headlessui/react';
 import { CheckIcon, ChevronsUpDownIcon } from 'lucide-react';
+
+// Add this debug function to make it easier to enable/disable logs
+const debug = {
+  log: (...args) => console.log('[Auth Debug]', ...args),
+  error: (...args) => console.error('[Auth Error]', ...args),
+};
 
 const roles = [
   { id: 1, name: 'Founder', value: 'FOUNDER' },
@@ -47,25 +53,43 @@ const Authenticate = () => {
       }
 
       try {
-        const response = await authenticate.handleGoogleCallback(code);
+        debug.log('Google authentication flow starting with code:', code);
         
-        if (response.ok) {
-          const data = await response.json();
+        // Patch the handleGoogleCallback function to log request details
+        const originalHandleGoogleCallback = authenticate.handleGoogleCallback;
+        authenticate.handleGoogleCallback = async (code) => {
+          debug.log('Google auth request details:', {
+            code: code,
+            codeLength: code.length,
+            url: `${window.location.origin}/api/v1/auth/outbound/google/authentication?code=${encodeURIComponent(code)}`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: '{}'  // Empty JSON object for POST request
+          });
           
-          localStorage.setItem('token', data.data.accessToken);
-          localStorage.setItem('refreshToken', data.data.refreshToken);
+          // Call original function
+          return originalHandleGoogleCallback(code);
+        };
+        
+        const data = await authenticate.handleGoogleCallback(code);
+        debug.log('Google auth response:', data);
+        
+        localStorage.setItem('accessToken', data.data.accessToken);
+        localStorage.setItem('refreshToken', data.data.refreshToken);
+        localStorage.setItem('role', data.data.role);
 
-          if (data.data.role === 'UNKNOWN') {
-            router.push('/login-register?showGoogleSetup=true');
-          } else {
-            toast.success('Successfully logged in');
-            router.push('/');
-          }
+        if (data.data.role === 'UNKNOWN') {
+          router.push('/login-register?showGoogleSetup=true');
         } else {
-          throw new Error('Authentication failed');
+          toast.success('Successfully logged in');
+          window.dispatchEvent(new Event('storage'));
+          router.push('/');
         }
       } catch (error) {
-        console.error('Google authentication error:', error);
+        debug.error('Google authentication error:', error);
         setError('Failed to complete authentication');
         toast.error('Authentication failed');
       } finally {
@@ -87,13 +111,24 @@ const Authenticate = () => {
 
     setIsLoading(true);
     try {
-      await authenticate.completeGoogleSetup({
+      const requestBody = {
         ...googleSetupData,
         role: googleSetupData.role.value
-      });
+      };
+      
+      debug.log('Google setup request body:', requestBody);
+      
+      const data = await authenticate.completeGoogleSetup(requestBody);
+      debug.log('Google setup response:', data);
+      
+      localStorage.setItem('accessToken', data.data.accessToken);
+      localStorage.setItem('refreshToken', data.data.refreshToken);
+      localStorage.setItem('role', data.data.role);
       toast.success('Account setup complete');
+      window.dispatchEvent(new Event('storage'));
       router.push('/');
     } catch (error) {
+      debug.error('Google setup error:', error);
       toast.error('Failed to complete account setup');
     } finally {
       setIsLoading(false);
@@ -102,7 +137,7 @@ const Authenticate = () => {
 
   if (showGoogleSetup) {
     return (
-      <div className="flex min-h-screen bg-purple-100 p-10">
+      <div className="flex min-h-screen bg-gray-100 p-10">
         <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="w-full p-6">
             <div className="max-w-md mx-auto">
@@ -139,7 +174,7 @@ const Authenticate = () => {
                     onChange={(role) => setGoogleSetupData({ ...googleSetupData, role })}
                   >
                     <div className="relative mt-1">
-                      <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-3 pl-4 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                      <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-3 pl-4 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
                         <span className="block truncate">{googleSetupData.role.name}</span>
                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                           <ChevronsUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -157,7 +192,7 @@ const Authenticate = () => {
                               key={role.id}
                               className={({ active }) =>
                                 `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                                  active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-900'
+                                  active ? 'bg-yellow-100 text-yellow-900' : 'text-gray-900'
                                 }`
                               }
                               value={role}
@@ -184,7 +219,7 @@ const Authenticate = () => {
 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-indigo-400"
+                  className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-yellow-400"
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -207,14 +242,14 @@ const Authenticate = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-purple-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={() => router.push('/login-register')}
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="w-full bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
             >
               Return to Login
             </button>
@@ -226,13 +261,13 @@ const Authenticate = () => {
   }
 
   return (
-    <div className="min-h-screen bg-purple-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Authenticating</h2>
           {isLoading && (
             <div className="flex justify-center items-center space-x-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-500"></div>
               <span className="text-gray-600">Completing authentication...</span>
             </div>
           )}

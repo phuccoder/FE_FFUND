@@ -2,15 +2,35 @@ import CtaArea from "@/components/CtaArea/CtaArea";
 import Header from "@/components/Header/Header";
 import Layout from "@/components/Layout/Layout";
 import PageTitle from "@/components/Reuseable/PageTitle";
-import TeamMainArea from "@/components/TeamArea/TeamMainArea";
+import TeamManagementSection from "@/components/TeamArea/TeamManagementSection";
+import NoTeamSection from "@/components/TeamArea/NoTeamSection";
+import useTeam from "@/hooks/useTeam";
 import React from "react";
+import { Container, Alert, Spinner } from "react-bootstrap";
 
 const TeamMembers = () => {
+  const { team, loading, error, refreshTeam } = useTeam();
+
   return (
     <Layout>
       <Header />
       <PageTitle title="Team Members" parent="pages" />
-      <TeamMainArea className="about-team-main-area team-page-area" count={6} />
+
+      {loading ? (
+        <Container className="text-center py-5">
+          <Spinner animation="border" role="status" variant="primary" />
+          <p className="mt-3">Loading team information...</p>
+        </Container>
+      ) : error ? (
+        <Container className="py-4">
+          <Alert variant="danger">{error}</Alert>
+        </Container>
+      ) : team ? (
+        <TeamManagementSection team={team} onTeamUpdate={refreshTeam} />
+      ) : (
+        <NoTeamSection />
+      )}
+
       <CtaArea />
     </Layout>
   );
