@@ -45,7 +45,7 @@ const checkAuth = async () => {
 
                 try {
                     // 🛠 Gửi request làm mới token
-                    const refreshResponse = await axios.post("http://localhost:8080/api/v1/auth/refresh", {
+                    const refreshResponse = await axios.post("http://localhost:8080/api/v1/auth/refresh-token", {
                         refreshToken: refreshToken
                     });
 

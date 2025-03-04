@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid';
 import InputText from '../../components/Input/InputText';
 
 function Login() {
@@ -13,6 +14,7 @@ function Login() {
 
     const [loading, setLoading] = useState(false);
     const [loginObj, setLoginObj] = useState(INITIAL_LOGIN_OBJ);
+    const [showPassword, setShowPassword] = useState(false);
 
     const submitForm = async (e) => {
         e.preventDefault();
@@ -20,7 +22,7 @@ function Login() {
         if (loginObj.username.trim() === "") {
             return toast.error("Username is required!", {
                 position: "top-right",
-                autoClose: 3000,
+                autoClose: 2000,
                 hideProgressBar: false,
                 closeOnClick: true,
                 pauseOnHover: true,
@@ -32,7 +34,7 @@ function Login() {
         if (loginObj.password.trim() === "") {
             return toast.error("Password is required!", {
                 position: "top-right",
-                autoClose: 3000,
+                autoClose: 2000,
                 hideProgressBar: false,
                 closeOnClick: true,
                 pauseOnHover: true,
@@ -76,7 +78,7 @@ function Login() {
             
             toast.success("Login successful!", {
                 position: "top-right",
-                autoClose: 3000,
+                autoClose: 2000,
                 hideProgressBar: false,
                 closeOnClick: true,
                 pauseOnHover: true,
@@ -84,11 +86,11 @@ function Login() {
                 progress: undefined,
                 theme: "colored"
             });
-            setTimeout(() => navigate('/app/welcome'), 1500);
+            setTimeout(() => navigate('/app/welcome'));
         } catch (error) {
             toast.error(error.message || "An error occurred. Please try again.", {
                 position: "top-right",
-                autoClose: 3000,
+                autoClose: 2000,
                 hideProgressBar: false,
                 closeOnClick: true,
                 pauseOnHover: true,
@@ -126,14 +128,21 @@ function Login() {
                                 labelTitle="Username" 
                                 updateFormValue={updateFormValue} 
                             />
-                            <InputText 
-                                type="password" 
-                                defaultValue={loginObj.password} 
-                                updateType="password" 
-                                containerStyle="mt-4" 
-                                labelTitle="Password" 
-                                updateFormValue={updateFormValue} 
-                            />
+                            <div className="relative mt-4">
+                                <InputText 
+                                    type={showPassword ? "text" : "password"} 
+                                    defaultValue={loginObj.password} 
+                                    updateType="password" 
+                                    labelTitle="Password" 
+                                    updateFormValue={updateFormValue} 
+                                />
+                                <span 
+                                    className="absolute right-3 top-1/2 my-4 transform -translate-y-1/2 flex items-center cursor-pointer text-gray-600 hover:text-gray-800 transition-colors"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    {showPassword ? <EyeSlashIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
+                                </span>
+                            </div>
                         </div>
                         <div className="text-right text-orange-600">
                             <Link to="/forgot-password">
