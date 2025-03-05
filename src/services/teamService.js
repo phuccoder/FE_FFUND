@@ -16,7 +16,7 @@ export const getTeamById = async (teamId) => {
       throw new Error('Authentication token is missing or invalid');
     }
     
-    const response = await fetch(`http://localhost:8080/api/v1/team/${teamId}`, {
+    const response = await fetch(`http://103.162.15.61:8080/api/v1/team/${teamId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
