@@ -11,11 +11,11 @@ import { getUserExtendedInfo } from './userService';
 export const getTeamById = async (teamId) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/${teamId}`, {
       method: 'GET',
       headers: {
@@ -23,13 +23,13 @@ export const getTeamById = async (teamId) => {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (result.status === 200 && result.data) {
       return result.data;
     } else {
@@ -48,19 +48,22 @@ export const getTeamById = async (teamId) => {
  * @param {Array<string>} memberEmails - Array of member emails to invite
  * @returns {Promise<Object>} - Created team data
  */
-export const createTeam = async (teamName, teamDescription, memberEmails) => {
+/**
+ * Creates a new team with given name, description and member emails
+ * @param {string} teamName - The name of the team to create
+ * @param {string} teamDescription - Description of the team
+ * @param {Array<string>} memberEmails - Array of email addresses to invite
+ * @returns {Promise<Object>} - API response data
+ */
+export const createTeam = async (teamName, teamDescription, memberEmails = []) => {
   try {
     const token = await tokenManager.getValidToken();
-    
-    if (!token) {
-      throw new Error('Authentication token is missing or invalid');
-    }
-    
-    const response = await fetch(`http://localhost:8080/api/v1/team`, {
+
+    const response = await fetch('http://localhost:8080/api/v1/team', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         teamName,
@@ -68,20 +71,18 @@ export const createTeam = async (teamName, teamDescription, memberEmails) => {
         memberEmails
       })
     });
-    
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.status === 200 && result.data) {
-      return result.data;
+
+    const data = await response.json();
+
+    // Check if the response is okay (status in 200-299 range)
+    if (response.ok) {
+      console.log("Team created successfully:", data);
+      return data;
     } else {
-      throw new Error(result.message || 'Failed to create team');
+      throw new Error(data.message || `Failed to create team (${response.status})`);
     }
   } catch (error) {
-    console.error('Error in createTeam:', error);
+    console.error("Error in createTeam:", error);
     throw error;
   }
 };
@@ -95,11 +96,11 @@ export const createTeam = async (teamName, teamDescription, memberEmails) => {
 export const inviteMember = async (memberEmail) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const requestBody = { memberEmail };
     console.log('inviteMember API request:', {
       url: `http://localhost:8080/api/v1/team/invitations`,
@@ -110,7 +111,7 @@ export const inviteMember = async (memberEmail) => {
       },
       body: requestBody
     });
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/invitations`, {
       method: 'POST',
       headers: {
@@ -119,7 +120,7 @@ export const inviteMember = async (memberEmail) => {
       },
       body: JSON.stringify(requestBody)
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Member invitation API error:', {
@@ -129,10 +130,10 @@ export const inviteMember = async (memberEmail) => {
       });
       throw new Error(`Error: ${response.status} - ${errorText}`);
     }
-    
+
     const result = await response.json();
     console.log('Member invitation API success:', result);
-    
+
     return result.data;
   } catch (error) {
     console.error('Error in inviteMember:', error);
@@ -148,11 +149,11 @@ export const inviteMember = async (memberEmail) => {
 export const getUserTeam = async () => {
   try {
     const userInfo = await getUserExtendedInfo();
-    
+
     if (userInfo && userInfo.teamId) {
       return await getTeamById(userInfo.teamId);
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error in getUserTeam:', error);
@@ -167,7 +168,7 @@ export const getUserTeam = async () => {
  */
 export const convertTeamDataForUI = (teamData) => {
   if (!teamData || !teamData.teamMembers) return [];
-  
+
   return teamData.teamMembers.map((member) => ({
     id: member.memberId,
     name: member.memberName,
@@ -193,11 +194,11 @@ export const convertTeamDataForUI = (teamData) => {
 export const updateMemberRole = async (memberId, teamRole) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/member/role/${memberId}`, {
       method: 'PUT',
       headers: {
@@ -208,15 +209,17 @@ export const updateMemberRole = async (memberId, teamRole) => {
         teamRole
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
-    if (result.status === 200 && result.data) {
-      return result.data;
+
+    // Changed condition to properly handle success cases
+    if (result.status === 200) {
+      // Return either the data property or the whole result if data doesn't exist
+      return result.data || result;
     } else {
       throw new Error(result.message || 'Failed to update member role');
     }
@@ -234,11 +237,11 @@ export const updateMemberRole = async (memberId, teamRole) => {
 export const removeMember = async (memberId) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/member/${memberId}`, {
       method: 'DELETE',
       headers: {
@@ -246,13 +249,13 @@ export const removeMember = async (memberId) => {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (result.status === 200) {
       return result;
     } else {
@@ -272,11 +275,11 @@ export const removeMember = async (memberId) => {
 export const deleteTeam = async (teamId) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/${teamId}`, {
       method: 'DELETE',
       headers: {
@@ -284,13 +287,13 @@ export const deleteTeam = async (teamId) => {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (result.status === 200) {
       return result;
     } else {
@@ -310,11 +313,11 @@ export const deleteTeam = async (teamId) => {
 export const getTeamMemberInfo = async (memberId) => {
   try {
     const token = await tokenManager.getValidToken();
-    
+
     if (!token) {
       throw new Error('Authentication token is missing or invalid');
     }
-    
+
     const response = await fetch(`http://localhost:8080/api/v1/team/team-member-information/${memberId}`, {
       method: 'GET',
       headers: {
@@ -322,13 +325,13 @@ export const getTeamMemberInfo = async (memberId) => {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Error: ${response.status}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (result.status === 200 && result.data) {
       return result.data;
     } else {
@@ -350,15 +353,16 @@ export const getTeamMemberInfo = async (memberId) => {
  */
 export const updateTeam = async (teamId, teamData) => {
   try {
+    const token = await tokenManager.getValidToken();
     if (!teamId) {
       throw new Error("Team ID is required");
     }
 
-    const response = await fetch(`/api/v1/team/${teamId}?teamId=${teamId}`, {
+    const response = await fetch(`http://localhost:8080/api/v1/team/${teamId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(teamData),
     });
@@ -385,43 +389,43 @@ export const updateTeam = async (teamId, teamData) => {
  */
 export const isTeamAdmin = async (teamData, currentUser) => {
   // Default result with no permissions
-  const defaultResult = { 
-    isAdmin: false, 
+  const defaultResult = {
+    isAdmin: false,
     canUpdateRoles: false,
     canDeleteMembers: false,
     canDeleteTeam: false
   };
-  
+
   if (!teamData || !currentUser) {
     console.log('Missing team data or current user');
     return defaultResult;
   }
-  
+
   try {
     // Log the raw currentUser data to debug
     console.log('Raw currentUser data in isTeamAdmin:', currentUser);
-    
+
     // Extract the teamRole from the login response - highest priority source
     const userRole = currentUser.teamRole;
-    
+
     // Extract founder status - either from explicit role or isFounder flag
     const isFounder = currentUser.role === 'FOUNDER' || Boolean(currentUser.isFounder);
-    
+
     // Log values to debug
     console.log('teamRole in isTeamAdmin:', userRole);
     console.log('isFounder in isTeamAdmin:', isFounder);
-    
+
     // If no teamRole available from login response, we don't need the other checks
     // since we're prioritizing the login response data as requested
     if (!userRole) {
       console.log('No teamRole in login response - defaulting to non-admin');
       return defaultResult;
     }
-    
+
     // Set permissions based on role from login response
     const isLeader = userRole === 'LEADER';
     console.log('isLeader check:', userRole, '===', 'LEADER', '=', isLeader);
-    
+
     // Create the permissions object
     const permissions = {
       isAdmin: isLeader,
@@ -429,7 +433,7 @@ export const isTeamAdmin = async (teamData, currentUser) => {
       canDeleteMembers: isLeader,
       canDeleteTeam: isLeader && isFounder
     };
-    
+
     // Log for debugging
     console.log(`Team admin check using login response data for user ${currentUser.id || currentUser.email}:`, {
       teamRole: userRole,
@@ -438,9 +442,9 @@ export const isTeamAdmin = async (teamData, currentUser) => {
       role: currentUser.role,
       permissions
     });
-    
+
     return permissions;
-    
+
   } catch (error) {
     console.error('Error determining user permissions:', error);
     return defaultResult;

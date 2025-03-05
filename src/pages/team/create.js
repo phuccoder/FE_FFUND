@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Container, Row, Col, Form, Button, Alert, Card } from "react-bootstrap";
+import { Container, Row, Col, Form, Button, Card } from "react-bootstrap";
 import { createTeam } from "src/services/teamService";
 import Layout from "@/components/Layout/Layout";
 import Header from "@/components/Header/Header";
 import PageTitle from "@/components/Reuseable/PageTitle";
 import { useRouter } from "next/router";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const CreateTeam = () => {
   const router = useRouter();
@@ -14,8 +16,6 @@ const CreateTeam = () => {
     memberEmails: [""] // Start with one empty email field
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +66,6 @@ const CreateTeam = () => {
     
     try {
       setLoading(true);
-      setError(null);
       
       // Make the API call
       const response = await createTeam(
@@ -78,7 +77,16 @@ const CreateTeam = () => {
       // Log the response
       console.log('Team creation response:', response);
       
-      setSuccess(true);
+      // Show success toast
+      toast.success("Team created successfully!", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
+      
       // Reset form
       setTeamData({
         teamName: "",
@@ -93,7 +101,17 @@ const CreateTeam = () => {
       
     } catch (err) {
       console.error('Team creation error:', err);
-      setError(`Failed to create team: ${err.message}`);
+      
+      // Show error toast
+      toast.error(`Failed to create team: ${err.message}`, {
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
+      
     } finally {
       setLoading(false);
     }
@@ -102,6 +120,8 @@ const CreateTeam = () => {
   return (
     <Layout>
       <Header />
+      {/* Add ToastContainer to handle notifications */}
+      <ToastContainer position="top-right" autoClose={5000} />
       <Container className="py-5">
         <Row>
           <Col lg={8} className="mx-auto">
@@ -110,18 +130,6 @@ const CreateTeam = () => {
                 <h4 className="mb-0">Create a New Team</h4>
               </Card.Header>
               <Card.Body>
-                {error && (
-                  <Alert variant="danger" dismissible onClose={() => setError(null)}>
-                    {error}
-                  </Alert>
-                )}
-                
-                {success && (
-                  <Alert variant="success" dismissible onClose={() => setSuccess(false)}>
-                    Team created successfully! Redirecting to team management...
-                  </Alert>
-                )}
-                
                 <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
                     <Form.Label>Team Name</Form.Label>
@@ -189,7 +197,7 @@ const CreateTeam = () => {
                     <Button 
                       type="submit" 
                       size="lg"
-                      disabled={loading || success}
+                      disabled={loading}
                       style={{ backgroundColor: "#FF8C00", borderColor: "#FF8C00" }}
                       className="text-white hover:bg-orange-700"
                     >

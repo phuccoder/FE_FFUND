@@ -10,6 +10,7 @@ import "react-modal-video/css/modal-video.css";
 import "@/styles/default.css";
 import "@/styles/style.css";
 import '@/styles/tailwind.css';
+import '@/styles/tiptap.css';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from "@/context/AuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
