@@ -11,14 +11,40 @@ const InvitationList = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize] = useState(10);
 
+  const formatDateSafely = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      // Check if the date is valid before formatting
+      if (!isValid(date)) {
+        console.warn(`Invalid date encountered: ${dateString}`);
+        return 'Invalid date';
+      }
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      console.error('Date formatting error:', error, dateString);
+      return 'Date error';
+    }
+  };
+
   const fetchInvitations = async () => {
     try {
       setLoading(true);
       const response = await invitationService.getInvitations(currentPage, pageSize);
-      setInvitations(response.data.data);
-      setTotalPages(response.data.totalPages);
+      
+      // Ensure we have valid data before setting state
+      if (response && response.data) {
+        setInvitations(response.data.data || []);
+        setTotalPages(response.data.totalPages || 0);
+      } else {
+        console.warn('Received unexpected response format:', response);
+        setInvitations([]);
+        setTotalPages(0);
+      }
       setLoading(false);
     } catch (err) {
+      console.error('Failed to load invitations:', err);
       setError('Failed to load invitations');
       setLoading(false);
     }
@@ -101,7 +127,7 @@ const InvitationList = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {invitation.invitedAt ? formatDistanceToNow(new Date(invitation.invitedAt), { addSuffix: true }) : 'N/A'}
+                    {formatDateSafely(invitation.invitedAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {invitation.status === 'PENDING' && (
