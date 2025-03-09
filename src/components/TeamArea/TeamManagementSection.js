@@ -139,7 +139,6 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
       await deleteTeam(team.teamId);
       setShowDeleteTeamModal(false);
 
-      // Redirect to team members page after successful deletion
       router.push("/team-members");
     } catch (err) {
       console.error('Failed to delete team:', err);
