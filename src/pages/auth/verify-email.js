@@ -16,7 +16,7 @@ const EmailVerification = () => {
 
       try {
         setIsLoading(true);
-        const response = await fetch('http://localhost:8080/api/v1/auth/verify-email', {
+        const response = await fetch('http://103.162.15.61:8080/api/v1/auth/verify-email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
