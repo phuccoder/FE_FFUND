@@ -18,7 +18,7 @@ const NewsItem = ({ news = {}, index = 0, newsTwo = false }) => {
         }`}
       >
         <div className="news-thumb" style={{ position: 'relative', minHeight: '200px' }}>
-          <img
+          <Image
             src={imagePath}
             alt={title}
             style={{ 

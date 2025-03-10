@@ -10,9 +10,7 @@ const CommentOneSingle = ({ comment = {} }) => {
       <div className="comment-one__image">
       <Image 
         src={`/assets/images/${image}`} 
-        alt={title} 
-        width={300}  
-        height={200} 
+        alt={title}  
         unoptimized
         style={{ width: '100%', height: 'auto' }}
       />

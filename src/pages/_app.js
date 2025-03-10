@@ -9,11 +9,21 @@ import "react-modal-video/css/modal-video.css";
 // extra css
 import "@/styles/default.css";
 import "@/styles/style.css";
-
+import '@/styles/tailwind.css';
+import '@/styles/tiptap.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from "@/context/AuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { ToastContainer } from "react-toastify";
 const MyApp = ({ Component, pageProps }) => {
   return (
     <ContextProvider>
-      <Component {...pageProps} />
+      <AuthProvider>
+        <NotificationProvider>
+          <ToastContainer />
+          <Component {...pageProps} />
+        </NotificationProvider>
+      </AuthProvider>
     </ContextProvider>
   );
 };
