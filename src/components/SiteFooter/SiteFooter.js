@@ -6,7 +6,7 @@ import Link from "../Reuseable/Link";
 import FooterList from "./FooterList";
 import Image from "next/image";
 
-const { bg, logo, text, author, year, links, socials, text2, shape } =
+const { bg,  text, author, year, links, socials, text2, shape } =
   footerData;
 
 const SiteFooter = () => {
@@ -21,9 +21,6 @@ const SiteFooter = () => {
         <Row>
           <Col lg={4} md={6} sm={8}>
             <div className="footer-about mt-30">
-              <Link href="/">
-                <Image src={logo.src} alt="" />
-              </Link>
               <p>{text}</p>
               <ul>
                 {socials.map(({ id, icon, href }) => (

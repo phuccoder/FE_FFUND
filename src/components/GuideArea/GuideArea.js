@@ -2,6 +2,7 @@ import { guideArea } from "@/data/guideArea";
 import handleSubmit from "@/utils/handleSubmit";
 import React from "react";
 import { Col, Container, Row } from "react-bootstrap";
+import Link from "next/link";
 
 const { bg, tagline, title } = guideArea;
 
@@ -26,7 +27,9 @@ const GuideArea = () => {
                     placeholder="Email address"
                     name="email"
                   />
-                  <button className="main-btn main-btn-2">Signup now</button>
+                  <Link href="/login-register">
+                    <button className="main-btn main-btn-2">Signup now</button>
+                  </Link>
                 </div>
               </form>
             </div>

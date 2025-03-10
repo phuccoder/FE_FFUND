@@ -8,6 +8,7 @@ import Header from "@/components/Header/Header";
 import Layout from "@/components/Layout/Layout";
 import NewsArea from "@/components/NewsArea/NewsArea";
 import ProjectsArea from "@/components/ProjectsArea/ProjectsArea";
+import SuperstarsArea from "@/components/SuperstarsArea/SuperstarsArea";
 import TeamArea from "@/components/TeamArea/TeamArea";
 import TeamMainArea from "@/components/TeamArea/TeamMainArea";
 import TestimonialsArea from "@/components/Testimonials/TestimonialsArea";
@@ -20,7 +21,6 @@ const Home = () => {
     <Layout>
       <Header />
       <BannerSlider />
-      <Categories />
       <CtaArea />
       <ProjectsArea />
       <WhyChoose />
