@@ -68,6 +68,16 @@ export default function CreateProject() {
     }));
   };
 
+  // Check if the first two sections are completed to enable navigation to later sections
+  const isInitialSectionsComplete = () => {
+    const isTermsComplete = Boolean(formData.termsAgreed);
+    const basicInfo = formData.basicInfo || {};
+    const { title, category, shortDescription } = basicInfo;
+    const isBasicInfoComplete = Boolean(title && category && shortDescription);
+    
+    return isTermsComplete && isBasicInfoComplete;
+  };
+
   // Function to validate if phases exist
   const hasPhases = () => {
     return formData.fundraisingInfo.phases && formData.fundraisingInfo.phases.length > 0;
@@ -77,7 +87,7 @@ export default function CreateProject() {
     { id: 'terms', name: 'Rules & Terms', component: <RulesTerms formData={formData.termsAgreed} updateFormData={(data) => handleUpdateFormData('termsAgreed', data)} /> },
     { id: 'basic', name: 'Basic Information', component: <BasicInformation formData={formData.basicInfo} updateFormData={(data) => handleUpdateFormData('basicInfo', data)} /> },
     { id: 'fundraising', name: 'Fundraising Information', component: <FundraisingInformation formData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} /> },
-    { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
+    { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
     { id: 'story', name: 'Project Story', component: <ProjectStory formData={formData.projectStory} updateFormData={(data) => handleUpdateFormData('projectStory', data)} /> },
     { id: 'founder', name: 'Founder Profile', component: <FounderProfile formData={formData.founderProfile} updateFormData={(data) => handleUpdateFormData('founderProfile', data)} /> },
     { id: 'documents', name: 'Required Documents', component: <RequiredDocuments formData={formData.requiredDocuments} updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)} /> },
@@ -86,6 +96,21 @@ export default function CreateProject() {
 
   const goToNextSection = () => {
     if (currentSection < sections.length - 1) {
+      // If going from first section to second without completing it, show warning
+      if (currentSection === 0 && !formData.termsAgreed) {
+        alert("Please agree to the rules and terms before proceeding.");
+        return;
+      }
+      
+      // If going from second section without completing it, show warning
+      if (currentSection === 1) {
+        const { title, category, shortDescription } = formData.basicInfo;
+        if (!title || !category || !shortDescription) {
+          alert("Please complete all required fields in the Basic Information section.");
+          return;
+        }
+      }
+      
       // If going from fundraising to rewards section, check if phases exist
       if (currentSection === 2) { // Index of fundraising section
         if (!hasPhases()) {
@@ -107,6 +132,12 @@ export default function CreateProject() {
   };
 
   const goToSection = (index) => {
+    // Block navigation to sections beyond the first two if they're not complete
+    if (index > 1 && !isInitialSectionsComplete()) {
+      alert("Please complete the Rules & Terms and Basic Information sections first.");
+      return;
+    }
+    
     // If trying to jump to rewards section, check if phases exist
     if (index === 3 && currentSection < 3) { // Index of rewards section
       if (!hasPhases()) {
@@ -160,12 +191,31 @@ export default function CreateProject() {
             sections={sections} 
             currentSection={currentSection} 
             onSectionChange={goToSection}
+            formData={formData}  // Pass formData to check completion status
           />
         </div>
         
         <div className="bg-white shadow rounded-lg p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">{sections[currentSection].name}</h2>
           {sections[currentSection].component}
+          
+          {/* Show guidance message when on the first two sections */}
+          {currentSection <= 1 && !isInitialSectionsComplete() && (
+            <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-700">
+                    Complete this section and the {currentSection === 0 ? 'Basic Information' : 'Rules & Terms'} section to unlock the rest of the form.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex justify-between">
@@ -182,7 +232,7 @@ export default function CreateProject() {
               onClick={goToNextSection}
               className="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
             >
-              Continue
+                           Continue
             </button>
           ) : (
             <button 

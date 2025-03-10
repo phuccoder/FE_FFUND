@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import Image from 'next/image';
 
 /**
- * Reward information form for project creation
+ * Reward information form for project creation with enhanced item management
  * @param {Object} props Component props
  * @param {Array} props.formData Initial reward form data
  * @param {Function} props.updateFormData Function to update parent form state
@@ -19,15 +20,16 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         amount: '',
         estimatedDelivery: '',
         shippingType: 'worldwide',
-        items: [],
+        items: [], // Will now contain objects with name and image
         limit: '',
         phaseId: '',
         phaseName: ''
     });
     const [showForm, setShowForm] = useState(false);
-    const [currentItem, setCurrentItem] = useState('');
+    const [currentItem, setCurrentItem] = useState({ name: '', image: null, imagePreview: null });
     const [showPhaseFilter, setShowPhaseFilter] = useState(false);
     const [selectedPhase, setSelectedPhase] = useState('all');
+    const fileInputRef = useRef(null);
 
     // Fetch phases from the parent component's formData
     useEffect(() => {
@@ -81,14 +83,52 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         }
     };
 
-    const addItem = () => {
-        if (currentItem.trim()) {
-            setCurrentReward(prev => ({
-                ...prev,
-                items: [...prev.items, currentItem.trim()]
-            }));
-            setCurrentItem('');
+    const handleItemChange = (e) => {
+        const { name, value } = e.target;
+        setCurrentItem(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPEG, PNG, GIF, WEBP)');
+            return;
         }
+
+        // Create preview for UI
+        const reader = new FileReader();
+        reader.onload = () => {
+            setCurrentItem(prev => ({
+                ...prev,
+                image: file,
+                imagePreview: reader.result
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const addItem = () => {
+        if (!currentItem.name.trim()) {
+            alert('Please enter an item name');
+            return;
+        }
+
+        setCurrentReward(prev => ({
+            ...prev,
+            items: [...prev.items, { 
+                name: currentItem.name.trim(), 
+                image: currentItem.imagePreview // Store the preview as base64 since we can't store File objects in state directly
+            }]
+        }));
+        setCurrentItem({ name: '', image: null, imagePreview: null });
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const removeItem = (index) => {
@@ -275,9 +315,26 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                         {reward.items && reward.items.length > 0 && (
                             <div className="mt-3">
                                 <h4 className="text-sm font-medium text-gray-700">Includes:</h4>
-                                <ul className="mt-1 text-sm text-gray-600 list-disc list-inside">
+                                <ul className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {reward.items.map((item, index) => (
-                                        <li key={index}>{item}</li>
+                                        <li key={index} className="bg-gray-50 rounded-md p-2 flex items-center">
+                                            {item.image ? (
+                                                <div className="h-10 w-10 mr-2 relative rounded overflow-hidden bg-gray-100">
+                                                    <img 
+                                                        src={item.image} 
+                                                        alt={item.name}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="h-10 w-10 mr-2 bg-gray-100 rounded flex items-center justify-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                            <span className="text-sm text-gray-700">{item.name}</span>
+                                        </li>
                                     ))}
                                 </ul>
                             </div>
@@ -403,43 +460,110 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                             />
                         </div>
 
-                        <div>
-                            <label htmlFor="items" className="block text-sm font-medium text-gray-700">
-                                Reward Items
-                            </label>
-                            <div className="mt-1 flex rounded-md shadow-sm">
+                        <div className="border-t border-gray-200 pt-4 pb-2">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Reward Items</h4>
+                            
+                            {/* Item Name Input */}
+                            <div className="mb-4">
+                                <label htmlFor="item-name" className="block text-sm font-medium text-gray-700">
+                                    Item Name
+                                </label>
                                 <input
                                     type="text"
-                                    name="currentItem"
-                                    id="items"
-                                    value={currentItem}
-                                    onChange={e => setCurrentItem(e.target.value)}
+                                    id="item-name"
+                                    name="name"
+                                    value={currentItem.name}
+                                    onChange={handleItemChange}
                                     onKeyDown={handleItemKeyDown}
-                                    className="focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-none rounded-l-md sm:text-sm border-gray-300"
-                                    placeholder="Enter an item included in the reward"
+                                    className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                                    placeholder="Enter item name"
                                 />
+                            </div>
+                            
+                            {/* Item Image Input */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Item Image (optional)
+                                </label>
+                                <div className="mt-1 flex items-center">
+                                    <div className="flex-shrink-0 h-16 w-16 mr-4 bg-gray-100 rounded-md overflow-hidden">
+                                        {currentItem.imagePreview ? (
+                                            <img 
+                                                src={currentItem.imagePreview} 
+                                                alt="Preview" 
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <label htmlFor="item-image" className="relative cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                                        <span>Upload image</span>
+                                        <input 
+                                            id="item-image"
+                                            name="file-upload"
+                                            type="file"
+                                            ref={fileInputRef}
+                                            className="sr-only"
+                                            accept="image/*"
+                                            onChange={handleImageChange}
+                                        />
+                                    </label>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                            </div>
+                            
+                            {/* Add Item Button */}
+                            <div className="mb-4">
                                 <button
                                     type="button"
                                     onClick={addItem}
-                                    className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
-                                    Add
+                                    <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                    </svg>
+                                    Add Item
                                 </button>
                             </div>
 
+                            {/* Added Items List */}
                             {currentReward.items.length > 0 && (
-                                <div className="mt-2">
-                                    <h4 className="text-sm font-medium text-gray-700">Items:</h4>
-                                    <ul className="mt-1 space-y-1">
+                                <div className="mt-3 mb-4">
+                                    <h5 className="text-sm font-medium text-gray-700 mb-2">Added Items:</h5>
+                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {currentReward.items.map((item, index) => (
-                                            <li key={index} className="flex justify-between items-center text-sm bg-gray-50 px-2 py-1 rounded">
-                                                <span>{item}</span>
+                                            <li key={index} className="bg-gray-50 rounded-md p-2 flex items-center justify-between">
+                                                <div className="flex items-center">
+                                                    {item.image ? (
+                                                        <div className="h-10 w-10 mr-2 relative rounded overflow-hidden bg-gray-100">
+                                                            <img 
+                                                                src={item.image} 
+                                                                alt={item.name}
+                                                                className="h-full w-full object-cover"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-10 w-10 mr-2 bg-gray-100 rounded flex items-center justify-center">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
+                                                    <span className="text-sm text-gray-700">{item.name}</span>
+                                                </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => removeItem(index)}
-                                                    className="text-red-500 hover:text-red-700"
+                                                    className="text-red-500 hover:text-red-700 ml-2"
                                                 >
-                                                    &times;
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
                                                 </button>
                                             </li>
                                         ))}
@@ -525,6 +649,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 <div className="bg-white p-4 border border-gray-200 rounded-md">
                     <ul className="list-disc pl-5 text-sm text-gray-600 space-y-2">
                         <li><span className="font-medium">Phase-specific rewards:</span> Tailor rewards to each development phase to give backers a reason to support your project at every stage.</li>
+                        <li><span className="font-medium">Visual appeal:</span> Add images to your reward items to make them more attractive to potential backers.</li>
                         <li><span className="font-medium">Reward tiers:</span> Create a range of reward tiers starting from small amounts ($5-25) up to premium tiers.</li>
                         <li><span className="font-medium">Early-bird specials:</span> Consider offering limited early-bird rewards with special pricing to encourage early backing.</li>
                         <li><span className="font-medium">Digital + Physical:</span> Mix digital rewards (which have no shipping costs) with physical items for different backer preferences.</li>
@@ -549,3 +674,4 @@ RewardInformation.defaultProps = {
     formData: [],
     projectData: { phases: [] }
 };
+                                
