@@ -14,7 +14,7 @@ export const getUserById = async () => {
             throw new Error('Authentication token is missing or invalid');
         }
 
-        const response = await fetch(`http://localhost:8080/api/v1/user/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/user/${userId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -50,7 +50,7 @@ export const updateUser = async (userData) => {
         const userId = localStorage.getItem('userId'); // Retrieve userId from localStorage
         const { fullName, username, telephoneNumber, identifyNumber, userInformation, userFfundLink } = userData;
 
-        const response = await fetch(`http://localhost:8080/api/v1/user/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/user/${userId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -89,7 +89,7 @@ export const uploadAvatar = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('http://localhost:8080/api/v1/user/upload-avatar', {
+        const response = await fetch('http://103.162.15.61:8080/api/v1/user/upload-avatar', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -122,7 +122,7 @@ export const getUserExtendedInfo = async () => {
             throw new Error('Authentication token is missing or invalid');
         }
 
-        const response = await fetch(`http://localhost:8080/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/founder-information/${userId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -166,7 +166,7 @@ export const createUserExtendedInfo = async (founderData) => {
     try {
         const token = await tokenManager.getValidToken();
         const userId = localStorage.getItem('userId');
-        const response = await fetch(`http://localhost:8080/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/founder-information/${userId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -196,7 +196,7 @@ export const updateUserExtendedInfo = async (founderData) => {
     try {
         const token = await tokenManager.getValidToken();
         const userId = localStorage.getItem('userId');
-        const response = await fetch(`http://localhost:8080/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/founder-information/${userId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -230,7 +230,7 @@ export const uploadStudentPortfolio = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`http://localhost:8080/api/v1/founder-information/upload-portfolio/${userId}`, {
+        const response = await fetch(`http://103.162.15.61:8080/api/v1/founder-information/upload-portfolio/${userId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`
