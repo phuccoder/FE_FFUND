@@ -1,6 +1,7 @@
 import { ctaArea } from "@/data/ctaArea";
 import React from "react";
 import { Col, Container, Row } from "react-bootstrap";
+import Link from "../Reuseable/Link";
 
 const { bg, title } = ctaArea;
 
@@ -16,9 +17,9 @@ const CtaArea = () => {
             >
               <div className="cta-content d-block d-lg-flex justify-content-between align-items-center">
                 <h3 className="title">{title}</h3>
-                <a className="main-btn main-btn-2" href="#">
+                <Link className="main-btn main-btn-2" href="/create-project">
                   Make it happen
-                </a>
+                </Link>
               </div>
             </div>
           </Col>

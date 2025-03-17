@@ -267,6 +267,7 @@ export const authenticate = {
     tokenManager.clearTokens();
     localStorage.removeItem('role');
     localStorage.removeItem('userId');
+    localStorage.removeItem('founderProjectId'); 
     window.location.href = '/login-register';
   },
   
