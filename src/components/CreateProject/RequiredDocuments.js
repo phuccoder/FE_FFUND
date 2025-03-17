@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
+import Image from 'next/image';
 
 /**
  * Required documents component for project creation
@@ -215,7 +216,7 @@ export default function RequiredDocuments({ formData, updateFormData }) {
                 <div key={index} className="relative group">
                   <div className="aspect-w-1 aspect-h-1 bg-gray-200 rounded-md overflow-hidden">
                     {file.type?.includes('image') ? (
-                      <img
+                      <Image
                         src={URL.createObjectURL(file)}
                         alt={`Project media ${index + 1}`}
                         className="object-cover w-full h-full"

@@ -18,13 +18,27 @@ export default function ProjectCreationNavigation({
 }) {
   // Check if the first two sections are completed
   const isTermsComplete = Boolean(formData?.termsAgreed);
-  
+
   const isBasicInfoComplete = () => {
     const basicInfo = formData?.basicInfo || {};
-    const { title, category, shortDescription } = basicInfo;
-    return Boolean(title && category && shortDescription);
+    const categoryValue = basicInfo.category || basicInfo.categoryId;
+    const locationValue = basicInfo.location || basicInfo.locationId;
+    const subCategoryValue = basicInfo.subCategory || basicInfo.subCategoryIds;
+
+    // Use the SAME checks as in create-project.js
+    return Boolean(
+      basicInfo.title &&
+      categoryValue &&
+      subCategoryValue &&
+      basicInfo.shortDescription &&
+      locationValue &&
+      basicInfo.projectUrl &&
+      basicInfo.mainSocialMediaUrl &&
+      basicInfo.projectVideoDemo &&
+      basicInfo.isClassPotential !== undefined
+    );
   };
-  
+
   // Determine which sections are accessible
   const canAccessLaterSections = isTermsComplete && isBasicInfoComplete();
 
@@ -34,7 +48,7 @@ export default function ProjectCreationNavigation({
         {sections.map((section, index) => {
           // Check if this section should be disabled
           const isDisabled = index > 1 && !canAccessLaterSections;
-          
+
           return (
             <button
               key={section.id}
@@ -42,16 +56,16 @@ export default function ProjectCreationNavigation({
               className={`whitespace-nowrap px-4 py-2 text-sm font-medium mr-2 rounded-t-lg transition-all duration-200
                 ${currentSection === index
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : isDisabled 
+                  : isDisabled
                     ? 'text-gray-300 cursor-not-allowed'
                     : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }
               `}
               disabled={isDisabled}
               title={
-                isDisabled 
-                ? "Complete Rules & Terms and Basic Information sections first" 
-                : `Go to ${section.name}`
+                isDisabled
+                  ? "Complete Rules & Terms and Basic Information sections first"
+                  : `Go to ${section.name}`
               }
             >
               <div className="flex items-center">
@@ -66,7 +80,7 @@ export default function ProjectCreationNavigation({
           );
         })}
       </nav>
-      
+
       {/* Display a helpful message when sections are locked */}
       {!canAccessLaterSections && currentSection <= 1 && (
         <div className="flex items-center mt-2 mb-1 text-sm text-amber-600">

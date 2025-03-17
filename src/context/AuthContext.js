@@ -7,6 +7,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [teamRole, setTeamRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,8 +19,10 @@ export const AuthProvider = ({ children }) => {
       
       if (isAuth) {
         setUserRole(localStorage.getItem('role'));
+        setTeamRole(localStorage.getItem('teamRole'));
       } else {
         setUserRole(null);
+        setTeamRole(null);
       }
       
       setIsLoading(false);
@@ -47,6 +50,7 @@ export const AuthProvider = ({ children }) => {
       
       setIsAuthenticated(true);
       setUserRole(data.data.role);
+      setTeamRole(data.data.teamRole);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
