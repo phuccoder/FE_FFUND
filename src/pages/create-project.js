@@ -13,6 +13,7 @@ import PageTitle from '@/components/Reuseable/PageTitle';
 import Layout from '@/components/Layout/Layout';
 import projectService from 'src/services/projectService';
 import { tokenManager } from '@/utils/tokenManager';
+import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
 
 export default function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
@@ -34,7 +35,10 @@ export default function CreateProject() {
       phases: []  // Add phases array to store multiple funding phases
     },
     rewardInfo: [],  // This will now contain phase-specific rewards
-    projectStory: '',
+    projectStory: {
+      story: '',
+      risks: ''
+    },
     founderProfile: {
       bio: '',
       experience: '',
@@ -106,98 +110,103 @@ export default function CreateProject() {
   }, []);
 
   // Define loadProjectData outside useEffect
-const loadProjectData = async () => {
-  console.log("Loading project data...");
-  setIsEditMode(false); // Reset edit mode
+  const loadProjectData = async () => {
+    console.log("Loading project data...");
+    setIsEditMode(false); // Reset edit mode
 
-  try {
-    // First try to get user's projects
-    console.log("Fetching projects for current founder...");
-    const response = await projectService.getProjectsByFounder();
-    console.log("API response:", response);
+    try {
+      // First try to get user's projects
+      console.log("Fetching projects for current founder...");
+      const response = await projectService.getProjectsByFounder();
+      console.log("API response:", response);
 
-    // Handle both array and single object responses
-    let activeProject;
-    
-    if (Array.isArray(response) && response.length > 0) {
-      // If response is an array, take first element
-      activeProject = response[0];
-      console.log("Found active project from array:", activeProject);
-    } else if (response && response.projectId) {
-      // If response is a single project object
-      activeProject = response;
-      console.log("Found active project (single object):", activeProject);
-    }
+      // Handle both array and single object responses
+      let activeProject;
 
-    if (activeProject && activeProject.projectId) {
-      // Store the projectId in localStorage for persistence
-      localStorage.setItem('founderProjectId', activeProject.projectId);
+      if (Array.isArray(response) && response.length > 0) {
+        // If response is an array, take first element
+        activeProject = response[0];
+        console.log("Found active project from array:", activeProject);
+      } else if (response && response.projectId) {
+        // If response is a single project object
+        activeProject = response;
+        console.log("Found active project (single object):", activeProject);
+      }
 
-      // Update UI state
-      setIsEditMode(true);
+      if (activeProject && activeProject.projectId) {
+        // Store the projectId in localStorage for persistence
+        localStorage.setItem('founderProjectId', activeProject.projectId);
 
-      console.log("Setting project data with ID:", activeProject.projectId);
-      
-      // Update form data with project details
-      setFormData(prevData => ({
-        ...prevData,
-        projectId: activeProject.projectId,
-        basicInfo: {
-          ...prevData.basicInfo,
+        // Update UI state
+        setIsEditMode(true);
+
+        console.log("Setting project data with ID:", activeProject.projectId);
+
+        // Update form data with project details
+        setFormData(prevData => ({
+          ...prevData,
           projectId: activeProject.projectId,
-          title: activeProject.projectTitle || '',
-          shortDescription: activeProject.projectDescription || '',
-          category: activeProject.category?.id || '',
-          categoryId: activeProject.category?.id || '',
-          subCategoryIds: activeProject.subCategories?.map(sub => sub.id) || [],
-          location: activeProject.projectLocation || '',
-          projectLocation: activeProject.projectLocation || '',
-          projectUrl: activeProject.projectUrl || '',
-          mainSocialMediaUrl: activeProject.mainSocialMediaUrl || '',
-          projectVideoDemo: activeProject.projectVideoDemo || '',
-          isClassPotential: activeProject.isClassPotential !== undefined
-            ? activeProject.isClassPotential
-            : false
-        }
-      }));
-    } else {
-      // User has no projects, clear any stored projectId
-      localStorage.removeItem('founderProjectId');
+          basicInfo: {
+            ...prevData.basicInfo,
+            projectId: activeProject.projectId,
+            title: activeProject.projectTitle || '',
+            shortDescription: activeProject.projectDescription || '',
+            category: activeProject.category?.id || '',
+            categoryId: activeProject.category?.id || '',
+            subCategoryIds: activeProject.subCategories?.map(sub => sub.id) || [],
+            location: activeProject.projectLocation || '',
+            projectLocation: activeProject.projectLocation || '',
+            projectUrl: activeProject.projectUrl || '',
+            mainSocialMediaUrl: activeProject.mainSocialMediaUrl || '',
+            projectVideoDemo: activeProject.projectVideoDemo || '',
+            isClassPotential: activeProject.isClassPotential !== undefined
+              ? activeProject.isClassPotential
+              : false
+          },
+          projectStory: {
+            ...prevData.projectStory,
+            story: activeProject.projectStory || '',
+            risks: activeProject.risks || ''
+          },
+        }));
+      } else {
+        // User has no projects, clear any stored projectId
+        localStorage.removeItem('founderProjectId');
 
-      // Reset form to default state
-      setFormData(prevData => ({
-        ...prevData,
-        projectId: null,
-        basicInfo: {
-          ...prevData.basicInfo,
+        // Reset form to default state
+        setFormData(prevData => ({
+          ...prevData,
           projectId: null,
-          title: '',
-          shortDescription: '',
-          category: '',
-          categoryId: '',
-          subCategoryIds: [],
-          location: '',
-          projectLocation: '',
-          projectUrl: '',
-          mainSocialMediaUrl: '',
-          projectVideoDemo: '',
-          isClassPotential: false
-        }
-      }));
+          basicInfo: {
+            ...prevData.basicInfo,
+            projectId: null,
+            title: '',
+            shortDescription: '',
+            category: '',
+            categoryId: '',
+            subCategoryIds: [],
+            location: '',
+            projectLocation: '',
+            projectUrl: '',
+            mainSocialMediaUrl: '',
+            projectVideoDemo: '',
+            isClassPotential: false
+          }
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading project data:", error);
+      // On error, clear stored project ID
+      localStorage.removeItem('founderProjectId');
     }
-  } catch (error) {
-    console.error("Error loading project data:", error);
-    // On error, clear stored project ID
-    localStorage.removeItem('founderProjectId');
-  }
-};
+  };
 
-// Update the useEffect to call this function
-useEffect(() => {
-  if (!authStatus.isLoading) {
-    loadProjectData();
-  }
-}, [authStatus.isAuthenticated, authStatus.isLoading]);
+  // Update the useEffect to call this function
+  useEffect(() => {
+    if (!authStatus.isLoading) {
+      loadProjectData();
+    }
+  }, [authStatus.isAuthenticated, authStatus.isLoading]);
 
   useEffect(() => {
     console.log("Terms complete:", Boolean(formData.termsAgreed));
@@ -217,6 +226,33 @@ useEffect(() => {
 
     console.log("Can access later sections:", isInitialSectionsComplete());
   }, [formData]);
+
+  // Add this function right before the return statement in your CreateProject component
+
+  // Update milestone data to match the expected rewardInfo format
+  useEffect(() => {
+    // Check if formData contains milestones but not rewardInfo items
+    if (formData.milestones?.length > 0 && formData.rewardInfo?.length === 0) {
+      console.log("Converting milestones to rewardInfo format");
+
+      // Map milestones to the rewardInfo format expected by the checklist
+      const rewardInfoFromMilestones = formData.milestones.map(milestone => ({
+        id: milestone.id,
+        title: milestone.title,
+        description: milestone.description || '',
+        amount: milestone.price || '0',
+        phaseId: milestone.phaseId,
+        estimatedDelivery: milestone.estimatedDelivery || new Date().toISOString().split('T')[0],
+        items: milestone.items || []
+      }));
+
+      // Update the formData with the rewardInfo
+      setFormData(prevData => ({
+        ...prevData,
+        rewardInfo: rewardInfoFromMilestones
+      }));
+    }
+  }, [formData.milestones]);
 
 
   // In create-project.js, check if projectId is populated after the API call
@@ -282,12 +318,47 @@ useEffect(() => {
     return formData.fundraisingInfo.phases && formData.fundraisingInfo.phases.length > 0;
   };
 
+  // Check if the project story is complete
+  const isProjectStoryComplete = () => {
+    const projectStory = formData.projectStory || {};
+
+    // Get story and risks
+    const story = projectStory.story || '';
+    const risks = projectStory.risks || '';
+
+    // Create temp divs to parse HTML and get text content
+    if (typeof window !== 'undefined') {
+      const storyDiv = document.createElement('div');
+      storyDiv.innerHTML = story;
+      const storyText = storyDiv.textContent || '';
+
+      const risksDiv = document.createElement('div');
+      risksDiv.innerHTML = risks;
+      const risksText = risksDiv.textContent || '';
+
+      // Check for minimum content
+      return storyText.length >= 200 && risksText.length >= 100;
+    }
+
+    // Simple check for SSR
+    return story.length > 0 && risks.length > 0;
+  };
+
   const sections = [
     { id: 'terms', name: 'Rules & Terms', component: <RulesTerms formData={formData.termsAgreed} updateFormData={(data) => handleUpdateFormData('termsAgreed', data)} /> },
     { id: 'basic', name: 'Basic Information', component: <BasicInformation formData={formData.basicInfo} updateFormData={(data) => handleUpdateFormData('basicInfo', data)} editMode={isEditMode} /> },
     { id: 'fundraising', name: 'Fundraising Information', component: <FundraisingInformation formData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
     { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
-    { id: 'story', name: 'Project Story', component: <ProjectStory formData={formData.projectStory} updateFormData={(data) => handleUpdateFormData('projectStory', data)} /> },
+    // Update the ProjectStoryHandler section in the sections array
+    {
+      id: 'story',
+      name: 'Project Story',
+      component: <ProjectStoryHandler
+        projectId={formData.projectId || formData.basicInfo?.projectId}
+        initialStoryData={formData.projectStory}
+        updateFormData={(data) => handleUpdateFormData('projectStory', data)}
+      />
+    },
     { id: 'founder', name: 'Founder Profile', component: <FounderProfile formData={formData.founderProfile} updateFormData={(data) => handleUpdateFormData('founderProfile', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
     { id: 'documents', name: 'Required Documents', component: <RequiredDocuments formData={formData.requiredDocuments} updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)} /> },
     { id: 'payment', name: 'Payment Information', component: <PaymentInformation formData={formData.paymentInfo} updateFormData={(data) => handleUpdateFormData('paymentInfo', data)} /> },
@@ -327,6 +398,14 @@ useEffect(() => {
       if (currentSection === 2) { // Index of fundraising section
         if (!hasPhases()) {
           alert("Please add at least one funding phase before proceeding to rewards.");
+          return;
+        }
+      }
+
+      // If going from project story to founder profile section, check if project story is complete
+      if (currentSection === 4) { // Index of project story section
+        if (!isProjectStoryComplete()) {
+          alert("Please complete the Project Story section before proceeding to the Founder Profile section.");
           return;
         }
       }
@@ -384,6 +463,7 @@ useEffect(() => {
     if (!formData.basicInfo.title || !formData.basicInfo.category) return false;
     if (!hasPhases()) return false;
     if (formData.rewardInfo.length === 0) return false;
+    if (!isProjectStoryComplete()) return false;
 
     // Check if each phase has at least one reward
     const phaseIds = formData.fundraisingInfo.phases.map(phase => phase.id);
@@ -396,7 +476,7 @@ useEffect(() => {
   return (
     <>
       <Layout>
-      {authStatus.isLoading && (
+        {authStatus.isLoading && (
           <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white p-5 rounded-lg shadow-lg flex items-center space-x-4">
               <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

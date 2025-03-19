@@ -135,6 +135,25 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         }
     };
 
+    useEffect(() => {
+        // Only update parent formData when milestones have been loaded
+        if (milestones.length > 0) {
+          // Format milestones to match rewardInfo structure
+          const formattedRewards = milestones.map(milestone => ({
+            id: milestone.id,
+            title: milestone.title,
+            description: milestone.description || '',
+            amount: milestone.price || '0',
+            phaseId: milestone.phaseId,
+            estimatedDelivery: milestone.estimatedDelivery || new Date().toISOString().split('T')[0],
+            items: milestone.items || []
+          }));
+          
+          // Update parent component state
+          updateFormData(formattedRewards);
+        }
+      }, [milestones]);
+
     // Fetch items for a specific milestone
     const fetchMilestoneItems = async (milestoneId) => {
         try {

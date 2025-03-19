@@ -1,8 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-// Character limit constant
 const MAX_STORY_CHARS = 5000;
+const MAX_RISKS_CHARS = 5000;
 
 export default function ProjectCreationChecklist({ formData = {}, sections }) {
   const calculateSectionCompletion = (section) => {
@@ -90,62 +90,109 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           return 0;
         }
 
+        // Get unique phase IDs
         const phaseIds = phases
           .filter(phase => phase && phase.id)
           .map(phase => phase.id);
 
         if (phaseIds.length === 0) return 0;
 
+        // Get unique phases that have rewards
         const phasesWithRewards = new Set(
           rewards
             .filter(reward => reward && reward.phaseId)
             .map(reward => reward.phaseId)
         );
 
+        // Calculate phase coverage (what percentage of phases have at least one reward)
         const phaseCoverage = phaseIds.filter(id => phasesWithRewards.has(id)).length / phaseIds.length;
 
         // Check for complete reward fields
         let completedRewardFields = 0;
         let totalRewardFields = 0;
 
+        // Count valid rewards
+        let validRewardsCount = 0;
+
+        // Process each reward
         rewards.forEach(reward => {
           if (!reward) return;
+
+          // Track if this is a valid reward with all required fields
+          let isValidReward = true;
 
           // Required fields validation
           const requiredFields = ['title', 'description', 'amount', 'estimatedDelivery', 'phaseId'];
           requiredFields.forEach(field => {
             totalRewardFields++;
-            if (reward[field]) completedRewardFields++;
+            if (reward[field]) {
+              completedRewardFields++;
+            } else {
+              isValidReward = false;
+            }
           });
 
           // Check for items with names and images
-          if (Array.isArray(reward.items) && reward.items.length > 0) {
-            reward.items.forEach(item => {
-              // Item name is required
-              totalRewardFields++;
-              if (item && item.name) completedRewardFields++;
+          if (Array.isArray(reward.items)) {
+            // Empty items array is valid (not all rewards need items)
+            if (reward.items.length > 0) {
+              reward.items.forEach(item => {
+                // Item name is required if items exist
+                totalRewardFields++;
+                if (item && item.name) {
+                  completedRewardFields++;
+                } else {
+                  isValidReward = false;
+                }
 
-              // Image is optional but gives bonus points
-              if (item && item.image) {
-                completedRewardFields += 0.5;
-                totalRewardFields += 0.5;
-              }
-            });
+                // Image is not required but gives bonus points
+                if (item && item.image) {
+                  completedRewardFields++;
+                  totalRewardFields++;
+                }
+              });
+            }
+          }
+
+          // Count this as a valid reward if all required fields are present
+          if (isValidReward) {
+            validRewardsCount++;
           }
         });
 
-        const fieldCompletion = totalRewardFields > 0 ? completedRewardFields / totalRewardFields : 0;
+        // Calculate field completion percentage
+        const fieldCompletionPercentage = totalRewardFields > 0
+          ? (completedRewardFields / totalRewardFields) * 100
+          : 0;
 
-        // Combine phase coverage (50%) and field completion (50%)
-        return Math.round(((phaseCoverage + fieldCompletion) / 2) * 100);
+        // Calculate reward completeness based on both phase coverage and field completion
+        // Give more weight to having rewards for all phases (70%) and less to field completion (30%)
+        const rewardPercentage = Math.round((phaseCoverage * 70) + (fieldCompletionPercentage * 0.3));
+
+        // If at least one valid reward exists and all phases have rewards, ensure minimum 50% completion
+        if (validRewardsCount > 0 && phaseCoverage === 1) {
+          return Math.max(rewardPercentage, 50);
+        }
+
+        return rewardPercentage;
       }
 
       case 'story': {
         // Enhanced project story evaluation with content blocks analysis
-        const story = data.projectStory || '';
+        const projectStory = data.projectStory || {};
+        const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+        const risks = typeof projectStory === 'object' ? projectStory.risks || '' : '';
+
+        console.log('ProjectCreationChecklist: analyzing story data', {
+          hasProjectStory: !!projectStory,
+          storyLength: story?.length || 0,
+          risksLength: risks?.length || 0
+        });
 
         // If no story content, return 0
-        if (!story || typeof story !== 'string' || story.trim().length === 0) {
+        if ((!story || typeof story !== 'string' || story.trim().length === 0) &&
+          (!risks || typeof risks !== 'string' || risks.trim().length === 0)) {
+          console.log('ProjectCreationChecklist: no story content found');
           return 0;
         }
 
@@ -154,7 +201,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           try {
             if (typeof window === 'undefined') {
               // Server-side rendering fallback
-              const storyLength = story.length;
+              const storyLength = (story || '').length + (risks || '').length;
               // Basic length check - adjusted for 5000 character limit
               if (storyLength > 3000) return 80;
               if (storyLength > 1500) return 50;
@@ -163,49 +210,71 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             }
 
             // Client-side rich analysis
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = story;
+            // Create temp divs for both story and risks
+            const storyDiv = document.createElement('div');
+            storyDiv.innerHTML = story || '';
+            const risksDiv = document.createElement('div');
+            risksDiv.innerHTML = risks || '';
 
-            // Extract plain text
-            const plainText = tempDiv.textContent || '';
-            const charCount = plainText.length;
-            const wordCount = plainText.split(/\s+/).filter(word => word.length > 0).length;
+            // Extract plain text from both sections
+            const storyText = storyDiv.textContent || '';
+            const risksText = risksDiv.textContent || '';
 
-            // Check if over character limit
-            if (charCount > MAX_STORY_CHARS) {
-              return Math.max(10, 70 - Math.min(30, Math.floor((charCount - MAX_STORY_CHARS) / 100)));
+            const storyCharCount = storyText.length;
+            const risksCharCount = risksText.length;
+
+            console.log('Story analysis - story chars:', storyCharCount, 'risks chars:', risksCharCount);
+
+            // Check if main story is missing
+            if (storyCharCount < 200) {
+              return Math.min(30, Math.round(storyCharCount / 50));
             }
 
-            // Count different elements
-            const images = tempDiv.querySelectorAll('img').length;
-            const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
-            const paragraphs = tempDiv.querySelectorAll('p').length;
-            const lists = tempDiv.querySelectorAll('ul, ol').length;
-            const videos = tempDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe').length;
-            const links = tempDiv.querySelectorAll('a').length;
+            // Check if risks section is missing
+            if (risksCharCount < 100) {
+              // Penalize missing risks section - cap at 60%
+              return Math.min(60, Math.round((storyCharCount / MAX_STORY_CHARS) * 80));
+            }
 
-            // Calculate base score from content length
+            // Count different elements in story
+            const images = storyDiv.querySelectorAll('img').length;
+            const headings = storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
+            const paragraphs = storyDiv.querySelectorAll('p').length;
+            const lists = storyDiv.querySelectorAll('ul, ol').length;
+            const videos = storyDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe, div[data-youtube-video]').length;
+
+            console.log('Story elements - images:', images, 'headings:', headings, 'paragraphs:', paragraphs, 'lists:', lists, 'videos:', videos);
+
+            // Calculate base score from content length and completeness
             let score = 0;
 
-            // Character count scoring (max: 40 points) - adjusted for 5000 limit
-            if (charCount > 3000) score += 40;
-            else if (charCount > 1500) score += 30;
-            else if (charCount > 800) score += 20;
-            else if (charCount > 300) score += 10;
+            // Story content scoring (max: 70 points)
+            if (storyCharCount > 3000) score += 35;
+            else if (storyCharCount > 1500) score += 25;
+            else if (storyCharCount > 800) score += 15;
+            else if (storyCharCount > 300) score += 8;
+            else score += 4;
+
+            // Risks section scoring (max: 30 points)
+            if (risksCharCount > 1000) score += 30;
+            else if (risksCharCount > 500) score += 25;
+            else if (risksCharCount > 200) score += 15;
+            else if (risksCharCount > 100) score += 10;
             else score += 5;
 
-            // Content variety scoring (max: 60 points)
-            if (headings > 0) score += Math.min(headings * 5, 15); // Up to 15 points for headings
+            // Content variety scoring (bonus points up to 30)
+            if (headings > 0) score += Math.min(headings * 3, 10); // Up to 10 points for headings
             if (images > 0) score += Math.min(images * 5, 20); // Up to 20 points for images
             if (paragraphs > 2) score += Math.min((paragraphs - 2) * 2, 10); // Up to 10 points for paragraphs
             if (lists > 0) score += Math.min(lists * 3, 9); // Up to 9 points for lists
-            if (videos > 0) score += Math.min(videos * 3, 6); // Up to 6 points for videos
+
+            console.log('Story final score:', score);
 
             return Math.min(score, 100);
           } catch (error) {
             console.error('Error analyzing story content:', error);
             // Fallback to basic length check
-            const storyLength = story.length;
+            const storyLength = (story || '').length + (risks || '').length;
             if (storyLength > 3000) return 70;
             if (storyLength > 1500) return 40;
             if (storyLength > 500) return 20;
@@ -213,31 +282,37 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           }
         };
 
-        return parseAndAnalyzeStory();
+        const score = parseAndAnalyzeStory();
+        console.log('ProjectCreationChecklist: story final score', score);
+        return score;
       }
 
-      // Other sections remain unchanged
       case 'founder': {
-        const founderProfile = data.founderProfile || {};
-        const { bio, experience, team, socialLinks } = founderProfile;
+        // The data structure from FounderProfile is different than what this function expects
+        // Handle all possible structures the data might come in
+        const bio = formData.bio || (formData.founderProfile && formData.founderProfile.bio) || '';
+        const fullName = formData.fullName || (formData.founderProfile && formData.founderProfile.fullName) || '';
+        const email = formData.email || (formData.founderProfile && formData.founderProfile.email) || '';
+        const team = formData.team || (formData.founderProfile && formData.founderProfile.team) || [];
+        const studentInfo = formData.studentInfo || (formData.founderProfile && formData.founderProfile.studentInfo) || {};
+
+        // Calculate completion score
         let completed = 0;
-        let total = 2; // Required fields: bio, experience
+        const total = 5; // Required fields
 
+        // Primary user info
         if (bio) completed++;
-        if (experience) completed++;
+        if (fullName) completed++;
+        if (email) completed++;
 
-        // Bonus points for team members and social links
-        if (team && Array.isArray(team) && team.length > 0) {
-          completed += 0.5;
-          total += 0.5;
+        // Student info is important
+        if (studentInfo && Object.values(studentInfo).some(val => val)) {
+          completed++;
         }
 
-        if (socialLinks && typeof socialLinks === 'object') {
-          const filledLinks = Object.values(socialLinks).filter(link => link).length;
-          if (filledLinks > 0) {
-            completed += 0.5;
-            total += 0.5;
-          }
+        // Team members
+        if (team && Array.isArray(team) && team.length > 0) {
+          completed++;
         }
 
         return Math.round((completed / total) * 100);
@@ -386,49 +461,79 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
     return phasesCovered && rewardsWithProperItems;
   };
 
+  // Update isProjectStoryComplete function
   const isProjectStoryComplete = () => {
-    // Enhanced validation for rich project story
-    const story = formData?.projectStory || '';
+    // Enhanced validation for rich project story with risks
+    const projectStory = formData?.projectStory || {};
+    const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+    const risks = typeof projectStory === 'object' ? projectStory.risks || '' : '';
 
-    // Basic check for content length
-    if (typeof story !== 'string' || story.trim().length < 200) {
-      return false;
+    if (typeof window === 'undefined') {
+      // Server-side simple check
+      return typeof story === 'string' && story.length > 500 &&
+        typeof risks === 'string' && risks.length > 100;
     }
 
-    // Check for character limit
-    if (typeof window !== 'undefined') {
-      try {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = story;
-        const plainText = tempDiv.textContent || '';
+    try {
+      // Client-side thorough check
+      // Check story section
+      const storyDiv = document.createElement('div');
+      storyDiv.innerHTML = story || '';
+      const storyText = storyDiv.textContent || '';
 
-        // Story is not valid if it exceeds character limit
-        if (plainText.length > MAX_STORY_CHARS) {
-          return false;
-        }
-
-        // Check for minimum content elements
-        const hasHeadings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length > 0;
-        const hasParagraphs = tempDiv.querySelectorAll('p').length > 1; // At least 2 paragraphs
-        const hasMedia = tempDiv.querySelectorAll('img, iframe').length > 0;
-
-        // Story should have at least headings and paragraphs
-        return hasParagraphs && (hasHeadings || hasMedia);
-      } catch (error) {
-        console.error('Error analyzing story completion:', error);
-        // Fallback to basic length check if DOM parsing fails
-        return story.length > 500 && story.length <= MAX_STORY_CHARS;
+      // Basic check for content length in story section
+      if (storyText.length < 200) {
+        return false;
       }
-    }
 
-    // For server-side rendering, just check length
-    return story.length > 500 && story.length <= MAX_STORY_CHARS;
+      // Check for risks section
+      const risksDiv = document.createElement('div');
+      risksDiv.innerHTML = risks || '';
+      const risksText = risksDiv.textContent || '';
+
+      // Basic check for content length in risks section
+      if (risksText.length < 100) {
+        return false;
+      }
+
+      // Check for character limit
+      if (storyText.length > MAX_STORY_CHARS || risksText.length > MAX_RISKS_CHARS) {
+        return false;
+      }
+
+      // Check for minimum content elements in story
+      const hasHeadings = storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length > 0;
+      const hasParagraphs = storyDiv.querySelectorAll('p').length > 1; // At least 2 paragraphs
+      const hasMedia = storyDiv.querySelectorAll('img, iframe, div[data-youtube-video]').length > 0;
+
+      // Check for minimum content in risks section
+      const hasRisksParagraphs = risksDiv.querySelectorAll('p').length > 0;
+
+      // Story should have at least headings and paragraphs, risks should have at least one paragraph
+      return hasParagraphs && hasRisksParagraphs && (hasHeadings || hasMedia);
+    } catch (error) {
+      console.error('Error analyzing story completion:', error);
+      // Fallback to basic length check if DOM parsing fails
+      return typeof story === 'string' && story.length > 500 &&
+        typeof risks === 'string' && risks.length > 100;
+    }
   };
 
   const isFounderProfileComplete = () => {
-    const founderProfile = formData?.founderProfile || {};
-    const { bio, experience } = founderProfile;
-    return Boolean(bio && experience);
+    // Check for founder data in all possible locations
+    const bio = formData.bio || (formData.founderProfile && formData.founderProfile.bio) || '';
+    const fullName = formData.fullName || (formData.founderProfile && formData.founderProfile.fullName) || '';
+    const email = formData.email || (formData.founderProfile && formData.founderProfile.email) || '';
+    const studentInfo = formData.studentInfo || (formData.founderProfile && formData.founderProfile.studentInfo) || {};
+
+    // Basic required fields
+    const hasBasicInfo = Boolean(bio && fullName && email);
+
+    // At least one student info field should be filled
+    const hasStudentInfo = studentInfo &&
+      Object.values(studentInfo).some(val => Boolean(val));
+
+    return hasBasicInfo && hasStudentInfo;
   };
 
   const isRequiredDocumentsComplete = () => {
@@ -542,14 +647,18 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
   };
 
   // Check for missing content blocks in project story
+  // Fix getMissingStoryElements function
   const getMissingStoryElements = () => {
     if (typeof window === 'undefined' || !formData?.projectStory) {
       return [];
     }
 
     try {
+      const projectStory = formData.projectStory || {};
+      const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = formData.projectStory;
+      tempDiv.innerHTML = story;
 
       // Check if the story exceeds character limit
       const plainText = tempDiv.textContent || '';
@@ -559,6 +668,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
       const missingElements = [];
 
+      // Check for key elements
       if (tempDiv.querySelectorAll('h1, h2, h3').length === 0) {
         missingElements.push('headings');
       }
@@ -582,15 +692,18 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
   const rewardsWithMissingImages = getRewardsWithMissingImages();
   const missingStoryElements = getMissingStoryElements();
 
-  // Check if story exceeds character limit
   const isStoryOverCharLimit = () => {
     if (typeof window === 'undefined' || !formData?.projectStory) {
       return false;
     }
 
     try {
+      // Fix here: Use projectStory.story instead of the whole object
+      const projectStory = formData.projectStory || {};
+      const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = formData.projectStory;
+      tempDiv.innerHTML = story; // Use story, not formData.projectStory
       const plainText = tempDiv.textContent || '';
       return plainText.length > MAX_STORY_CHARS;
     } catch (error) {

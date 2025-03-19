@@ -15,6 +15,12 @@ const PROJECT_BY_FOUNDER_ENDPOINT = `http://localhost:8080/api/v1/project/founde
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
+const PROJECT_CREATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
+const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
+const PROJECT_UPDATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
+const PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project-story/upload-image-to-story-block/${id}`;
+const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
+
 
 /**
  * Project related API service methods
@@ -406,8 +412,171 @@ const projectService = {
             console.error('Error fetching phases by project:', error);
             throw error;
         }
-    }
+    },
 
+    getPhaseById: async (phaseId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_GET_FUNDING_PHASE_BY_ID_ENDPOINT(phaseId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error fetching phase ${phaseId}:`, error);
+            throw error;
+        }
+    },
+
+    createProjectStory: async (projectId, storyData) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_CREATE_STORY_ENDPOINT(projectId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(storyData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error creating project story for project ${projectId}:`, error);
+            throw error;
+        }
+    },
+
+    getProjectStoryByProjectId: async (projectId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.status === 401) {
+                return null;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error fetching project story for project ${projectId}:`, error);
+            throw error;
+        }
+    },
+
+    getProjectStoryById: async (storyId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_GET_STORY_BY_ID_ENDPOINT(storyId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error fetching project story ${storyId}:`, error);
+            throw error;
+        }
+    },
+
+    updateProjectStory: async (storyId, storyData) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_UPDATE_STORY_ENDPOINT(storyId), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(storyData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error updating project story ${storyId}:`, error);
+            throw error;
+        }
+    },
+
+    // Method to upload an image to a story
+    uploadStoryImage: async (storyId, file) => {
+        try {
+            console.log(`Uploading image for story ${storyId}`);
+
+            if (!storyId) {
+                throw new Error('No story ID provided for image upload');
+            }
+
+            // Create form data for file upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const token = localStorage.getItem('accessToken');
+            const response = await fetch(`${API_BASE_URL}/project-story/upload-image-to-story-block/${storyId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                console.error(`Image upload failed with status: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to upload image');
+            }
+
+            const result = await response.json();
+            console.log('Image upload successful:', result);
+
+            // Try to find the URL in the response
+            if (result && result.url) return result.url;
+            if (result && result.imageUrl) return result.imageUrl;
+            if (result && result.data && result.data.url) return result.data.url;
+            if (result && result.data && result.data.imageUrl) return result.data.imageUrl;
+            if (typeof result === 'string' && result.startsWith('http')) return result;
+
+            console.warn('Could not determine image URL from response:', result);
+            return null;
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            throw error;
+        }
+    }
 };
 
 export default projectService;
