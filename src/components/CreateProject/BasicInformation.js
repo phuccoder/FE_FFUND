@@ -220,7 +220,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
   
       if (form.projectId) {
         // Update existing project
-        result = await projectService.updateProject(form.projectId, form);
+        result = await projectService.updateProjectInfo(form.projectId, form);
       } else {
         // Create new project
         result = await projectService.createProject(form);

@@ -4,6 +4,7 @@ import { tokenManager } from '../utils/tokenManager';
  * Get user data by ID (from the authenticated user)
  * @returns {Promise<Object>} User data
  */
+
 export const getUserById = async () => {
     try {
         const token = await tokenManager.getValidToken();
