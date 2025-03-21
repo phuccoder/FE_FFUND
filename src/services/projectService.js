@@ -1,7 +1,7 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 // API endpoints
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const PROJECT_CREATE_ENDPOINT = `${API_BASE_URL}/project`;
@@ -11,7 +11,7 @@ const PROJECT_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project/get-by-id/${id}`
 const PROJECT_CREATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_UPDATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
-const PROJECT_BY_FOUNDER_ENDPOINT = `http://localhost:8080/api/v1/project/founder`;
+const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
@@ -26,6 +26,41 @@ const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}
  * Project related API service methods
  */
 const projectService = {
+    /**
+     * Fetch all projects with pagination
+     * @param {number} page - The page number (default: 1)
+     * @param {number} size - The number of projects per page (default: 10)
+     * @returns {Promise<Object>} Object containing project data and pagination info
+     */
+    getAllProjects: async (page = 1, size = 10) => {
+        try {
+            console.log(`Fetching projects with page: ${page} and size: ${size}`);
+    
+            const response = await fetch(`${API_BASE_URL}/project/get-all?page=${page}&size=${size}`, {
+                method: 'GET',
+                headers: {
+                    'accept': '*/*'
+                }
+            });
+    
+            if (!response.ok) {
+                console.error(`Error: Received a non-OK status ${response.status} from API`);
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+    
+            const result = await response.json();
+            console.log("Received all projects:", result);
+    
+            if (!result || !result.data) {
+                console.warn("No data found in the response or data is empty.");
+            }
+    
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching all projects:', error);
+            throw error;
+        }
+    },    
     /**
      * Fetch all available categories
      * @returns {Promise<Array>} Array of category objects
