@@ -33,7 +33,7 @@ export const ResetPasswordForm = () => {
       setError('');
   
       try {
-        const response = await fetch('http://103.162.15.61:8080/api/v1/auth/reset-password', {
+        const response = await fetch('http://localhost:8080/api/v1/auth/reset-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

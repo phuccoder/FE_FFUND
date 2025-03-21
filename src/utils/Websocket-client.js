@@ -1,12 +1,14 @@
 import { Client } from '@stomp/stompjs';
 
 export class WebSocketClient {
-    constructor(serverUrl, topicEndpoint, onMessageCallback) {
+    constructor(serverUrl, topicEndpoint, onMessageCallback, onConnectCallback, onDisconnectCallback) {
       this.serverUrl = serverUrl;
       this.topicEndpoint = topicEndpoint;
       this.onMessageCallback = onMessageCallback;
       this.client = null;
       this.subscription = null;
+      this.onConnectCallback = onConnectCallback;
+      this.onDisconnectCallback = onDisconnectCallback;
     }
 
   connect() {
@@ -24,6 +26,7 @@ export class WebSocketClient {
     // Setup connection event handlers
     this.client.onConnect = (frame) => {
       console.log('Connected to WebSocket server');
+      if (this.onConnectCallback) this.onConnectCallback();
       
       // Subscribe to the topic
       this.subscription = this.client.subscribe(this.topicEndpoint, (message) => {
@@ -49,6 +52,11 @@ export class WebSocketClient {
 
     this.client.onWebSocketError = (event) => {
       console.error('WebSocket Error:', event);
+    };
+
+    this.client.onWebSocketClose = () => {
+      console.log('WebSocket connection closed');
+      if (this.onDisconnectCallback) this.onDisconnectCallback();
     };
 
     // Start the connection
