@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    domains: ['cdn.shopify.com'],
     unoptimized: true,
     disableStaticImages: true  // Add this line
   },

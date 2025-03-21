@@ -1,15 +1,22 @@
 import React from "react";
-import Image from "next/image";
 import Link from "../Reuseable/Link";
 
 const SingleProject = ({ project = {} }) => {
-  const { image, category, date, title, goal, raised } = project;
+  const {
+    projectTitle,
+    createdAt,
+    subCategories,
+    projectUrl,
+  } = project;
+
+  const category = subCategories && subCategories.length > 0 ? subCategories[0].subCategoryName : "Uncategorized";
+  const date = createdAt ? new Date(createdAt).toLocaleDateString() : "Unknown Date";
+  const title = projectTitle || "Untitled Project";
 
   return (
     <div className="explore-projects-item mt-30">
       <div className="explore-projects-thumb">
-        <Image src={image.src} alt="explore-projects" />
-        <a href="#">
+        <a href={projectUrl} target="_blank" rel="noopener noreferrer">
           <i className="fa fa-heart"></i>
         </a>
       </div>
@@ -27,14 +34,14 @@ const SingleProject = ({ project = {} }) => {
           <div className="projects-range-content">
             <ul>
               <li>Raised:</li>
-              <li>{raised}%</li>
+              <li>0%</li> {/* Placeholder for raised amount */}
             </ul>
             <div className="range"></div>
           </div>
         </div>
         <div className="projects-goal">
           <span>
-            Goal: <span>{goal} USD</span>
+            Goal: <span>Unknown USD</span> {/* Placeholder for goal */}
           </span>
         </div>
       </div>
