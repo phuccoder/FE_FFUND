@@ -412,6 +412,11 @@
   resolved "https://registry.npmjs.org/@tiptap/extension-code/-/extension-code-2.11.5.tgz"
   integrity sha512-xOvHevNIQIcCCVn9tpvXa1wBp0wHN/2umbAZGTVzS+AQtM7BTo0tz8IyzwxkcZJaImONcUVYLOLzt2AgW1LltA==
 
+"@tiptap/extension-color@^2.11.5":
+  version "2.11.5"
+  resolved "https://registry.npmjs.org/@tiptap/extension-color/-/extension-color-2.11.5.tgz"
+  integrity sha512-9gZF6EIpfOJYUt1TtFY37e8iqwKcOmBl8CkFaxq+4mWVvYd2D7KbA0r4tYTxSO0fOBJ5fA/1qJrpvgRlyocp/A==
+
 "@tiptap/extension-document@^2.11.5":
   version "2.11.5"
   resolved "https://registry.npmjs.org/@tiptap/extension-document/-/extension-document-2.11.5.tgz"
@@ -443,6 +448,11 @@
   version "2.11.5"
   resolved "https://registry.npmjs.org/@tiptap/extension-heading/-/extension-heading-2.11.5.tgz"
   integrity sha512-x/MV53psJ9baRcZ4k4WjnCUBMt8zCX7mPlKVT+9C/o+DEs/j/qxPLs95nHeQv70chZpSwCQCt93xMmuF0kPoAg==
+
+"@tiptap/extension-highlight@^2.11.5":
+  version "2.11.5"
+  resolved "https://registry.npmjs.org/@tiptap/extension-highlight/-/extension-highlight-2.11.5.tgz"
+  integrity sha512-VBZfT869L9CiTLF8qr+3FBUtJcmlyUTECORNo0ceEiNDg4H6V9uNPwaROMXrWiQCc+DYVCOkx541QrXwNMzxlg==
 
 "@tiptap/extension-history@^2.11.5":
   version "2.11.5"
@@ -501,7 +511,7 @@
   resolved "https://registry.npmjs.org/@tiptap/extension-text-align/-/extension-text-align-2.11.5.tgz"
   integrity sha512-Ei0zDpH5N9EV59ogydK4HTKa4lCPicCsQllM5n/Nf2tUJPir3aiYxzJ73FzhComD4Hpo1ANYnmssBhy8QeoPZA==
 
-"@tiptap/extension-text-style@^2.11.5":
+"@tiptap/extension-text-style@^2.11.5", "@tiptap/extension-text-style@^2.7.0":
   version "2.11.5"
   resolved "https://registry.npmjs.org/@tiptap/extension-text-style/-/extension-text-style-2.11.5.tgz"
   integrity sha512-YUmYl0gILSd/u/ZkOmNxjNXVw+mu8fpC2f8G4I4tLODm0zCx09j9DDEJXSrM5XX72nxJQqtSQsCpNKnL0hfeEQ==
@@ -511,10 +521,20 @@
   resolved "https://registry.npmjs.org/@tiptap/extension-text/-/extension-text-2.11.5.tgz"
   integrity sha512-Gq1WwyhFpCbEDrLPIHt5A8aLSlf8bfz4jm417c8F/JyU0J5dtYdmx0RAxjnLw1i7ZHE7LRyqqAoS0sl7JHDNSQ==
 
+"@tiptap/extension-typography@^2.11.5":
+  version "2.11.5"
+  resolved "https://registry.npmjs.org/@tiptap/extension-typography/-/extension-typography-2.11.5.tgz"
+  integrity sha512-K+mwkyyH3bhnw8f6dKt0AIIh7ipPPVTY5XiWxm1ZMnS6p7TkXeqSJRU6mT1a47YLX4IGBEMlTQdvDVvJ1hwTjA==
+
 "@tiptap/extension-underline@^2.11.5":
   version "2.11.5"
   resolved "https://registry.npmjs.org/@tiptap/extension-underline/-/extension-underline-2.11.5.tgz"
   integrity sha512-YpWHXNIkSoRSuzT2cvgKpyJ2tTz3LzqkTM64uC+uTJ8cUkvXIWUWejJR42q8ma/mTlQe4lHff4IQ0Sf58Digtw==
+
+"@tiptap/extension-youtube@^2.11.5":
+  version "2.11.5"
+  resolved "https://registry.npmjs.org/@tiptap/extension-youtube/-/extension-youtube-2.11.5.tgz"
+  integrity sha512-9XEH/zx/FlL/liJsncstcze98C73iupCbWlhAfC8+9O0wDmHEwaFyLSj+5LDqozWwzFnJmFOy7uZXfOY90kWGg==
 
 "@tiptap/pm@^2.11.5", "@tiptap/pm@^2.7.0":
   version "2.11.5"

@@ -53,9 +53,9 @@ const SingleBanner = ({
               </h3>
               <Link
                 className={`main-btn${isActive ? " animated zoomIn" : ""}`}
-                href="/single-project"
+                href="/projects-1"
               >
-                Start a Project
+                Back a Project
               </Link>
             </div>
           </Col>

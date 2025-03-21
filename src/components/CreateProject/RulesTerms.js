@@ -50,7 +50,7 @@ export default function RulesTerms({ formData, updateFormData }) {
             <li>You are responsible for all taxes and legal obligations related to your funding.</li>
             <li>Prohibited projects include those involving illegal activities, offensive content, personal fundraising, and prohibited items.</li>
             <li>The platform reserves the right to remove any project that violates these terms.</li>
-            <li>Platform fees of 5% will be deducted from successful campaigns (additional payment processing fees may apply).</li>
+            <li>Platform fees of 4% will be deducted from successful campaigns (additional payment processing fees may apply).</li>
             <li>You agree to provide additional verification if requested by our team.</li>
           </ol>
           
