@@ -153,10 +153,10 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
         if (editor) {
           const tempId = `loading-${Date.now()}`;
           editor.chain().focus().insertContent(`
-          <div id="${tempId}" class="bg-gray-100 p-4 rounded text-center">
-            <p>Uploading image...</p>
-          </div>
-        `).run();
+            <div id="${tempId}" class="bg-gray-100 p-4 rounded text-center">
+              <p>Uploading image...</p>
+            </div>
+          `).run();
         }
 
         try {
@@ -185,14 +185,14 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
           if (imageUrl && editor) {
             // Insert the image with proper attributes for the API to recognize
             editor.chain().focus().insertContent(`
-            <img 
-              src="${imageUrl}" 
-              alt="${file.name || 'Project image'}" 
-              title="${file.name || 'Project image'}"
-              class="story-image" 
-              data-type="IMAGE"
-            />
-          `).run();
+              <img 
+                src="${imageUrl}" 
+                alt="${file.name || 'Project image'}" 
+                title="${file.name || 'Project image'}"
+                class="story-image" 
+                data-type="IMAGE"
+              />
+            `).run();
 
             console.log('Image inserted successfully');
           } else {
@@ -216,6 +216,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
     input.click();
   };
 
+  // Replace the addYouTube function with this improved implementation
   const addYouTube = () => {
     if (isOverLimit) {
       alert(`You've reached the character limit (${MAX_CHARS}). Please remove some content before adding videos.`);
@@ -224,14 +225,61 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
 
     const url = prompt('Enter YouTube URL');
     if (url && editor) {
-      editor.commands.setYoutubeVideo({
-        src: url,
-        width: 640,
-        height: 480,
-      });
+      // Extract the YouTube video ID
+      let videoId = '';
+      try {
+        if (url.includes('youtube.com/watch')) {
+          const urlObj = new URL(url);
+          videoId = urlObj.searchParams.get('v');
+        } else if (url.includes('youtu.be/')) {
+          videoId = url.split('youtu.be/')[1].split(/[?&#]/)[0];
+        } else if (url.includes('youtube.com/embed/')) {
+          videoId = url.split('youtube.com/embed/')[1].split(/[?&#]/)[0];
+        }
+      } catch (err) {
+        console.error('Error parsing YouTube URL:', err);
+      }
+
+      if (!videoId) {
+        alert('Invalid YouTube URL. Please provide a valid YouTube link.');
+        return;
+      }
+
+      // Create enhanced YouTube embed with all necessary attributes
+      const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+
+      // This special HTML format ensures the API recognizes it as a VIDEO block
+      const videoHtml = `
+        <div class="ProseMirror-youtube-iframe" data-youtube-video="true" data-type="VIDEO">
+          <iframe 
+            src="${embedUrl}"
+            width="560" 
+            height="315" 
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen
+            data-type="VIDEO"
+          ></iframe>
+        </div>
+      `;
+
+      // Insert at cursor position
+      editor.chain().focus().insertContent(videoHtml).run();
+      console.log('YouTube video inserted:', embedUrl);
     }
   };
 
+  YouTube.configure({
+    width: 500,
+    height: 300,
+    controls: true,
+    nocookie: false,
+    HTMLAttributes: {
+      class: 'ProseMirror-youtube-iframe',
+      'data-type': 'VIDEO',
+      'data-youtube-video': '',
+    }
+  })
   const setLink = () => {
     if (!editor) return;
 
