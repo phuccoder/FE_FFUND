@@ -531,13 +531,13 @@ const projectService = {
             throw error;
         }
     },
-
     // Method to upload an image to a story
-    uploadStoryImage: async (storyId, file) => {
+    uploadStoryImage: async (storyBlockId, file) => {
         try {
-            console.log(`Uploading image for story ${storyId}`);
+            console.log(`Uploading image for story ${storyBlockId}`);
 
-            if (!storyId) {
+            // Fixed: storyId is undefined error - using storyBlockId instead
+            if (!storyBlockId) {
                 throw new Error('No story ID provided for image upload');
             }
 
@@ -546,7 +546,7 @@ const projectService = {
             formData.append('file', file);
 
             const token = localStorage.getItem('accessToken');
-            const response = await fetch(`${API_BASE_URL}/project-story/upload-image-to-story-block/${storyId}`, {
+            const response = await fetch(PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT(storyBlockId), {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
