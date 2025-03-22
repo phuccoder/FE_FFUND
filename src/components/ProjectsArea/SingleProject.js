@@ -1,17 +1,21 @@
 import React from "react";
-import Link from "../Reuseable/Link";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const SingleProject = ({ project = {} }) => {
-  const {
-    projectTitle,
-    createdAt,
-    subCategories,
-    projectUrl,
-  } = project;
-
-  const category = subCategories && subCategories.length > 0 ? subCategories[0].subCategoryName : "Uncategorized";
+  const { id, title, createdAt, subCategories, projectUrl } = project;
+  
+  const category = project.category ? project.category.name : "Uncategorized"; 
   const date = createdAt ? new Date(createdAt).toLocaleDateString() : "Unknown Date";
-  const title = projectTitle || "Untitled Project";
+  
+  const projectTitle = title || "Untitled Project";
+
+  const router = useRouter();
+
+  const handleClick = () => {
+    localStorage.setItem("selectedProjectId", id);
+    router.push("/single-project");
+  };
 
   return (
     <div className="explore-projects-item mt-30">
@@ -27,21 +31,19 @@ const SingleProject = ({ project = {} }) => {
             <i className="fa fa-clock-o"></i> {date}
           </p>
         </div>
-        <Link href="/single-project">
-          <h3 className="title">{title}</h3>
-        </Link>
+        <h3 className="title" onClick={handleClick}>{projectTitle}</h3>
         <div className="projects-range">
           <div className="projects-range-content">
             <ul>
               <li>Raised:</li>
-              <li>0%</li> {/* Placeholder for raised amount */}
+              <li>0%</li>
             </ul>
             <div className="range"></div>
           </div>
         </div>
         <div className="projects-goal">
           <span>
-            Goal: <span>Unknown USD</span> {/* Placeholder for goal */}
+            Goal: <span>Unknown USD</span>
           </span>
         </div>
       </div>

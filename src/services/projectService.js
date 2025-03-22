@@ -230,13 +230,10 @@ const projectService = {
 
     getProjectById: async (projectId) => {
         try {
-            const token = await tokenManager.getValidToken();
-
             const response = await fetch(PROJECT_BY_ID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 }
             });
 
