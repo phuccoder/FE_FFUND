@@ -1,10 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 const MAX_STORY_CHARS = 5000;
 const MAX_RISKS_CHARS = 5000;
 
 export default function ProjectCreationChecklist({ formData = {}, sections }) {
+  useEffect(() => {
+    // Add extra debugging for payment info
+    if (formData?.paymentInfo) {
+      console.log("Payment Info in checklist component:", {
+        id: formData.paymentInfo.id,
+        stripeAccountId: formData.paymentInfo.stripeAccountId,
+        status: formData.paymentInfo.status
+      });
+    }
+  }, [formData.paymentInfo]);
   const calculateSectionCompletion = (section) => {
     // Ensure formData exists
     const data = formData || {};
@@ -180,13 +190,25 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       case 'story': {
         // Enhanced project story evaluation with content blocks analysis
         const projectStory = data.projectStory || {};
-        const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
-        const risks = typeof projectStory === 'object' ? projectStory.risks || '' : '';
 
+        // Check if projectStory is a string or an object with story/risks properties
+        let story = '';
+        let risks = '';
+
+        if (typeof projectStory === 'string') {
+          story = projectStory;
+        } else if (typeof projectStory === 'object') {
+          story = projectStory.story || '';
+          risks = projectStory.risks || '';
+        }
+
+        // Debug what we're analyzing
         console.log('ProjectCreationChecklist: analyzing story data', {
           hasProjectStory: !!projectStory,
           storyLength: story?.length || 0,
-          risksLength: risks?.length || 0
+          risksLength: risks?.length || 0,
+          storyType: typeof story,
+          risksType: typeof risks
         });
 
         // If no story content, return 0
@@ -241,9 +263,10 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             const headings = storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
             const paragraphs = storyDiv.querySelectorAll('p').length;
             const lists = storyDiv.querySelectorAll('ul, ol').length;
-            const videos = storyDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe, div[data-youtube-video]').length;
+            const videos = storyDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe, [data-youtube-video], [data-type="VIDEO"]').length;
 
-            console.log('Story elements - images:', images, 'headings:', headings, 'paragraphs:', paragraphs, 'lists:', lists, 'videos:', videos);
+            console.log('Story elements - images:', images, 'headings:', headings,
+              'paragraphs:', paragraphs, 'lists:', lists, 'videos:', videos);
 
             // Calculate base score from content length and completeness
             let score = 0;
@@ -267,6 +290,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             if (images > 0) score += Math.min(images * 5, 20); // Up to 20 points for images
             if (paragraphs > 2) score += Math.min((paragraphs - 2) * 2, 10); // Up to 10 points for paragraphs
             if (lists > 0) score += Math.min(lists * 3, 9); // Up to 9 points for lists
+            if (videos > 0) score += Math.min(videos * 4, 15); // Up to 15 points for videos
 
             console.log('Story final score:', score);
 
@@ -324,16 +348,13 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         const optional = requiredDocs.optional || {};
 
         let completed = 0;
-        let total = 6; // 5 mandatory docs + at least one project media
+        let total = 5; // 5 mandatory docs
 
         if (mandatory.swotAnalysis) completed++;
         if (mandatory.businessModelCanvas) completed++;
         if (mandatory.businessPlan) completed++;
         if (mandatory.marketResearch) completed++;
         if (mandatory.financialInformation) completed++;
-
-        const projectMedia = mandatory.projectMedia || [];
-        if (Array.isArray(projectMedia) && projectMedia.length > 0) completed++;
 
         // Bonus points for optional documents
         const optionalTotal = 3;
@@ -349,24 +370,31 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
       case 'payment': {
         const paymentInfo = data.paymentInfo || {};
-        const { accountName, accountNumber, bankName, swiftCode, country } = paymentInfo;
-        let completed = 0;
-        let total = 4; // Required fields: accountName, accountNumber, bankName, country
+        console.log("Payment info in completion calculation:", paymentInfo);
 
-        if (accountName) completed++;
-        if (accountNumber) completed++;
-        if (bankName) completed++;
-        if (country) completed++;
-
-        // SWIFT code is optional
-        if (swiftCode) {
-          completed += 0.5;
-          total += 0.5;
+        // Return 0 if paymentInfo is empty or null
+        if (!paymentInfo || typeof paymentInfo !== 'object' || Object.keys(paymentInfo).length === 0) {
+          return 0;
         }
 
-        return Math.round((completed / total) * 100);
-      }
+        // Direct check for status field
+        if (paymentInfo.status === 'LINKED') {
+          return 100;
+        }
 
+        // Stricter check for stripeAccountId - ensure it's a non-empty string
+        if (paymentInfo.stripeAccountId && typeof paymentInfo.stripeAccountId === 'string'
+          && paymentInfo.stripeAccountId.trim().length > 0) {
+          return 100;
+        }
+
+        // Check for payment ID - ensure it's a non-empty string or number
+        if ((paymentInfo.id && typeof paymentInfo.id === 'string' && paymentInfo.id.trim().length > 0) ||
+          (paymentInfo.id && typeof paymentInfo.id === 'number' && paymentInfo.id > 0)) {
+          return 40;
+        }
+        return 10;
+      }
       default:
         return 0;
     }
@@ -465,8 +493,17 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
   const isProjectStoryComplete = () => {
     // Enhanced validation for rich project story with risks
     const projectStory = formData?.projectStory || {};
-    const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
-    const risks = typeof projectStory === 'object' ? projectStory.risks || '' : '';
+
+    // Check if projectStory is a string or an object with story/risks properties
+    let story = '';
+    let risks = '';
+
+    if (typeof projectStory === 'string') {
+      story = projectStory;
+    } else if (typeof projectStory === 'object') {
+      story = projectStory.story || '';
+      risks = projectStory.risks || '';
+    }
 
     if (typeof window === 'undefined') {
       // Server-side simple check
@@ -504,7 +541,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       // Check for minimum content elements in story
       const hasHeadings = storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length > 0;
       const hasParagraphs = storyDiv.querySelectorAll('p').length > 1; // At least 2 paragraphs
-      const hasMedia = storyDiv.querySelectorAll('img, iframe, div[data-youtube-video]').length > 0;
+      const hasMedia = storyDiv.querySelectorAll('img, iframe, .ProseMirror-youtube-iframe, [data-youtube-video], [data-type="VIDEO"], [data-type="IMAGE"]').length > 0;
 
       // Check for minimum content in risks section
       const hasRisksParagraphs = risksDiv.querySelectorAll('p').length > 0;
@@ -556,10 +593,20 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
     );
   };
 
+
   const isPaymentInfoComplete = () => {
     const paymentInfo = formData?.paymentInfo || {};
-    const { accountName, accountNumber, bankName, country } = paymentInfo;
-    return Boolean(accountName && accountNumber && bankName && country);
+
+    // Check for status directly
+    if (paymentInfo.status === 'LINKED') {
+      return true;
+    }
+
+    // Check for stripe account ID
+    return paymentInfo &&
+      paymentInfo.stripeAccountId &&
+      typeof paymentInfo.stripeAccountId === 'string' &&
+      paymentInfo.stripeAccountId.trim().length > 0;
   };
 
   const checklistItems = [
@@ -647,15 +694,25 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
   };
 
   // Check for missing content blocks in project story
-  // Fix getMissingStoryElements function
   const getMissingStoryElements = () => {
-    if (typeof window === 'undefined' || !formData?.projectStory) {
+    if (typeof window === 'undefined') {
       return [];
     }
 
     try {
-      const projectStory = formData.projectStory || {};
-      const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+      const projectStory = formData?.projectStory || {};
+
+      // Handle different formats of story data
+      let story = '';
+      if (typeof projectStory === 'string') {
+        story = projectStory;
+      } else if (typeof projectStory === 'object') {
+        story = projectStory.story || '';
+      }
+
+      if (!story) {
+        return ['content'];
+      }
 
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = story;
@@ -673,8 +730,24 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         missingElements.push('headings');
       }
 
-      if (tempDiv.querySelectorAll('img').length === 0) {
+      // Enhanced image detection to catch all possible image elements
+      const hasImages = tempDiv.querySelectorAll('img, [data-type="IMAGE"], .image-container').length > 0;
+      if (!hasImages) {
         missingElements.push('images');
+      }
+
+      // Enhanced video detection to catch all possible video elements
+      const hasVideos = tempDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe[src*="youtube"], [data-youtube-video], [data-type="VIDEO"]').length > 0;
+      if (!hasVideos) {
+        // Only suggest videos if no images are present
+        if (hasImages) {
+          // Images exist, so videos are optional enhancement
+          if (missingElements.length > 0 && !missingElements.includes('videos')) {
+            missingElements.push('videos (optional)');
+          }
+        } else {
+          missingElements.push('videos or images');
+        }
       }
 
       if (tempDiv.querySelectorAll('ul, ol').length === 0) {
@@ -693,17 +766,27 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
   const missingStoryElements = getMissingStoryElements();
 
   const isStoryOverCharLimit = () => {
-    if (typeof window === 'undefined' || !formData?.projectStory) {
+    if (typeof window === 'undefined') {
       return false;
     }
 
     try {
-      // Fix here: Use projectStory.story instead of the whole object
-      const projectStory = formData.projectStory || {};
-      const story = typeof projectStory === 'object' ? projectStory.story || '' : projectStory;
+      const projectStory = formData?.projectStory || {};
+
+      // Handle different formats of story data
+      let story = '';
+      if (typeof projectStory === 'string') {
+        story = projectStory;
+      } else if (typeof projectStory === 'object') {
+        story = projectStory.story || '';
+      }
+
+      if (!story) {
+        return false;
+      }
 
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = story; // Use story, not formData.projectStory
+      tempDiv.innerHTML = story;
       const plainText = tempDiv.textContent || '';
       return plainText.length > MAX_STORY_CHARS;
     } catch (error) {
@@ -907,6 +990,48 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         </div>
       )}
 
+      {/* Payment setup incomplete notification */}
+      {formData?.paymentInfo?.id && !formData?.paymentInfo?.stripeAccountId && (
+        <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Payment Setup Incomplete</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>
+                  Your Stripe account connection is pending. Please complete the onboarding process in the Payment Information section to enable payments for your project.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No payment info notification */}
+      {(!formData?.paymentInfo || Object.keys(formData?.paymentInfo || {}).length === 0) && (
+        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">Connect With Stripe</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>
+                  Connect your Stripe account in the Payment Information section to receive payments from project backers. This is required before submitting your project.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {totalProgress === 100 && (
         <div className="mt-6 bg-green-50 border border-green-100 rounded-md p-4">
           <div className="flex">
@@ -933,7 +1058,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           <li>Each reward should include descriptive items with images</li>
           <li>Project story must include multiple content blocks and be under {MAX_STORY_CHARS.toLocaleString()} characters</li>
           <li>All mandatory documents must be uploaded</li>
-          <li>Payment information must be accurate and verified</li>
+          <li>Stripe account must be connected and verified to receive payments</li>
         </ul>
       </div>
     </div>
