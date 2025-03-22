@@ -20,8 +20,10 @@ const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/
 const PROJECT_UPDATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project-story/upload-image-to-story-block/${id}`;
 const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
-
-
+const PROJECT_CREATE_DOCUMENT_ENDPOINT = (id) => `${API_BASE_URL}/project-document/${id}`;
+const PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT = (id) => `${API_BASE_URL}/project-document/upload-file-document/${id}`;
+const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-document/get-by-project-id/${id}`;
+const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
 /**
  * Project related API service methods
  */
@@ -134,17 +136,18 @@ const projectService = {
         try {
             console.log("Creating project with data:", projectData);
 
+            // The issue is here - projectDescription should be explicitly included
             const payload = {
-                projectTitle: projectData.title,
-                // Map shortDescription to projectDescription
-                projectDescription: projectData.shortDescription,
-                // Map location to projectLocation
-                projectLocation: projectData.location,
+                title: projectData.title,
+                // FIXED: Always include projectDescription in the payload
+                projectDescription: projectData.projectDescription || projectData.shortDescription || 'Brief description of the project',
+                projectLocation: projectData.location || projectData.projectLocation || '',
                 isClassPotential: !!projectData.isClassPotential,
-                projectStatus: 'DRAFT',
+                status: projectData.status || 'DRAFT',
                 projectVideoDemo: projectData.projectVideoDemo || '',
                 projectUrl: projectData.projectUrl || '',
                 mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
+                totalTargetAmount: parseFloat(projectData.totalTargetAmount) || 1000,
                 categoryId: parseInt(projectData.categoryId),
                 subCategoryIds: projectData.subCategoryIds.map(id => parseInt(id))
             };
@@ -303,8 +306,7 @@ const projectService = {
         try {
             const token = await tokenManager.getValidToken();
             if (!token) {
-                console.error("No valid token found when fetching founder projects");
-                throw new Error('Authentication token required');
+                throw new Error("No authentication token available");
             }
 
             console.log("Fetching projects with token:", token.substring(0, 10) + "...");
@@ -320,9 +322,7 @@ const projectService = {
             console.log("API response status:", response.status);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`HTTP error ${response.status}:`, errorText);
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                throw new Error(`Failed to fetch projects: ${response.status} ${response.statusText}`);
             }
 
             // First get the response as text for debugging
@@ -333,15 +333,22 @@ const projectService = {
             let data;
             try {
                 data = JSON.parse(responseText);
+                console.log("Parsed project data:", data);
             } catch (error) {
-                console.error("Error parsing JSON:", error);
-                throw new Error("Invalid JSON response from API");
+                console.error("Error parsing response as JSON:", error);
+                throw new Error("Invalid JSON response from server");
             }
 
-            console.log("Parsed project data:", data);
+            // Check if data has a nested structure
+            let projectData = data;
+            if (data.data) {
+                projectData = data.data;
+            }
+
+            console.log("Final project data to return:", projectData);
 
             // Return the data directly - caller will handle both array and single object
-            return data.data || data;
+            return projectData;
         } catch (error) {
             console.error('Error fetching projects by founder:', error);
             throw error;
@@ -464,6 +471,12 @@ const projectService = {
     getProjectStoryByProjectId: async (projectId) => {
         try {
             const token = await tokenManager.getValidToken();
+            if (!token) {
+                throw new Error("No authentication token available");
+            }
+
+            console.log(`Fetching project story for project: ${projectId}`);
+
             const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
@@ -471,16 +484,36 @@ const projectService = {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            if (response.status === 401) {
-                return null;
+
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(responseText);
+
+                // If the response is a 404 error object, just return it so the component can handle it
+                if (data && data.status === 404 && data.error === "Project story not found") {
+                    console.log("Server returned 404: Project story not found");
+                    return data; // Return the error object directly
+                }
+
+                return data;
+            } catch (parseError) {
+                console.error('Error parsing JSON response:', parseError);
+
+                // If we can't parse the response, check if it contains "not found" text
+                if (responseText.includes("Project story not found")) {
+                    return {
+                        status: 404,
+                        error: "Project story not found"
+                    };
+                }
+
+                throw new Error(`Invalid JSON response from server: ${responseText}`);
             }
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            const result = await response.json();
-            return result.data || result;
         } catch (error) {
-            console.error(`Error fetching project story for project ${projectId}:`, error);
+            console.error('Error fetching project story by project ID:', error);
             throw error;
         }
     },
@@ -574,6 +607,98 @@ const projectService = {
             return null;
         } catch (error) {
             console.error('Error uploading image:', error);
+            throw error;
+        }
+    },
+
+    getProjectDocumentsByProjectId: async (projectId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT(projectId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error fetching project documents for project ${projectId}:`, error);
+            throw error;
+        }
+    },
+    createProjectDocument: async (projectId, documentData) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_CREATE_DOCUMENT_ENDPOINT(projectId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(documentData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error creating project document for project ${projectId}:`, error);
+            throw error;
+        }
+    },
+    uploadDocumentFile: async (documentId, file) => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT(documentId), {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error uploading document file for document ${documentId}:`, error);
+            throw error;
+        }
+    },
+
+    submitProject: async (projectId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_SUBMIT_ENDPOINT(projectId), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error submitting project ${projectId}:`, error);
             throw error;
         }
     }

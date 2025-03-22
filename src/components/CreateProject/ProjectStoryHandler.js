@@ -12,6 +12,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   const [savingStatus, setSavingStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
   const [publishStatus, setPublishStatus] = useState('DRAFT'); // 'DRAFT' or 'PUBLISHED'
   const [fetchAttempted, setFetchAttempted] = useState(false); // Track if we've attempted to fetch
+  const lastUpdateRef = React.useRef(Date.now());
   const router = useRouter();
 
   // Get project ID either from props or URL
@@ -214,21 +215,40 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     const blocks = [];
     let order = 0;
 
-    // Track node positions for precise ordering
+    // Track node positions for precise ordering - this is critical for maintaining order
     const nodePositions = new Map();
 
-    // Map each node to its position in the document to maintain order
-    const mapNodePositions = (container) => {
-      let position = 0;
-      const walk = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT);
+    // First, map the DOM structure to get the proper order of elements
+    const mapNodePositions = () => {
+      const allNodes = [];
 
-      let node;
-      while (node = walk.nextNode()) {
-        nodePositions.set(node, position++);
-      }
+      // Function to recursively get all nodes in DOM order
+      const collectNodes = (node) => {
+        if (!node) return;
+
+        // For element nodes, add to our collection
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          allNodes.push(node);
+        }
+
+        // Process children
+        Array.from(node.childNodes).forEach(childNode => {
+          collectNodes(childNode);
+        });
+      };
+
+      // Start collection from root
+      collectNodes(tempDiv);
+
+      // Assign position values to all collected nodes
+      allNodes.forEach((node, index) => {
+        nodePositions.set(node, index);
+      });
+
+      console.log(`Mapped ${allNodes.length} nodes for position tracking`);
     };
 
-    mapNodePositions(tempDiv);
+    mapNodePositions();
 
     // Function to check if a node is empty or just whitespace
     const isEmptyOrWhitespace = (node) => {
@@ -246,7 +266,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     };
 
     // Clean up empty nodes first
-    let nodesToRemove = [];
+    const nodesToRemove = [];
     Array.from(tempDiv.childNodes).forEach(node => {
       if (node.nodeType === Node.TEXT_NODE && (!node.textContent || !node.textContent.trim())) {
         nodesToRemove.push(node);
@@ -257,125 +277,149 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
     nodesToRemove.forEach(node => node.parentNode?.removeChild(node));
 
-    // First, find and process YouTube iframes and video containers
-    console.log('Looking for video elements in content...');
+    // IMPROVED: First pass - process all multimedia elements that need special handling
+    console.log('Processing video elements...');
 
-    // More inclusive selector to find all YouTube embeds
-    const videoSelectors = [
-      'iframe[src*="youtube"]',
-      '.ProseMirror-youtube-iframe',
-      '[data-youtube-video="true"]',
-      '[data-type="VIDEO"]',
-      'div:has(iframe[src*="youtube"])'
-    ];
+    // Track all elements that have already been processed
+    // Look for this code section in parseHtmlToBlocks:
+    console.log('Processing video elements...');
 
-    const videoElements = Array.from(tempDiv.querySelectorAll(videoSelectors.join(',')));
+    // Track all elements that have already been processed
+    const processedElements = new Set();
 
-    console.log(`Found ${videoElements.length} potential video elements`);
+    // Add this code to check for YouTube URLs directly in content
+    // Check for YouTube URLs in the raw HTML first
+    if (html.includes('youtube.com/embed') || html.includes('youtu.be/')) {
+      console.log('YouTube URL detected in raw HTML');
 
-    // Process all video elements
-    videoElements.forEach(element => {
-      // Get iframe src if available
-      const iframe = element.tagName.toLowerCase() === 'iframe' ? element : element.querySelector('iframe');
+      // Extract YouTube URLs using regex pattern
+      const youtubePattern = /(https?:\/\/)?(www\.)?(youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/g;
+      const matches = html.match(youtubePattern);
 
-      if (!iframe || !iframe.src) {
-        console.log('Skipping video element without iframe or src:', element.outerHTML.substring(0, 100));
-        return;
+      if (matches && matches.length > 0) {
+        console.log(`Found ${matches.length} YouTube URLs in content`);
+
+        // Process each match to create video blocks
+        matches.forEach((match, index) => {
+          let videoId = '';
+
+          if (match.includes('youtube.com/embed/')) {
+            videoId = match.split('youtube.com/embed/')[1].split(/[?&#]/)[0];
+          } else if (match.includes('youtu.be/')) {
+            videoId = match.split('youtu.be/')[1].split(/[?&#]/)[0];
+          } else if (match.includes('youtube.com/watch?v=')) {
+            videoId = match.split('v=')[1].split(/[?&#]/)[0];
+          }
+
+          if (videoId) {
+            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            console.log(`Creating VIDEO block for YouTube URL: ${embedUrl}`);
+
+            blocks.push({
+              type: 'VIDEO',
+              content: embedUrl,
+              order: 1000 + index, // High order to position at end initially
+              metadata: {
+                additionalProp1: {
+                  autoplay: false,
+                  controls: true,
+                  width: "560px",
+                  height: "315px"
+                }
+              }
+            });
+          }
+        });
       }
+    }
 
-      const srcUrl = iframe.src;
-      console.log('Found video iframe with src:', srcUrl);
+    // Improve the iframe detection logic
+    const iframes = Array.from(tempDiv.querySelectorAll('iframe'));
+    console.log(`Found ${iframes.length} iframes in content`);
 
-      // Check if it's a YouTube video
-      if (srcUrl.includes('youtube.com/embed/')) {
+    iframes.forEach(iframe => {
+      if (iframe.src && iframe.src.includes('youtube.com/embed/') && !processedElements.has(iframe)) {
         try {
-          // Get the position for ordering
-          const nodePosition = nodePositions.get(element) || nodePositions.get(iframe) || order++;
+          // Clean YouTube URL without query parameters
+          const cleanUrl = iframe.src.split('?')[0];
+          console.log('Found YouTube iframe with src:', cleanUrl);
 
-          // Extract clean YouTube URL without query parameters
-          const cleanUrl = srcUrl.split('?')[0];
+          // Get position for ordering - use parent if available for better context
+          const positionElement = iframe.parentElement || iframe;
+          const nodePosition = nodePositions.get(positionElement) || nodePositions.get(iframe);
 
-          // Create VIDEO block
+          // Create a VIDEO block with the appropriate metadata
           blocks.push({
             type: 'VIDEO',
             content: cleanUrl,
-            order: nodePosition,
+            order: nodePosition || order++,
             metadata: {
               additionalProp1: {
-                autoplay: srcUrl.includes('autoplay=1'),
-                controls: !srcUrl.includes('controls=0'),
-                width: iframe.getAttribute('width') || "560px",
-                height: iframe.getAttribute('height') || "315px"
+                autoplay: iframe.src.includes('autoplay=1'),
+                controls: !iframe.src.includes('controls=0'),
+                width: iframe.width || "560px",
+                height: iframe.height || "315px"
               }
             }
           });
 
-          console.log('Added VIDEO block at position:', nodePosition, 'with URL:', cleanUrl);
-
           // Mark as processed
-          element.setAttribute('data-processed', 'true');
+          processedElements.add(iframe);
           if (iframe.parentElement) {
-            iframe.parentElement.setAttribute('data-processed', 'true');
+            processedElements.add(iframe.parentElement);
           }
         } catch (err) {
-          console.error('Error processing video element:', err);
+          console.error('Error processing iframe element:', err);
         }
-      } else {
-        console.log('Not a YouTube embed URL:', srcUrl);
       }
     });
 
-    // Process all image elements to ensure they're captured with proper positioning
-    console.log('Looking for image elements in content...');
-    const imageElements = Array.from(tempDiv.querySelectorAll('img, [data-type="IMAGE"], .image-container'));
+    // 2. Find YouTube containers that might not have been caught
+    const videoSelectors = [
+      '.ProseMirror-youtube-iframe',
+      '[data-youtube-video="true"]',
+      '[data-type="VIDEO"]'
+    ];
 
-    console.log(`Found ${imageElements.length} potential image elements`);
+    const videoContainers = Array.from(tempDiv.querySelectorAll(videoSelectors.join(',')))
+      .filter(el => !processedElements.has(el));
 
-    imageElements.forEach(element => {
-      const img = element.tagName.toLowerCase() === 'img' ? element : element.querySelector('img');
-      if (!img || !img.src) return;
+    console.log(`Found ${videoContainers.length} additional video containers`);
 
-      // Get clean image URL
-      let cleanImageUrl = img.src;
-      try {
-        const url = new URL(img.src);
-        cleanImageUrl = url.origin + url.pathname;
-        console.log('Found image with URL:', cleanImageUrl);
-      } catch (e) {
-        console.warn('Failed to parse image URL:', e);
-      }
+    videoContainers.forEach(container => {
+      // Try to find iframe inside
+      const iframe = container.querySelector('iframe');
+      if (iframe && iframe.src && iframe.src.includes('youtube.com/embed/') && !processedElements.has(iframe)) {
+        const cleanUrl = iframe.src.split('?')[0];
+        console.log('Found YouTube container with iframe src:', cleanUrl);
 
-      // Get the position for ordering
-      const nodePosition = nodePositions.get(element) || nodePositions.get(img) || order++;
+        // Get position in document
+        const nodePosition = nodePositions.get(container) || nodePositions.get(iframe);
 
-      // Create IMAGE block
-      blocks.push({
-        type: 'IMAGE',
-        content: cleanImageUrl,
-        order: nodePosition,
-        metadata: {
-          additionalProp1: {
-            width: img.style.width || "100%",
-            float: img.style.float || null,
-            class: img.className || 'story-image',
-            alt: img.alt || 'Project image'
+        blocks.push({
+          type: 'VIDEO',
+          content: cleanUrl,
+          order: nodePosition || order++,
+          metadata: {
+            additionalProp1: {
+              autoplay: iframe.src.includes('autoplay=1'),
+              controls: !iframe.src.includes('controls=0'),
+              width: iframe.width || "560px",
+              height: iframe.height || "315px"
+            }
           }
-        }
-      });
+        });
 
-      console.log('Added IMAGE block at position:', nodePosition);
-
-      // Mark as processed
-      element.setAttribute('data-processed', 'true');
-      if (element.parentNode) {
-        element.parentNode.setAttribute('data-processed', 'true');
+        // Mark as processed
+        processedElements.add(container);
+        processedElements.add(iframe);
       }
     });
 
-    // Process YouTube URLs in paragraphs
-    console.log('Looking for YouTube URLs in text...');
-    Array.from(tempDiv.querySelectorAll('p')).forEach(p => {
-      if (p.getAttribute('data-processed') === 'true') return;
+    // 3. Look for raw YouTube URLs in paragraphs
+    const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
+    paragraphs.forEach(p => {
+      if (processedElements.has(p)) return;
 
       const content = p.textContent.trim();
       if (content && (
@@ -397,14 +441,15 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
           if (videoId) {
             const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            const nodePosition = nodePositions.get(p) || order++;
+            console.log('Converting YouTube URL to video block:', embedUrl);
 
-            console.log('Found YouTube URL in text, converting to VIDEO block:', embedUrl);
+            // Get position in document
+            const nodePosition = nodePositions.get(p);
 
             blocks.push({
               type: 'VIDEO',
               content: embedUrl,
-              order: nodePosition,
+              order: nodePosition || order++,
               metadata: {
                 additionalProp1: {
                   autoplay: false,
@@ -415,14 +460,64 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               }
             });
 
-            console.log('Added VIDEO block from URL at position:', nodePosition);
-
-            // Mark as processed to avoid duplicate processing
-            p.setAttribute('data-processed', 'true');
+            // Mark as processed
+            processedElements.add(p);
           }
         } catch (err) {
-          console.error('Error processing YouTube URL:', err);
+          console.error('Error processing YouTube URL in paragraph:', err);
         }
+      }
+    });
+
+    // IMAGES: Process all image elements 
+    console.log('Processing image elements...');
+    const imageElements = Array.from(tempDiv.querySelectorAll('img, [data-type="IMAGE"], .image-container'))
+      .filter(el => !processedElements.has(el));
+
+    console.log(`Found ${imageElements.length} potential image elements`);
+
+    imageElements.forEach(element => {
+      const img = element.tagName.toLowerCase() === 'img' ? element : element.querySelector('img');
+      if (!img || !img.src || processedElements.has(img)) return;
+
+      // Get clean image URL
+      let cleanImageUrl = img.src;
+      try {
+        // Make sure we have a full URL
+        if (!cleanImageUrl.startsWith('data:')) {
+          const url = new URL(img.src, window.location.origin);
+          cleanImageUrl = url.href;
+        }
+        console.log('Found image with URL:', cleanImageUrl);
+      } catch (e) {
+        console.warn('Failed to parse image URL:', e);
+      }
+
+      const containerElement = img.closest('div, figure, p') || img.parentElement || img;
+      const nodePosition = nodePositions.get(containerElement) || nodePositions.get(img) || order++;
+
+      // Create IMAGE block
+      blocks.push({
+        type: 'IMAGE',
+        content: cleanImageUrl,
+        order: nodePosition,
+        metadata: {
+          additionalProp1: {
+            width: img.style.width || img.width || "100%",
+            float: img.style.float || null,
+            class: img.className || 'story-image',
+            alt: img.alt || 'Project image'
+          }
+        }
+      });
+
+      console.log('Added IMAGE block with order:', nodePosition);
+
+      // Mark as processed
+      processedElements.add(element);
+      processedElements.add(img);
+      if (element.parentNode) {
+        processedElements.add(element.parentNode);
       }
     });
 
@@ -434,7 +529,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         const element = node;
 
         // Skip already processed elements
-        if (element.getAttribute('data-processed') === 'true') {
+        if (processedElements.has(element)) {
           return;
         }
 
@@ -458,12 +553,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
                 }
               }
             });
-            element.setAttribute('data-processed', 'true');
+            processedElements.add(element);
           }
         }
 
         // Handle paragraphs
-        else if (tagName === 'p' && !element.querySelector('img')) {
+        else if (tagName === 'p' && !element.querySelector('img') && !processedElements.has(element)) {
           const paragraphContent = element.innerHTML.trim();
 
           if (paragraphContent &&
@@ -480,12 +575,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
                 }
               }
             });
-            element.setAttribute('data-processed', 'true');
+            processedElements.add(element);
           }
         }
 
         // Handle lists
-        else if ((tagName === 'ul' || tagName === 'ol') && element.children.length > 0) {
+        else if ((tagName === 'ul' || tagName === 'ol') && element.children.length > 0 && !processedElements.has(element)) {
           blocks.push({
             type: 'TEXT',
             content: element.outerHTML,
@@ -496,11 +591,11 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               }
             }
           });
-          element.setAttribute('data-processed', 'true');
+          processedElements.add(element);
         }
 
         // Handle blockquotes
-        else if (tagName === 'blockquote' && element.textContent.trim()) {
+        else if (tagName === 'blockquote' && element.textContent.trim() && !processedElements.has(element)) {
           blocks.push({
             type: 'TEXT',
             content: element.outerHTML,
@@ -511,11 +606,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               }
             }
           });
-          element.setAttribute('data-processed', 'true');
+          processedElements.add(element);
         }
 
         // Handle other elements with content
         else if (element.textContent.trim() &&
+          !processedElements.has(element) &&
           !element.querySelector('[data-processed="true"]')) {
           blocks.push({
             type: 'TEXT',
@@ -525,13 +621,15 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               additionalProp1: {}
             }
           });
-          element.setAttribute('data-processed', 'true');
+          processedElements.add(element);
         }
 
         // Process children if not marked as processed
-        if (element.getAttribute('data-processed') !== 'true') {
+        if (!processedElements.has(element)) {
           Array.from(element.children).forEach(child => {
-            walkNodes(child);
+            if (!processedElements.has(child)) {
+              walkNodes(child);
+            }
           });
         }
       }
@@ -539,12 +637,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
     // Process all top-level nodes
     Array.from(tempDiv.children).forEach(node => {
-      if (!node.getAttribute('data-processed')) {
+      if (!processedElements.has(node)) {
         walkNodes(node);
       }
     });
 
-    // Sort the blocks by their order value
+    // Sort the blocks by their order value to maintain proper sequence
     blocks.sort((a, b) => a.order - b.order);
 
     // Reassign sequential order numbers
@@ -552,96 +650,150 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       block.order = index;
     });
 
-    // Log the results
     console.log(`Parsing complete. Generated ${blocks.length} blocks`);
     console.log('Block types:', blocks.map(b => b.type).join(', '));
 
-    // Debug video blocks specifically
+    // Debug video blocks
     const videoBlocks = blocks.filter(b => b.type === 'VIDEO');
     if (videoBlocks.length > 0) {
       console.log(`Found ${videoBlocks.length} VIDEO blocks with content:`,
         videoBlocks.map(b => b.content));
     } else {
-      console.warn('NO VIDEO BLOCKS FOUND in the parsed HTML content');
+      console.warn('No VIDEO blocks found in the parsed HTML content');
+    }
+
+    // Debug image blocks
+    const imageBlocks = blocks.filter(b => b.type === 'IMAGE');
+    if (imageBlocks.length > 0) {
+      console.log(`Found ${imageBlocks.length} IMAGE blocks`);
+      imageBlocks.forEach((block, i) => {
+        console.log(`Image ${i} at order ${block.order}: ${block.content.substring(0, 50)}...`);
+      });
     }
 
     return blocks;
   };
 
-  // Load story data from API
   const fetchStoryData = async (projectId) => {
     try {
       setLoading(true);
       console.log('Fetching story data for project:', projectId);
 
-      const response = await projectService.getProjectStoryByProjectId(projectId);
-      console.log('Raw API response:', response);
+      try {
+        const response = await projectService.getProjectStoryByProjectId(projectId);
+        console.log('Raw API response:', response);
 
-      // The response structure might vary - handle both direct response and nested .data format
-      // First check if response itself has the data directly
-      const storyData = response.projectStoryId ? response : response.data;
-
-      // Check if we have a valid response with story data
-      if (storyData && storyData.blocks && Array.isArray(storyData.blocks)) {
-        console.log('Story data found:', storyData);
-        setStoryId(storyData.projectStoryId);
-        setPublishStatus(storyData.status || 'DRAFT');
-
-        // Process the blocks to separate story from risks section
-        const blocks = storyData.blocks;
-
-        // Find the index of "Risks and Challenges" heading
-        let risksIndex = -1;
-        blocks.forEach((block, index) => {
-          if (block.type === 'HEADING' &&
-            block.content &&
-            block.content.toLowerCase().includes('risks and challenges')) {
-            risksIndex = index;
-          }
-        });
-
-        let storyBlocks = blocks;
-        let riskBlocks = [];
-
-        // If we found a risks section, separate the blocks
-        if (risksIndex !== -1) {
-          storyBlocks = blocks.slice(0, risksIndex);
-          riskBlocks = blocks.slice(risksIndex);
+        // Check if the response is an error object with status 404
+        if (response && response.status === 404 && response.error === "Project story not found") {
+          console.log('API returned 404: Project story not found - using default content');
+          createDefaultContent();
+          setError(null);
+          return;
         }
 
-        // Convert blocks to HTML
-        const storyHtml = parseBlocksToHtml(storyBlocks);
-        const risksHtml = parseBlocksToHtml(riskBlocks);
+        // The response structure might vary - handle both direct response and nested .data format
+        const storyData = response.projectStoryId ? response : response.data;
 
-        console.log('Parsed story HTML:', storyHtml.substring(0, 100) + '...');
+        // Check if we have a valid response with story data
+        if (storyData && storyData.blocks && Array.isArray(storyData.blocks)) {
+          console.log('Story data found:', storyData);
+          setStoryId(storyData.projectStoryId);
+          setPublishStatus(storyData.status || 'DRAFT');
 
-        setStoryData({
-          story: storyHtml,
-          risks: risksHtml
-        });
-      } else {
-        console.log('No story data found or invalid format, using defaults');
-        // Create default content if no story exists
-        setStoryData({
-          story: '<h1>Project Story</h1><p>Tell your story here...</p>',
-          risks: '<h1>Risks and Challenges</h1><p>Here we outline potential risks and challenges our project may face, and how we plan to address them.</p>'
-        });
-        setStoryId(null); // Ensure storyId is null for new stories
+          // Process the blocks to separate story from risks section
+          const blocks = storyData.blocks;
+
+          // Find the index of "Risks and Challenges" heading
+          let risksIndex = -1;
+          blocks.forEach((block, index) => {
+            if (block.type === 'HEADING' &&
+              block.content &&
+              block.content.toLowerCase().includes('risks and challenges')) {
+              risksIndex = index;
+            }
+          });
+
+          let storyBlocks = blocks;
+          let riskBlocks = [];
+
+          // If we found a risks section, separate the blocks
+          if (risksIndex !== -1) {
+            storyBlocks = blocks.slice(0, risksIndex);
+            riskBlocks = blocks.slice(risksIndex);
+          }
+
+          // Convert blocks to HTML
+          const storyHtml = parseBlocksToHtml(storyBlocks);
+          const risksHtml = parseBlocksToHtml(riskBlocks);
+
+          console.log('Parsed story HTML:', storyHtml.substring(0, 100) + '...');
+
+          setStoryData({
+            story: storyHtml,
+            risks: risksHtml
+          });
+        } else {
+          // Use default content if no story data or invalid format
+          createDefaultContent();
+        }
+
+        // Clear any previous errors on successful API call
+        setError(null);
+
+      } catch (apiError) {
+        console.log('API error response:', apiError);
+
+        // Check for error response body that indicates a 404 "Project story not found"
+        const is404NotFound =
+          // Check for error object format in response
+          (apiError && apiError.status === 404 && apiError.error === "Project story not found") ||
+          // Check for error in response property
+          (apiError.response && apiError.response.status === 404) ||
+          // Check for status code directly
+          apiError.status === 404 ||
+          // Check for error message in string
+          (typeof apiError === 'string' && apiError.includes('Project story not found'));
+
+        // Special case: check for JSON response in message or data
+        if (apiError.message && typeof apiError.message === 'string') {
+          try {
+            const parsedMessage = JSON.parse(apiError.message);
+            if (parsedMessage.status === 404 && parsedMessage.error === "Project story not found") {
+              is404NotFound = true;
+            }
+          } catch (e) {
+            // Not valid JSON, continue with other checks
+          }
+        }
+
+        if (is404NotFound) {
+          console.log('Project story not found - using default content');
+          // This is expected for new projects - use default content
+          createDefaultContent();
+          setError(null); // Clear any errors as this is an expected situation
+        } else {
+          // For other errors, set the error state but still use default content
+          console.error('Error fetching project story:', apiError);
+          setError('Failed to load project story data');
+          createDefaultContent();
+        }
       }
-      setError(null); // Clear any previous errors on successful fetch
     } catch (error) {
-      console.error('Error fetching project story:', error);
+      console.error('Unexpected error in fetchStoryData:', error);
       setError('Failed to load project story data');
-
-      // Set default content even when there's an error so the editor is usable
-      setStoryData({
-        story: '<h1>Project Story</h1><p>Tell your story here...</p>',
-        risks: '<h1>Risks and Challenges</h1><p>Here we outline potential risks and challenges our project may face, and how we plan to address them.</p>'
-      });
-      setStoryId(null);
+      createDefaultContent();
     } finally {
       setLoading(false);
     }
+  };
+
+  const createDefaultContent = () => {
+    console.log('Creating default story content');
+    setStoryData({
+      story: '<h1>Project Story</h1><p>Tell your story here...</p>',
+      risks: '<h1>Risks and Challenges</h1><p>Here we outline potential risks and challenges our project may face, and how we plan to address them.</p>'
+    });
+    setStoryId(null); // Ensure storyId is null for new stories
   };
 
   // Create a new story for the project
@@ -845,8 +997,15 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     // First, find existing YouTube iframes and ensure they have proper attributes
     const existingIframes = Array.from(tempDiv.querySelectorAll('iframe[src*="youtube"]'));
     existingIframes.forEach(iframe => {
-      if (!iframe.parentElement.classList.contains('ProseMirror-youtube-iframe')) {
-        // Wrap iframe in proper container if needed
+      // Only process iframes that don't already have proper YouTube container
+      const isAlreadyWrapped = iframe.parentElement &&
+        (iframe.parentElement.classList.contains('ProseMirror-youtube-iframe') ||
+          iframe.parentElement.hasAttribute('data-youtube-video'));
+
+      if (!isAlreadyWrapped) {
+        console.log('Processing unwrapped YouTube iframe:', iframe.src);
+
+        // Create proper wrapper container
         const wrapper = document.createElement('div');
         wrapper.className = 'ProseMirror-youtube-iframe';
         wrapper.setAttribute('data-youtube-video', 'true');
@@ -860,7 +1019,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         wrapper.appendChild(clonedIframe);
         iframe.parentElement.replaceChild(wrapper, iframe);
 
-        console.log('Enhanced existing YouTube iframe with proper attributes');
+        console.log('Enhanced YouTube iframe with proper attributes');
       }
     });
 
@@ -879,18 +1038,30 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         continue;
       }
 
-      // Check for YouTube URLs
-      if (content && (
-        content.includes('youtube.com/watch') ||
-        content.includes('youtu.be/') ||
-        content.includes('youtube.com/embed/')
-      )) {
+      // Check for standalone YouTube URLs
+      // Only process paragraphs that contain ONLY a YouTube URL and nothing else
+      const isOnlyYouTubeUrl = content &&
+        (content.includes('youtube.com/watch') ||
+          content.includes('youtu.be/') ||
+          content.includes('youtube.com/embed/')) &&
+        // Make sure it doesn't contain other significant text
+        !content.includes('. ') &&
+        !content.includes('? ') &&
+        content.split(' ').length < 3; // Only contains URL and maybe 1-2 words
+
+      if (isOnlyYouTubeUrl) {
         try {
           let videoId = null;
 
           if (content.includes('youtube.com/watch')) {
-            const url = new URL(content);
-            videoId = url.searchParams.get('v');
+            try {
+              const url = new URL(content);
+              videoId = url.searchParams.get('v');
+            } catch (e) {
+              // Try simple parsing if URL constructor fails
+              const match = content.match(/[?&]v=([^&]+)/);
+              if (match) videoId = match[1];
+            }
           } else if (content.includes('youtu.be/')) {
             videoId = content.split('youtu.be/')[1].split(/[?&#]/)[0].trim();
           } else if (content.includes('youtube.com/embed/')) {
@@ -923,6 +1094,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             // Replace the paragraph with our video embed
             if (p.parentNode) {
               p.parentNode.replaceChild(videoDiv, p);
+              console.log('Replaced plain URL with proper YouTube embed');
             }
           }
         } catch (err) {
@@ -935,62 +1107,139 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   };
 
   useEffect(() => {
-    if (storyData.story && storyData.risks) {
-      if (updateFormData) {
+    // Only update parent form data if needed and not too frequently
+    if (!loading && (storyId || (initialStoryData && (initialStoryData.story || initialStoryData.risks)))) {
+      if (updateFormData && typeof updateFormData === 'function') {
+        const hasContent = Boolean(storyData.story || storyData.risks);
+        const now = Date.now();
+
+        // Only update if sufficient time has passed since last update (at least 2 seconds)
+        if (hasContent && now - lastUpdateRef.current > 2000) {
+          lastUpdateRef.current = now;
+
+          // Use timeout to further debounce
+          const timeoutId = setTimeout(() => {
+            updateFormData({
+              story: storyData.story || '',
+              risks: storyData.risks || ''
+            });
+          }, 500);
+
+          return () => clearTimeout(timeoutId);
+        }
       }
     }
-  }, [storyData, updateFormData]);
+  }, [storyId, loading, initialStoryData, storyData]);
 
   // Handler for story content change
-  // Improved handler for story content change
-
   const handleContentChange = useCallback((data) => {
+    // Only update if data has actually changed and enough time has passed
+    const now = Date.now();
+    if (now - lastUpdateRef.current < 500) {
+      return; // Skip updates that are too frequent (less than 500ms apart)
+    }
+
     setStoryData(prevData => {
-      // Only update if data actually changed to prevent re-renders
+      // Compare if anything actually changed to prevent unnecessary updates
       if (data.story === prevData.story && data.risks === prevData.risks) {
-        return prevData;
+        return prevData; // Return same object reference to prevent re-render
       }
 
-      // Debug YouTube content on change
-      if (data.story && data.story !== prevData.story) {
-        debugYouTubeContent(data.story);
-      }
-
-      // Call updateFormData if it's provided and data changed
-      if (updateFormData && typeof updateFormData === 'function') {
-        updateFormData(data);
-      }
+      // Update the timestamp for this change
+      lastUpdateRef.current = now;
 
       return data;
     });
-  }, [updateFormData]);
+  }, []);
 
-  const debugYouTubeContent = (html) => {
-    console.log('--- YouTube Debug ---');
-    
+  // Enhanced debug function to help troubleshoot content issues
+  const debugContent = (html) => {
+    console.log('--- Content Debug ---');
+
     if (!html) {
       console.log('HTML content is empty');
       return;
     }
-    
+
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
-    
+
     // Check for YouTube iframes
     const iframes = Array.from(tempDiv.querySelectorAll('iframe'));
     console.log(`Found ${iframes.length} iframes in content`);
-    
+
+    iframes.forEach((iframe, i) => {
+      if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
+        console.log(`YouTube iframe ${i}: ${iframe.src}`);
+        console.log(`Parent element:`, iframe.parentNode.tagName);
+        console.log(`Parent class:`, iframe.parentNode.className);
+
+        // Check if it has proper container
+        const hasProperParent = iframe.parentElement &&
+          (iframe.parentElement.classList.contains('ProseMirror-youtube-iframe') ||
+            iframe.parentElement.hasAttribute('data-youtube-video'));
+
+        if (!hasProperParent) {
+          console.warn('YouTube iframe is missing proper container wrapper!');
+        }
+      }
+    });
+
+    // Check for YouTube divs
+    const youtubeDivs = Array.from(tempDiv.querySelectorAll('.ProseMirror-youtube-iframe, [data-youtube-video="true"], [data-type="VIDEO"]'));
+    console.log(`Found ${youtubeDivs.length} YouTube container divs`);
+
+    if (youtubeDivs.length > 0) {
+      console.log('YouTube containers found at:');
+      youtubeDivs.forEach((div, i) => {
+        // Get approximate position in the document
+        const position = Array.from(tempDiv.querySelectorAll('*')).indexOf(div);
+        console.log(`Position ${i}: ~${position} in DOM order`);
+      });
+    }
+
+    // Check for images
+    const images = Array.from(tempDiv.querySelectorAll('img'));
+    console.log(`Found ${images.length} images in content`);
+
+    if (images.length > 0) {
+      console.log('Images found at:');
+      images.forEach((img, i) => {
+        // Get approximate position in the document
+        const position = Array.from(tempDiv.querySelectorAll('*')).indexOf(img);
+        console.log(`Image ${i}: ~${position} in DOM order, src: ${img.src.substring(0, 50)}...`);
+      });
+    }
+
+    console.log('--- End Content Debug ---');
+  };
+
+  const debugYouTubeContent = (html) => {
+    console.log('--- YouTube Debug ---');
+
+    if (!html) {
+      console.log('HTML content is empty');
+      return;
+    }
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+
+    // Check for YouTube iframes
+    const iframes = Array.from(tempDiv.querySelectorAll('iframe'));
+    console.log(`Found ${iframes.length} iframes in content`);
+
     iframes.forEach((iframe, i) => {
       if (iframe.src && iframe.src.includes('youtube.com/embed/')) {
         console.log(`YouTube iframe ${i}: ${iframe.src}`);
         console.log(`Parent element:`, iframe.parentElement.outerHTML.substring(0, 100));
       }
     });
-    
+
     // Check for YouTube divs
     const youtubeDivs = Array.from(tempDiv.querySelectorAll('.ProseMirror-youtube-iframe, [data-youtube-video="true"], [data-type="VIDEO"]'));
     console.log(`Found ${youtubeDivs.length} YouTube container divs`);
-    
+
     // Check for raw YouTube URLs in text
     const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
     const youtubeUrlParagraphs = paragraphs.filter(p => {
@@ -1001,10 +1250,11 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         content.includes('youtube.com/embed/')
       );
     });
-    
+
     console.log(`Found ${youtubeUrlParagraphs.length} paragraphs with YouTube URLs`);
     console.log('--- End YouTube Debug ---');
   };
+
 
   // Handle manual saving of the story
   const handleSaveStory = useCallback(async () => {
@@ -1015,14 +1265,47 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       const storyHtml = storyData.story;
       const risksHtml = storyData.risks;
 
-      console.log('Saving story HTML (first 100 chars):', storyHtml.substring(0, 100));
+      console.log('Saving story HTML (first 100 chars):', storyHtml?.substring(0, 100));
 
       // Process YouTube URLs into proper embeds
       const processedStoryHtml = processYouTubeUrls(storyHtml);
       const processedRisksHtml = processYouTubeUrls(risksHtml);
 
-      // First parse all content into blocks before any API calls
-      // This ensures complete blocks are ready before sending
+      // Update the parent component with processed content
+      if (updateFormData && typeof updateFormData === 'function') {
+        console.log('Explicitly updating parent form data on save');
+        updateFormData({
+          story: processedStoryHtml,
+          risks: processedRisksHtml
+        });
+      }
+
+      // Whether we have an existing story ID or not, first fetch current story data
+      // to ensure we don't lose any existing content
+      let existingBlocks = [];
+      if (storyId) {
+        try {
+          const existingStory = await projectService.getProjectStoryById(storyId);
+          existingBlocks = existingStory?.blocks || (existingStory?.data?.blocks || []);
+          console.log('Retrieved existing blocks:', existingBlocks.length);
+        } catch (err) {
+          console.warn('Could not fetch existing blocks, will create new content', err);
+        }
+      }
+
+      // Create position maps for the parsed content to maintain insertion positions
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = processedStoryHtml;
+
+      // Extract nodes that represent media insertions to get their positions
+      const mediaElements = Array.from(tempDiv.querySelectorAll(
+        'img, iframe, [data-type="IMAGE"], [data-type="VIDEO"], .ProseMirror-youtube-iframe, [data-youtube-video="true"]'
+      ));
+
+      // Track which nodes are already mapped to existing blocks to avoid duplication
+      const processedContentIds = new Set();
+
+      // First parse all content into blocks
       console.log('Parsing HTML content into blocks...');
       const storyBlocks = parseHtmlToBlocks(processedStoryHtml);
       const risksBlocks = parseHtmlToBlocks(processedRisksHtml);
@@ -1030,25 +1313,82 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       console.log(`Parsed blocks - Story: ${storyBlocks.length}, Risks: ${risksBlocks.length}`);
 
       // Log the types of blocks we found
-      const storyTypes = storyBlocks.map(b => b.type);
-      const risksTypes = risksBlocks.map(b => b.type);
-      console.log('Story block types:', storyTypes);
-      console.log('Risks block types:', risksTypes);
+      console.log('Story block types:', storyBlocks.map(b => b.type).join(', '));
+      console.log('Risks block types:', risksBlocks.map(b => b.type).join(', '));
 
-      // Examine YouTube blocks for debugging
-      const videoBlocks = storyBlocks.filter(b => b.type === 'VIDEO');
-      videoBlocks.forEach((block, i) => {
-        console.log(`Story video block ${i}:`, block.content);
+      // Check if we need to preserve any existing media blocks that might not have been included
+      // Create a map of block content for quick lookup
+      const contentMap = new Map();
+      [...storyBlocks, ...risksBlocks].forEach(block => {
+        contentMap.set(block.content, block);
       });
 
-      // Combine blocks in sequence and assign order
-      const combinedBlocks = [...storyBlocks, ...risksBlocks].map((block, index) => ({
+      // Find existing media blocks that aren't in the new content
+      const missingMediaBlocks = existingBlocks.filter(block => {
+        // Only consider IMAGE or VIDEO blocks
+        if (!(block.type === 'IMAGE' || block.type === 'VIDEO') || !block.content) {
+          return false;
+        }
+
+        // If the block content is already in our new parsed content, don't preserve it
+        if (contentMap.has(block.content)) {
+          return false;
+        }
+
+        // For images, check if this image URL still exists in the raw HTML content
+        // If the image was deleted, it shouldn't be in the raw HTML anymore
+        if (block.type === 'IMAGE' && block.content.startsWith('http')) {
+          const imageUrl = block.content.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape for regex
+          const imgExists = new RegExp(`<img[^>]*src=["']${imageUrl}["'][^>]*>`, 'i').test(
+            processedStoryHtml + processedRisksHtml
+          );
+
+          // Only preserve blocks whose image URL still exists in the content
+          return imgExists;
+        }
+
+        // For videos, similar check - only preserve if the URL still exists
+        if (block.type === 'VIDEO' && block.content.includes('youtube.com/embed/')) {
+          const videoExists = (processedStoryHtml + processedRisksHtml).includes(block.content);
+          return videoExists;
+        }
+
+        // Default: preserve the block
+        return true;
+      });
+
+      console.log(`Found ${missingMediaBlocks.length} media blocks from previous version that need preservation`);
+
+      // Combine the blocks in their proper sequence
+      // Start with story blocks, then add missing media, then risks
+      const combinedBlocks = [...storyBlocks];
+
+      // Add missing media blocks at their appropriate positions based on their previous order
+      const lastStoryBlockOrder = storyBlocks.length > 0 ?
+        storyBlocks[storyBlocks.length - 1].order : -1;
+
+      // Append the preserved media blocks at the end of the story section (before risks)
+      missingMediaBlocks.forEach((block, index) => {
+        combinedBlocks.push({
+          ...block,
+          order: lastStoryBlockOrder + 1 + index
+        });
+      });
+
+      // Add risks blocks at the end
+      combinedBlocks.push(...risksBlocks.map(block => ({
         ...block,
-        order: index  // Sequential ordering
+        order: lastStoryBlockOrder + 1 + missingMediaBlocks.length + block.order
+      })));
+
+      // Re-sequence all blocks to ensure proper order
+      const orderedBlocks = combinedBlocks.map((block, index) => ({
+        ...block,
+        order: index
       }));
 
-      // Clean blocks for API
-      const apiReadyBlocks = combinedBlocks.map(block => {
+      // Clean blocks for API by removing any properties that shouldn't be sent
+      const apiReadyBlocks = orderedBlocks.map(block => {
         // Create a clean block with only the required API fields
         return {
           type: block.type,
@@ -1062,12 +1402,15 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
       // Log the final blocks that will be sent to API
       console.log(`Prepared ${apiReadyBlocks.length} blocks for API submission`);
-      console.log('Block types being sent:',
-        apiReadyBlocks.map(b => b.type)
-          .reduce((acc, type) => {
-            acc[type] = (acc[type] || 0) + 1;
-            return acc;
-          }, {}));
+
+      // Count block types for logging
+      const blockTypeCounts = apiReadyBlocks.reduce((acc, block) => {
+        acc[block.type] = (acc[block.type] || 0) + 1;
+        return acc;
+      }, {});
+
+      console.log('Block types being sent:', blockTypeCounts);
+      console.log('Block order verification:', apiReadyBlocks.map(b => `${b.type}:${b.order}`).join(', '));
 
       // Prepare payload
       const payload = {
@@ -1115,8 +1458,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       setSavingStatus('error');
       return false;
     }
-  }, [storyId, storyData, publishStatus, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls]);
-
+  }, [storyId, storyData, publishStatus, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData]);
 
   // Handle publishing the story
   const handlePublishStory = useCallback(async () => {
