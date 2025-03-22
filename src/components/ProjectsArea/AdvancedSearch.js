@@ -4,13 +4,12 @@ import { FaSearch } from "react-icons/fa";
 const AdvancedSearch = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState(""); // Giá trị tìm kiếm
   const [selectedCategory, setSelectedCategory] = useState([]); // Danh sách các thể loại được chọn
-  const [sortOption, setSortOption] = useState("name"); // Tùy chọn sắp xếp
+  const [sortOption, setSortOption] = useState("+createdAt"); // Sắp xếp theo ngày tạo
   const [isSearchVisible, setIsSearchVisible] = useState(false); // Điều khiển hiển thị tìm kiếm
   const [categories, setCategories] = useState([]); // Danh sách các thể loại
   const [selectedMainCategory, setSelectedMainCategory] = useState("All"); // Thể loại chính được chọn
 
   useEffect(() => {
-    // Lấy danh sách thể loại khi component được mount
     const fetchCategories = async () => {
       try {
         const response = await fetch("https://quanbeo.duckdns.org/api/v1/category/get-all", {
@@ -49,11 +48,30 @@ const AdvancedSearch = ({ onSearch }) => {
   };
 
   const handleSearch = async () => {
-    const query = searchTerm;
-    const page = 0; // Page index
-    const size = 10; // Số lượng kết quả mỗi trang
+    const queryParts = [];
+  
+    if (searchTerm) {
+      queryParts.push(`projectTitle:eq:${searchTerm}`);
+    }
+  
+    if (selectedMainCategory !== "All") {
+      queryParts.push(`category.name:eq:${selectedMainCategory}`);
+    }
+  
+    if (queryParts.length === 0) {
+      console.error("No search criteria provided.");
+      return;
+    }
+  
     const sort = sortOption;
-
+  
+    const query = queryParts.join(",");
+  
+    console.log("Constructed Query:", query);
+  
+    const page = 0;
+    const size = 10;
+  
     try {
       const response = await fetch(
         `https://quanbeo.duckdns.org/api/v1/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
@@ -65,24 +83,23 @@ const AdvancedSearch = ({ onSearch }) => {
         }
       );
       const data = await response.json();
-
+  
       if (data.status === 200) {
-        // Gửi dữ liệu dự án đã lọc lên Projects (page)
         onSearch({
           projects: data.data,
           selectedCategory,
           sortOption,
         });
       } else {
-        console.error("Failed to fetch projects");
+        console.error("Failed to fetch projects:", data.error);
       }
     } catch (error) {
       console.error("Error fetching projects:", error);
     }
-  };
+  };  
 
   const toggleSearch = () => {
-    setIsSearchVisible(!isSearchVisible); // Toggle hiển thị phần tìm kiếm
+    setIsSearchVisible(!isSearchVisible);
   };
 
   return (
@@ -90,7 +107,7 @@ const AdvancedSearch = ({ onSearch }) => {
       <div className="flex justify-end p-4">
         <button
           onClick={toggleSearch}
-          className="p-2 bg-green-300 rounded-full shadow-md hover:bg-green-400"
+          className="p-2 bg-green-300 rounded-full shadow-md hover:bg-green-400 transition-colors duration-200"
         >
           <FaSearch size={24} />
         </button>
@@ -105,10 +122,10 @@ const AdvancedSearch = ({ onSearch }) => {
             <input
               type="text"
               id="search"
-              className="w-full p-3 border border-gray-300 rounded-md"
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
               placeholder="Nhập tên dự án..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)} // Cập nhật giá trị tìm kiếm
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
@@ -118,7 +135,7 @@ const AdvancedSearch = ({ onSearch }) => {
               <select
                 value={selectedMainCategory}
                 onChange={handleMainCategoryChange}
-                className="w-full p-3 border border-gray-300 rounded-md"
+                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
               >
                 <option value="All">Tất cả</option>
                 {categories.map((category) => (
@@ -128,32 +145,6 @@ const AdvancedSearch = ({ onSearch }) => {
                 ))}
               </select>
             </div>
-
-            {selectedMainCategory !== "All" && (
-              <div className="subcategories">
-                {categories
-                  .filter((category) => category.categoryName === selectedMainCategory)
-                  .map((category) => (
-                    <div key={category.id}>
-                      {category.subCategories.map((subCategory) => (
-                        <div key={subCategory.id} className="mr-4 mb-2">
-                          <input
-                            type="checkbox"
-                            id={subCategory.subCategoryName}
-                            value={subCategory.subCategoryName}
-                            checked={selectedCategory.includes(subCategory.subCategoryName)}
-                            onChange={handleCategoryChange}
-                            className="mr-2"
-                          />
-                          <label htmlFor={subCategory.subCategoryName}>
-                            {subCategory.subCategoryName}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-              </div>
-            )}
           </div>
 
           <div className="sort-options mb-4">
@@ -161,16 +152,16 @@ const AdvancedSearch = ({ onSearch }) => {
             <select
               value={sortOption}
               onChange={(e) => setSortOption(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md"
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
             >
-              <option value="name">Tên dự án</option>
-              <option value="date">Ngày tạo</option>
+              <option value="+createdAt">Ngày tạo (cũ đến mới)</option>
+              <option value="-createdAt">Ngày tạo (mới đến cũ)</option>
             </select>
           </div>
 
           <button
             onClick={handleSearch}
-            className="w-full p-3 bg-green-500 text-white rounded-md"
+            className="w-full p-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200"
           >
             Tìm kiếm
           </button>
