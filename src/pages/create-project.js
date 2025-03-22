@@ -14,8 +14,9 @@ import Layout from '@/components/Layout/Layout';
 import projectService from 'src/services/projectService';
 import { tokenManager } from '@/utils/tokenManager';
 import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function CreateProject() {
+ function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -686,6 +687,16 @@ export default function CreateProject() {
           </div>
         </div>
       </Layout>
+    </>
+  );
+}
+
+export default function CreateProjectPage() {
+  return (
+    <>
+      <ProtectedRoute requiredRoles={['FOUNDER']}>
+      <CreateProject />
+      </ProtectedRoute>
     </>
   );
 }

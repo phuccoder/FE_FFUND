@@ -1,7 +1,7 @@
 import { toast } from 'react-toastify';
 import { tokenManager } from '../utils/tokenManager';
 
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth';
 const GOOGLE_CLIENT_ID = '304094440461-in6615ihk31rar586rh7nndp19ojoi2h.apps.googleusercontent.com';
 const CALLBACK_URL = 'http://localhost:3000/authenticate';

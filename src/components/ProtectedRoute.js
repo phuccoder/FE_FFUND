@@ -1,29 +1,47 @@
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import Error from 'next/error';
+import { useAuth } from '@/context/AuthContext';
 
 export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const { isAuthenticated, userRole, isLoading } = useAuth();
   const router = useRouter();
+  const [authState, setAuthState] = useState({
+    checked: false,
+    authorized: false
+  });
 
   useEffect(() => {
     // Skip if still loading
     if (isLoading) return;
     
-    // Redirect to login if not authenticated
-    if (!isAuthenticated) {
-      router.push('/login-register');
-      return;
-    }
+    // Check authentication and roles
+    const checkAuth = async () => {
+      // Not authenticated
+      if (!isAuthenticated) {
+        // Store the current URL to redirect back after login
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login-register?redirect=${encodeURIComponent(currentPath)}`);
+        setAuthState({ checked: true, authorized: false });
+        return;
+      }
+      
+      // Check role-based access if roles are specified
+      if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+        router.push('/unauthorized');
+        setAuthState({ checked: true, authorized: false });
+        return;
+      }
+      
+      // User is authorized
+      setAuthState({ checked: true, authorized: true });
+    };
     
-    // Check role-based access if roles are specified
-    if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
-      router.push('/unauthorized');
-    }
+    checkAuth();
   }, [isAuthenticated, userRole, isLoading, router, requiredRoles]);
 
   // Show loading state while checking auth
-  if (isLoading) {
+  if (isLoading || !authState.checked) {
     return (
       <div className="min-h-screen bg-purple-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
@@ -39,11 +57,16 @@ export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
     );
   }
 
-  // Show unauthorized page if role doesn't match
-  if (!isLoading && requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
-    return null; // Will be redirected by useEffect
+  // Return 401 for unauthenticated users
+  if (!isAuthenticated) {
+    return <Error statusCode={401} title="Authentication required" />;
+  }
+
+  // Return 403 for unauthorized users (wrong role)
+  if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+    return <Error statusCode={403} title="You don't have permission to access this page" />;
   }
 
   // Show protected content if authenticated and authorized
-  return isAuthenticated ? children : null;
+  return children;
 };

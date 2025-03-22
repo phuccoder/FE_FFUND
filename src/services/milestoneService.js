@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/phase/${id}`;
 const MILESTONE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/${id}`;
 const MILESTONE_CREATE_ENDPOINT_FOR_PHASE = (id) => `${API_BASE_URL}/milestone/${id}`;

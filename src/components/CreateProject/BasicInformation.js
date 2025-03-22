@@ -143,8 +143,31 @@ export default function BasicInformation({ formData, updateFormData, editMode })
 
     try {
       const data = await projectService.getAllCategories();
-      setCategories(data);
+
+      // Map the API response to the expected format
+      const mappedCategories = data.map(category => ({
+        id: category.id,
+        categoryName: category.name || category.categoryName,
+        description: category.description,
+        subCategories: (category.subCategories || []).map(sub => ({
+          id: sub.id,
+          subCategoryName: sub.name || sub.subCategoryName,
+          subCategoryDescription: sub.description || sub.subCategoryDescription
+        }))
+      }));
+
+      console.log("Mapped categories:", mappedCategories);
+      setCategories(mappedCategories);
+
+      // If we have a selected category, filter subcategories immediately
+      if (form.categoryId) {
+        const selectedCategory = mappedCategories.find(cat => cat.id === parseInt(form.categoryId));
+        if (selectedCategory && selectedCategory.subCategories) {
+          setFilteredSubcategories(selectedCategory.subCategories);
+        }
+      }
     } catch (err) {
+      console.error("Error fetching categories:", err);
       setError(prev => ({
         ...prev,
         categories: 'Failed to load categories. Please try again later.'
@@ -160,8 +183,19 @@ export default function BasicInformation({ formData, updateFormData, editMode })
 
     try {
       const data = await projectService.getAllSubcategories();
-      setSubcategories(data);
+
+      // Map the API response to the expected format
+      const mappedSubcategories = data.map(sub => ({
+        id: sub.id,
+        subCategoryName: sub.name || sub.subCategoryName,
+        subCategoryDescription: sub.description || sub.subCategoryDescription,
+        categoryId: sub.categoryId
+      }));
+
+      console.log("Mapped subcategories:", mappedSubcategories);
+      setSubcategories(mappedSubcategories);
     } catch (err) {
+      console.error("Error fetching subcategories:", err);
       setError(prev => ({
         ...prev,
         subcategories: 'Failed to load subcategories. Please try again later.'
@@ -491,17 +525,26 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           disabled={loading.categories}
         >
           <option value="">Select a category</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.categoryName}
-            </option>
-          ))}
+          {categories.length > 0 ? (
+            categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.categoryName || category.name || `Category ${category.id}`}
+              </option>
+            ))
+          ) : (
+            <option value="" disabled>No categories available</option>
+          )}
         </select>
         {error.validation.categoryId ? (
           <p className="mt-1 text-sm text-red-600">{error.validation.categoryId}</p>
         ) : loading.categories ? (
           <p className="mt-1 text-sm text-gray-500">Loading categories...</p>
+        ) : categories.length === 0 ? (
+          <p className="mt-1 text-sm text-red-600">No categories available. Please check API response.</p>
         ) : null}
+        <p className="mt-1 text-sm text-gray-500">
+          {categories.length} categories loaded.
+        </p>
       </div>
 
       {form.categoryId && (
@@ -529,10 +572,10 @@ export default function BasicInformation({ formData, updateFormData, editMode })
                   </div>
                   <div className="ml-3 text-sm">
                     <label htmlFor={`subcat-${subcat.id}`} className="font-medium text-gray-700">
-                      {subcat.subCategoryName}
+                      {subcat.subCategoryName || subcat.name || `Subcategory ${subcat.id}`}
                     </label>
-                    {subcat.subCategoryDescription && (
-                      <p className="text-gray-500">{subcat.subCategoryDescription}</p>
+                    {(subcat.subCategoryDescription || subcat.description) && (
+                      <p className="text-gray-500">{subcat.subCategoryDescription || subcat.description}</p>
                     )}
                   </div>
                 </div>
@@ -542,6 +585,9 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           {error.validation.subCategoryIds && (
             <p className="mt-1 text-sm text-red-600">{error.validation.subCategoryIds}</p>
           )}
+          <p className="mt-1 text-sm text-gray-500">
+            {filteredSubcategories.length} subcategories available for this category.
+          </p>
         </div>
       )}
 
