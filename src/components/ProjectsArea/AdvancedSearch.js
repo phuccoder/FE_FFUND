@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { FaSearch } from "react-icons/fa";
 
 const AdvancedSearch = ({ onSearch }) => {
-  const [searchTerm, setSearchTerm] = useState(""); // Giá trị tìm kiếm
-  const [selectedCategory, setSelectedCategory] = useState([]); // Danh sách các thể loại được chọn
-  const [sortOption, setSortOption] = useState("+createdAt"); // Sắp xếp theo ngày tạo
-  const [isSearchVisible, setIsSearchVisible] = useState(false); // Điều khiển hiển thị tìm kiếm
-  const [categories, setCategories] = useState([]); // Danh sách các thể loại
-  const [selectedMainCategory, setSelectedMainCategory] = useState("All"); // Thể loại chính được chọn
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState([]);
+  const [sortOption, setSortOption] = useState("+createdAt");
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedMainCategory, setSelectedMainCategory] = useState("All");
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -18,10 +18,11 @@ const AdvancedSearch = ({ onSearch }) => {
             "accept": "*/*",
           },
         });
-
+  
         const data = await response.json();
         if (data.status === 200) {
-          setCategories(data.data); // Lưu danh sách thể loại
+          setCategories(data.data);
+          console.log("Fetched categories:", data.data);
         } else {
           console.error("Failed to fetch categories");
         }
@@ -29,7 +30,7 @@ const AdvancedSearch = ({ onSearch }) => {
         console.error("Error fetching categories:", error);
       }
     };
-
+  
     fetchCategories();
   }, []);
 
@@ -51,7 +52,7 @@ const AdvancedSearch = ({ onSearch }) => {
     const queryParts = [];
   
     if (searchTerm) {
-      queryParts.push(`projectTitle:eq:${searchTerm}`);
+      queryParts.push(`title:eq:${searchTerm}`);
     }
   
     if (selectedMainCategory !== "All") {
@@ -139,8 +140,8 @@ const AdvancedSearch = ({ onSearch }) => {
               >
                 <option value="All">Tất cả</option>
                 {categories.map((category) => (
-                  <option key={category.id} value={category.categoryName}>
-                    {category.categoryName}
+                  <option key={category.id} value={category.name}>
+                    {category.name}
                   </option>
                 ))}
               </select>

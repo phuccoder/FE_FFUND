@@ -14,25 +14,22 @@ const ExploreArea = ({ searchParams }) => {
     const fetchProjects = async () => {
       setLoading(true);
       setError(null);
-  
+
       try {
         let response;
-  
-        // Kiểm tra searchParams và thực hiện tìm kiếm
+        
         if (searchParams && searchParams.query) {
           response = await projectService.getAllProjects(page, size, searchParams);
         } else {
-          // Lấy tất cả các dự án nếu không có tham số tìm kiếm
           response = await projectService.getAllProjects(page, size);
         }
-  
+
         console.log('Received projects:', response);
-  
+
         if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          setProjects(response.data);  // Cập nhật state với dữ liệu trả về từ API
+          setProjects(response.data);
         } else {
-          setError("No projects found.");  // Nếu không có kết quả, hiển thị thông báo lỗi
-          setProjects([]);  // Đảm bảo mảng projects là rỗng
+          setError("No projects found.");
         }
       } catch (error) {
         setError("Unable to load projects. Please try again later.");
@@ -41,10 +38,10 @@ const ExploreArea = ({ searchParams }) => {
         setLoading(false);
       }
     };
-  
+
     fetchProjects();
-  }, [page, size, searchParams]);  // Lắng nghe sự thay đổi của searchParams
-  
+  }, [page, size, searchParams]);
+
   if (loading) {
     return <div>Loading projects...</div>;
   }
