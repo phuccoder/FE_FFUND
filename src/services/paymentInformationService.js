@@ -1,7 +1,7 @@
 /**
  * Service for handling project payment information and Stripe Connect integration
  */
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 
 import { tokenManager } from '@/utils/tokenManager';
 

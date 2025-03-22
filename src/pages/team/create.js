@@ -7,8 +7,9 @@ import PageTitle from "@/components/Reuseable/PageTitle";
 import { useRouter } from "next/router";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
-const CreateTeam = () => {
+const CreateTeamPage = () => {
   const router = useRouter();
   const [teamData, setTeamData] = useState({
     teamName: "",
@@ -214,4 +215,10 @@ const CreateTeam = () => {
   );
 };
 
-export default CreateTeam;
+export default function CreateTeam(){
+  return (
+    <ProtectedRoute requiredRoles={['FOUNDER']}>
+      <CreateTeamPage />
+    </ProtectedRoute>
+  );
+}

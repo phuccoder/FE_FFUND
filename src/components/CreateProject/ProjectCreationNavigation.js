@@ -8,46 +8,47 @@ import PropTypes from 'prop-types';
  * @param {number} props.currentSection - Index of current active section
  * @param {Function} props.onSectionChange - Callback when section changes
  * @param {Object} props.formData - Form data to check completion status
+ * @param {boolean} props.isEditMode - Whether component is in edit mode
  * @returns {JSX.Element} Navigation component
  */
 export default function ProjectCreationNavigation({
   sections,
   currentSection,
   onSectionChange,
-  formData
+  formData,
+  isEditMode = false
 }) {
-  // Check if the first two sections are completed
+  // Check if terms are agreed to
   const isTermsComplete = Boolean(formData?.termsAgreed);
 
+  // Check if basic info is complete
   const isBasicInfoComplete = () => {
     const basicInfo = formData?.basicInfo || {};
     const categoryValue = basicInfo.category || basicInfo.categoryId;
-    const locationValue = basicInfo.location || basicInfo.locationId;
-    const subCategoryValue = basicInfo.subCategory || basicInfo.subCategoryIds;
+    const locationValue = basicInfo.location || basicInfo.projectLocation;
+    const subCategoryValue = basicInfo.subCategory || (basicInfo.subCategoryIds && basicInfo.subCategoryIds.length > 0);
 
-    // Use the SAME checks as in create-project.js
     return Boolean(
       basicInfo.title &&
       categoryValue &&
       subCategoryValue &&
-      basicInfo.shortDescription &&
-      locationValue &&
-      basicInfo.projectUrl &&
-      basicInfo.mainSocialMediaUrl &&
-      basicInfo.projectVideoDemo &&
-      basicInfo.isClassPotential !== undefined
+      (basicInfo.shortDescription || basicInfo.projectDescription) &&
+      locationValue
     );
   };
 
-  // Determine which sections are accessible
-  const canAccessLaterSections = isTermsComplete && isBasicInfoComplete();
+  // Determine which sections are accessible - for edit mode always allow access to all sections
+  const canAccessLaterSections = isEditMode || (isTermsComplete && isBasicInfoComplete());
+
+  // Use the provided sections directly - DO NOT add additional sections
+  const displaySections = sections || [];
 
   return (
     <div className="border-b border-gray-200 mb-4">
       <nav className="flex overflow-x-auto pb-2">
-        {sections.map((section, index) => {
-          // Check if this section should be disabled
-          const isDisabled = index > 1 && !canAccessLaterSections;
+        {displaySections.map((section, index) => {
+          // Check if this section should be disabled - in edit mode, no sections are disabled
+          const isDisabled = !isEditMode && index > 1 && !canAccessLaterSections;
 
           return (
             <button
@@ -81,8 +82,8 @@ export default function ProjectCreationNavigation({
         })}
       </nav>
 
-      {/* Display a helpful message when sections are locked */}
-      {!canAccessLaterSections && currentSection <= 1 && (
+      {/* Display a helpful message when sections are locked - only in create mode */}
+      {!isEditMode && !canAccessLaterSections && currentSection <= 1 && (
         <div className="flex items-center mt-2 mb-1 text-sm text-amber-600">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -102,10 +103,12 @@ ProjectCreationNavigation.propTypes = {
   })).isRequired,
   currentSection: PropTypes.number.isRequired,
   onSectionChange: PropTypes.func.isRequired,
-  formData: PropTypes.object
+  formData: PropTypes.object,
+  isEditMode: PropTypes.bool
 };
 
 // Default props
 ProjectCreationNavigation.defaultProps = {
-  formData: {}
+  formData: {},
+  isEditMode: false
 };

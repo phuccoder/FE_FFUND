@@ -11,7 +11,7 @@ const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
-    { label: 'Manage Project', icon: FileText, href: '/project-management' },
+    { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' }
   ],
