@@ -3,7 +3,7 @@ import { Col, Container, Row } from "react-bootstrap";
 import SingleProject from "./SingleProject";
 import projectService from "../../services/projectService";
 
-const ExploreArea = () => {
+const ExploreArea = ({ searchParams }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,16 +14,25 @@ const ExploreArea = () => {
     const fetchProjects = async () => {
       setLoading(true);
       setError(null);
-
+  
       try {
-        const response = await projectService.getAllProjects(page, size);
-        console.log('Received projects:', response); // Log dữ liệu để kiểm tra
-
-        // Kiểm tra nếu response chứa data hợp lệ
-        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          setProjects(response.data); // Lưu vào state nếu có dự án
+        let response;
+  
+        // Kiểm tra searchParams và thực hiện tìm kiếm
+        if (searchParams && searchParams.query) {
+          response = await projectService.getAllProjects(page, size, searchParams);
         } else {
-          setError("No projects found.");
+          // Lấy tất cả các dự án nếu không có tham số tìm kiếm
+          response = await projectService.getAllProjects(page, size);
+        }
+  
+        console.log('Received projects:', response);
+  
+        if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+          setProjects(response.data);  // Cập nhật state với dữ liệu trả về từ API
+        } else {
+          setError("No projects found.");  // Nếu không có kết quả, hiển thị thông báo lỗi
+          setProjects([]);  // Đảm bảo mảng projects là rỗng
         }
       } catch (error) {
         setError("Unable to load projects. Please try again later.");
@@ -32,10 +41,10 @@ const ExploreArea = () => {
         setLoading(false);
       }
     };
-
+  
     fetchProjects();
-  }, [page, size]);
-
+  }, [page, size, searchParams]);  // Lắng nghe sự thay đổi của searchParams
+  
   if (loading) {
     return <div>Loading projects...</div>;
   }

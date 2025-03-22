@@ -60,7 +60,24 @@ const projectService = {
             console.error('Error fetching all projects:', error);
             throw error;
         }
-    },    
+    },  
+    searchProjects: async (page = 1, size = 10, searchParams) => {
+        try {
+          const query = searchParams.query;
+          const response = await fetch(
+            `https://quanbeo.duckdns.org/api/v1/project/search?page=${page}&size=${size}&sort=${searchParams.sort}&query=${query}`,
+            {
+              method: "GET",
+              headers: {
+                "accept": "*/*",
+              },
+            }
+          );
+          return await response.json();
+        } catch (error) {
+          throw new Error("Error fetching projects search");
+        }
+    },  
     /**
      * Fetch all available categories
      * @returns {Promise<Array>} Array of category objects
