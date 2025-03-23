@@ -109,12 +109,86 @@ function EditProjectPage() {
     isAuthenticated: false,
     isLoading: true
   });
-  const ensureProjectId = () => {
-    // Order of precedence: router query > localStorage > formData
-    let id = routerProjectId;
+  const updateAllProjectIds = (id) => {
+    if (!id) {
+      console.warn("Attempted to update project IDs with null/undefined value");
+      return;
+    }
 
+    console.log("Updating all project IDs to:", id);
+
+    // Update localStorage first for persistence
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('founderProjectId', id);
+    }
+
+    // Then update state with consistent IDs everywhere
+    setFormData(prevData => ({
+      ...prevData,
+      projectId: id,
+      basicInfo: {
+        ...prevData.basicInfo,
+        projectId: id
+      },
+      fundraisingInfo: {
+        ...prevData.fundraisingInfo,
+        projectId: id,
+        phases: Array.isArray(prevData.fundraisingInfo?.phases)
+          ? prevData.fundraisingInfo.phases.map(phase => ({
+            ...phase,
+            projectId: id
+          }))
+          : []
+      },
+      projectStory: {
+        ...prevData.projectStory,
+        projectId: id
+      }
+    }));
+
+    // Log the update for debugging
+    setTimeout(() => debugFormData(), 0);
+  };
+
+  // Replace the existing ensureProjectId function with this improved version
+  const ensureProjectId = () => {
+    // Check all possible sources for a project ID
+    let id = null;
+
+    // First check URL query parameter (highest priority)
+    if (router.query && router.query.projectId) {
+      id = router.query.projectId;
+      console.log("Using project ID from URL query:", id);
+    }
+
+    // Then check if we already have it in form state
+    if (!id && formData && formData.projectId) {
+      id = formData.projectId;
+      console.log("Using project ID from form state:", id);
+    }
+
+    // Check forms' nested objects
+    if (!id && formData?.basicInfo?.projectId) {
+      id = formData.basicInfo.projectId;
+      console.log("Using project ID from basicInfo:", id);
+    }
+
+    if (!id && formData?.fundraisingInfo?.projectId) {
+      id = formData.fundraisingInfo.projectId;
+      console.log("Using project ID from fundraisingInfo:", id);
+    }
+
+    // Finally check localStorage
     if (!id && typeof window !== 'undefined') {
       id = localStorage.getItem('founderProjectId');
+      if (id) {
+        console.log("Using project ID from localStorage:", id);
+      }
+    }
+
+    // If we found an ID from any source, ensure it's consistently used everywhere
+    if (id) {
+      updateAllProjectIds(id);
     }
 
     return id;
@@ -122,28 +196,20 @@ function EditProjectPage() {
 
   useEffect(() => {
     if (router.isReady) {
-      const id = ensureProjectId();
-      if (id) {
-        console.log("Found project ID from available sources:", id);
+      // Get project ID from URL query parameter if available
+      const urlProjectId = router.query.projectId;
 
-        // Immediately store in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', id);
+      // If we have a URL project ID, use it
+      if (urlProjectId) {
+        console.log("Found project ID from URL:", urlProjectId);
+        updateAllProjectIds(urlProjectId);
+      } else {
+        // Otherwise try to find from other sources
+        const id = ensureProjectId();
+        if (id) {
+          console.log("Found project ID from available sources:", id);
+          updateAllProjectIds(id);
         }
-
-        // Update form data with the ID
-        setFormData(prevData => ({
-          ...prevData,
-          projectId: id,
-          basicInfo: {
-            ...prevData.basicInfo,
-            projectId: id
-          },
-          fundraisingInfo: {
-            ...prevData.fundraisingInfo,
-            projectId: id
-          }
-        }));
       }
     }
   }, [router.isReady]);
@@ -273,7 +339,7 @@ function EditProjectPage() {
           console.log("Using fallback project ID for phase loading:", fallbackId);
           return loadProjectPhases(fallbackId); // Retry with fallback ID
         }
-        return;
+        return [];
       }
 
       // Explicitly call the API with project ID
@@ -284,152 +350,161 @@ function EditProjectPage() {
       const phasesArray = Array.isArray(phasesData) ? phasesData : [];
       console.log(`Setting ${phasesArray.length} phases for project ${projectId}`);
 
-      // Update with phases data
+      // Ensure each phase has the correct projectId
+      const processedPhasesArray = phasesArray.map(phase => ({
+        ...phase,
+        projectId: projectId
+      }));
+
+      // Update with phases data, ensuring consistent project IDs
       setFormData(prevData => {
-        return {
+        const updatedData = {
           ...prevData,
           projectId: projectId,
           fundraisingInfo: {
             ...prevData.fundraisingInfo,
             projectId: projectId,
-            startDate: phasesArray.length > 0 ? phasesArray[0]?.startDate || '' : '',
-            phases: phasesArray
+            startDate: processedPhasesArray.length > 0 ? processedPhasesArray[0]?.startDate || '' : '',
+            phases: processedPhasesArray
           }
         };
+
+        // Immediately update localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('founderProjectId', projectId);
+        }
+
+        return updatedData;
       });
 
-      // Save project ID to localStorage for persistence
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('founderProjectId', projectId);
-      }
-
-      // Call debug after updating
+      // Debug after updating
       setTimeout(() => debugFormData(), 0);
-
-      return phasesArray;
+      return processedPhasesArray;
     } catch (error) {
       console.error(`Error loading project phases for ID ${projectId}:`, error);
 
-      // Still update with empty phases to avoid null reference
-      setFormData(prevData => {
-        console.log(`Setting empty phases array for project ${projectId} after error`);
-        return {
-          ...prevData,
+      // Still update with empty phases to avoid null reference, but maintain projectId
+      setFormData(prevData => ({
+        ...prevData,
+        projectId: projectId,
+        fundraisingInfo: {
+          ...prevData.fundraisingInfo,
           projectId: projectId,
-          fundraisingInfo: {
-            ...prevData.fundraisingInfo,
-            projectId: projectId,
-            phases: []
-          }
-        };
-      });
+          phases: []
+        }
+      }));
 
-      // Call debug after updating
+      // Debug after updating
       setTimeout(() => debugFormData(), 0);
-
       return [];
     }
   };
 
-  // Load story data for the project
+  useEffect(() => {
+    console.log("Project Story Data for rendering:", {
+      id: formData.projectStory?.id,
+      projectStoryId: formData.projectStory?.projectStoryId,
+      blocksExist: Array.isArray(formData.projectStory?.blocks),
+      blocksCount: Array.isArray(formData.projectStory?.blocks) ? formData.projectStory.blocks.length : 0,
+      storyContent: formData.projectStory?.story ? formData.projectStory.story.substring(0, 50) + "..." : "(empty)",
+      risksContent: formData.projectStory?.risks ? formData.projectStory.risks.substring(0, 50) + "..." : "(empty)"
+    });
+  }, [formData.projectStory]);
+
+  // Fix 2: Update the loadProjectStory function to properly handle block-based content
   const loadProjectStory = async (projectId) => {
     try {
       console.log("Fetching story data for project:", projectId);
+
+      if (!projectId) {
+        console.error("No project ID provided for story loading");
+        return null;
+      }
+
       const storyData = await projectService.getProjectStoryByProjectId(projectId);
-      console.log("Story data:", storyData);
+      console.log("Story data received from API:", storyData);
 
-      if (storyData) {
-        // Make sure all possible ID fields are included
-        const storyId =
-          storyData.projectStoryId ||
-          storyData.id ||
-          (storyData.data ? storyData.data.projectStoryId || storyData.data.id : null);
+      if (!storyData) {
+        console.warn("No story data returned from API for project:", projectId);
+        return null;
+      }
 
+      // Handle block-based story structure
+      if (storyData.blocks && Array.isArray(storyData.blocks)) {
+        console.log("Processing block-based story data with", storyData.blocks.length, "blocks");
+
+        // Extract story content from blocks
+        let storyContent = '';
+        let risksContent = '';
+
+        // Look for blocks with story content
+        const storyBlocks = storyData.blocks.filter(block =>
+          block.type !== 'HEADING' ||
+          !(block.content && block.content.toLowerCase().includes('risk')));
+
+        // Look for blocks with risks content - typically under "Risks and Challenges" heading
+        const risksStartIndex = storyData.blocks.findIndex(block =>
+          block.type === 'HEADING' &&
+          block.content &&
+          block.content.toLowerCase().includes('risk'));
+
+        // If we found a risks heading, include all content after it
+        if (risksStartIndex !== -1) {
+          const risksBlocks = storyData.blocks.slice(risksStartIndex + 1);
+          risksContent = risksBlocks.map(block => block.content || '').join('\n\n');
+        }
+
+        // Join story content from story blocks
+        if (storyBlocks.length > 0) {
+          storyContent = storyBlocks.map(block => block.content || '').join('\n\n');
+        }
+
+        const processedStoryData = {
+          id: storyData.projectStoryId,
+          projectStoryId: storyData.projectStoryId,
+          story: storyContent || '',
+          risks: risksContent || '',
+          status: storyData.status || 'DRAFT',
+          projectId: storyData.projectId || projectId,
+          blocks: storyData.blocks, // Keep the blocks for reference
+          version: storyData.version
+        };
+
+        console.log("Processed block-based story data:", processedStoryData);
+
+        // Update form data with story information
         setFormData(prevData => ({
           ...prevData,
-          projectStory: {
-            id: storyId,
-            projectStoryId: storyId,
-            story: storyData.story || storyData.content || '',
-            risks: storyData.risks || '',
-            status: storyData.status || 'DRAFT',
-            projectId: projectId
-          }
+          projectStory: processedStoryData
         }));
 
-        console.log("Set project story with ID:", storyId);
-      }
-    } catch (error) {
-      console.error("Error loading project story:", error);
-    }
-  };
-
-  // Load rewards/milestones for the project
-  const loadProjectRewards = async (projectId) => {
-    try {
-      // First get phases to get their IDs
-      console.log("Fetching rewards for project:", projectId);
-      const phases = await projectService.getPhaseByProject(projectId);
-      console.log("Phases for reward loading:", phases);
-
-      if (!phases || !Array.isArray(phases) || phases.length === 0) {
-        console.log("No phases found for milestone loading");
-        return;
+        return processedStoryData;
       }
 
-      // For each phase, get its milestones
-      console.log("Loading milestones for phases:", phases);
-      const allRewards = [];
+      // Handle simple text-based story format
+      const storyId = storyData.projectStoryId || storyData.id || null;
 
-      for (const phase of phases) {
-        try {
-          if (!phase.id) {
-            console.warn("Phase missing ID, skipping milestone retrieval", phase);
-            continue;
-          }
+      const processedStoryData = {
+        id: storyId,
+        projectStoryId: storyId,
+        story: storyData.story || storyData.content || '',
+        risks: storyData.risks || '',
+        status: storyData.status || 'DRAFT',
+        projectId: storyData.projectId || projectId
+      };
 
-          console.log(`Getting milestones for phase ID: ${phase.id}`);
-          const milestones = await milestoneService.getMilestonesByPhaseId(phase.id);
-          console.log(`Milestones for phase ${phase.id}:`, milestones);
+      console.log("Processed simple story data:", processedStoryData);
 
-          if (milestones && Array.isArray(milestones)) {
-            console.log(`Found ${milestones.length} milestones for phase ${phase.id}`);
-
-            // Process each milestone
-            for (const milestone of milestones) {
-              // Add phase information to milestone
-              const rewardWithPhase = {
-                ...milestone,
-                phaseId: phase.id,
-                phaseName: phase.name || 'Phase'
-              };
-
-              // Load items for this milestone if it has an ID
-              if (milestone.id) {
-                const milestoneDetails = await milestoneService.getMilestoneById(milestone.id);
-                console.log(`Milestone details for ID ${milestone.id}:`, milestoneDetails);
-
-                if (milestoneDetails && milestoneDetails.items) {
-                  rewardWithPhase.items = milestoneDetails.items;
-                }
-              }
-
-              allRewards.push(rewardWithPhase);
-            }
-          }
-        } catch (phaseError) {
-          console.error(`Error loading milestones for phase ${phase.id}:`, phaseError);
-        }
-      }
-
-      console.log("All rewards loaded:", allRewards);
+      // Update form data with story information
       setFormData(prevData => ({
         ...prevData,
-        rewardInfo: allRewards
+        projectStory: processedStoryData
       }));
 
+      return processedStoryData;
     } catch (error) {
-      console.error("Error loading project rewards:", error);
+      console.error("Error loading project story:", error);
+      return null;
     }
   };
 
@@ -557,78 +632,119 @@ function EditProjectPage() {
     });
   }, [routerProjectId, formData.projectId, formData.fundraisingInfo?.projectId, formData.basicInfo?.projectId]);
 
-  const loadProjectData = async (id) => {
-    if (!id) {
-      console.error("No project ID provided to loadProjectData");
-      return null;
-    }
-
-    console.log("Loading project data for ID:", id);
-
+  const loadProjectData = async (projectId) => {
     try {
-      // Get project by ID directly
-      const projectData = await projectService.getProjectById(id);
-      console.log("API response for project:", projectData);
+      console.log("Loading project data with ID:", projectId);
 
-      if (projectData) {
-        // Ensure we're using the correct status field from the API response
-        const status = projectData.status || 'DRAFT';
-        console.log("Project status from API:", status);
-
-        // Set project status - make sure to use the status from the API
-        setProjectStatus(status);
-
-        // Store original data for comparison
-        setOriginalData(projectData);
-
-        // Set edit mode
-        setIsEditMode(true);
-
-        // Store the projectId in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', id);
-          console.log("Project ID saved to localStorage in loadProjectData:", id);
+      // If no projectId is provided, try to find one from available sources
+      if (!projectId) {
+        projectId = ensureProjectId();
+        if (!projectId) {
+          console.error("No project ID available for loading data");
+          return null;
         }
+      }
 
-        // Update form data with project details and ensure projectId is consistent
-        setFormData(prevData => ({
-          ...prevData,
-          projectId: id,
-          basicInfo: {
-            ...prevData.basicInfo,
-            projectId: id,
-            title: projectData.title || '',
-            shortDescription: projectData.description || '',
-            projectDescription: projectData.description || '',
-            category: projectData.category?.id || '',
-            categoryId: projectData.category?.id || '',
-            subCategoryIds: projectData.subCategories?.map(sub => sub.id) || [],
-            location: projectData.location || '',
-            projectLocation: projectData.location || '',
-            projectUrl: projectData.projectUrl || '',
-            mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
-            projectVideoDemo: projectData.projectVideoDemo || '',
-            totalTargetAmount: projectData.totalTargetAmount || 1000,
-            isClassPotential: projectData.isClassPotential !== undefined
-              ? projectData.isClassPotential
-              : false,
-            status: status, // Also update status in basicInfo
-            projectImage: projectData.projectImage || null
-          },
-          // Initialize fundraisingInfo with projectId to avoid null reference issues
-          fundraisingInfo: {
-            ...prevData.fundraisingInfo,
-            projectId: id,
-            startDate: '',
-            phases: []
-          }
-        }));
+      // Get projects from founder API
+      const response = await projectService.getProjectsByFounder();
+      console.log("Projects from founder API:", response);
 
-        return projectData;
+      let projectData = null;
+
+      // Find the specific project with our ID in the response
+      if (Array.isArray(response)) {
+        projectData = response.find(project =>
+          project.id == projectId || project.projectId == projectId
+        );
+
+        if (!projectData && response.length > 0) {
+          // If no match but we have projects, take the first one
+          projectData = response[0];
+          console.log("No exact match found, using first project:", projectData);
+        }
+      } else if (response && response.data && Array.isArray(response.data)) {
+        // Handle nested array response
+        projectData = response.data.find(project =>
+          project.id == projectId || project.projectId == projectId
+        );
+        if (!projectData && response.data.length > 0) {
+          projectData = response.data[0];
+        }
+      } else if (response && (response.projectId || response.id)) {
+        // Single object response
+        projectData = response;
       } else {
-        console.error("No project found with ID:", id);
+        console.error("Could not find any projects in the API response");
         return null;
       }
+
+      if (!projectData) {
+        console.error("No project found in the response");
+        return null;
+      }
+
+      // Extract the project ID that will be used consistently throughout the app
+      const extractedProjectId = projectData.projectId || projectData.id;
+      console.log("Using project ID:", extractedProjectId);
+
+      if (!extractedProjectId) {
+        console.error("No project ID found in the response");
+        return null;
+      }
+
+      // Set project status
+      const status = projectData.status || 'DRAFT';
+      setProjectStatus(status);
+
+      // Store original data for comparison
+      setOriginalData(projectData);
+
+      // Set edit mode
+      setIsEditMode(true);
+
+      // Use our centralized function to update all project IDs consistently
+      updateAllProjectIds(extractedProjectId);
+
+      // Update the form data with details from projectData
+      setFormData(prevData => ({
+        ...prevData,
+        projectId: extractedProjectId,
+        basicInfo: {
+          ...prevData.basicInfo,
+          projectId: extractedProjectId,
+          title: projectData.title || '',
+          shortDescription: projectData.description || '',
+          projectDescription: projectData.description || '',
+          category: projectData.category?.id || '',
+          categoryId: projectData.category?.id || '',
+          subCategoryIds: projectData.subCategories?.map(sub => sub.id) || [],
+          location: projectData.location || '',
+          projectLocation: projectData.location || '',
+          projectUrl: projectData.projectUrl || '',
+          mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
+          projectVideoDemo: projectData.projectVideoDemo || '',
+          totalTargetAmount: projectData.totalTargetAmount || 1000,
+          isClassPotential: projectData.isClassPotential !== undefined
+            ? projectData.isClassPotential
+            : false,
+          status: status,
+          projectImage: projectData.projectImage || null
+        },
+        fundraisingInfo: {
+          ...prevData.fundraisingInfo,
+          projectId: extractedProjectId,
+          startDate: '',
+          phases: Array.isArray(prevData.fundraisingInfo?.phases)
+            ? prevData.fundraisingInfo.phases.map(phase => ({
+              ...phase,
+              projectId: extractedProjectId
+            }))
+            : []
+        }
+      }));
+
+      console.log("Project data loaded successfully with ID:", extractedProjectId);
+      return projectData;
     } catch (error) {
       console.error("Error loading project data:", error);
       alert(`Error loading project: ${error.message || 'Unknown error'}`);
@@ -638,7 +754,7 @@ function EditProjectPage() {
 
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating ${section} data:`, data);
-  
+
     // Check if we're in fundraising stage and detect changes
     if (projectStatus === 'FUNDRAISING') {
       // Check if section is allowed to be updated during fundraising
@@ -647,11 +763,11 @@ function EditProjectPage() {
         alert("You cannot update this information while the project is in the fundraising stage.");
         return;
       }
-  
+
       // For allowed sections, flag that an update post will be required
       setUpdateRequired(true);
     }
-  
+
     // Make sure we preserve projectId in the updated data
     let updatedData = data;
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
@@ -660,10 +776,10 @@ function EditProjectPage() {
         projectId: formData.projectId // Use formData.projectId instead of projectId
       };
     }
-  
+
     // Log the section being updated with current projectId
     console.log(`Updating ${section} with projectId:`, formData.projectId);
-  
+
     // Update form data
     setFormData(prevData => {
       // For rewardInfo, prevent unnecessary updates if data is the same
@@ -674,13 +790,13 @@ function EditProjectPage() {
           return prevData; // No change needed
         }
       }
-  
+
       // Special handling for fundraisingInfo to ensure projectId and phases are included
       if (section === 'fundraisingInfo') {
         // Ensure phases is always an array
         const phases = Array.isArray(updatedData.phases) ? updatedData.phases : [];
         console.log(`Updating fundraisingInfo with ${phases.length} phases`);
-  
+
         return {
           ...prevData,
           projectId: prevData.projectId,
@@ -691,7 +807,7 @@ function EditProjectPage() {
           }
         };
       }
-  
+
       // Special handling for basicInfo (unchanged)
       if (section === 'basicInfo') {
         // Ensure all field mappings are properly maintained
@@ -708,9 +824,9 @@ function EditProjectPage() {
           // Explicitly include the projectImage
           projectImage: data.projectImage || prevData.basicInfo?.projectImage,
         };
-  
+
         console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
-  
+
         return {
           ...prevData,
           projectId: prevData.projectId,
@@ -719,7 +835,7 @@ function EditProjectPage() {
           projectImage: data.projectImage || prevData.projectImage
         };
       }
-  
+
       // For other sections
       return {
         ...prevData,
@@ -729,7 +845,7 @@ function EditProjectPage() {
     });
     setTimeout(() => debugFormData(), 0);
   };
-  
+
   // Check if restricted documents have been changed
   const hasRestrictedDocumentChanges = (newDocData) => {
     const currentDocs = formData.requiredDocuments;
@@ -1086,9 +1202,21 @@ function EditProjectPage() {
       name: 'Project Story',
       component: <ProjectStoryHandler
         projectId={formData.projectId}
-        initialStoryData={formData.projectStory}
+        initialStoryData={{
+          ...formData.projectStory,
+          // Ensure these fields exist with proper values
+          id: formData.projectStory?.id || formData.projectStory?.projectStoryId,
+          projectStoryId: formData.projectStory?.projectStoryId || formData.projectStory?.id,
+          story: formData.projectStory?.story || '',
+          risks: formData.projectStory?.risks || '',
+          projectId: formData.projectId,
+          status: formData.projectStory?.status || 'DRAFT',
+          version: formData.projectStory?.version || 1,
+          blocks: formData.projectStory?.blocks || []
+        }}
         updateFormData={(data) => handleUpdateFormData('projectStory', data)}
         readOnly={!editRestrictions.projectStory}
+        isEditMode={true}
       />
     },
     {
