@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_URL = 'http://localhost:8080/api/v1/invitation';
+const API_URL = 'https://quanbeo.duckdns.org/api/v1/invitation';
 
 export const invitationService = {
   // Get all invitations with pagination

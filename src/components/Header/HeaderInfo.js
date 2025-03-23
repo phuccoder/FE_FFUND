@@ -11,7 +11,7 @@ const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
-    { label: 'Manage Project', icon: FileText, href: '/project-management' },
+    { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' }
   ],
@@ -19,6 +19,7 @@ const MENU_ITEMS = {
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
     { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
+    { label: 'Manage Reward', icon: Mail, href: '/reward' }
   ]
 };
 
@@ -111,7 +112,7 @@ const HeaderInfo = ({ socials, searchColor }) => {
         </button>
       </div>
 
-      {isLoggedIn ? (
+      {isLoggedIn && (
         <>
           {/* Notification Dropdown */}
           <div className="notification-dropdown d-none d-sm-block ml-15">
@@ -160,12 +161,6 @@ const HeaderInfo = ({ socials, searchColor }) => {
             )}
           </div>
         </>
-      ) : (
-        <div className="info d-none d-sm-block">
-          <Link href="/login-register" className="text-gray-700 hover:text-gray-900">
-            Login/Register
-          </Link>
-        </div>
       )}
 
       <button
