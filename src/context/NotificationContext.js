@@ -10,15 +10,19 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [wsClient, setWsClient] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+
 
   // Initialize WebSocket connection
   useEffect(() => {
     if (isAuthenticated && user?.userId) {
       // Connect to WebSocket server
       const client = new WebSocketClient(
-        'ws://localhost:8080/ws',
-        `/user/${user.userId}/notifications`,
-        handleNotification
+        `https://quanbeo.duckdns.org:8080/ws`,
+        handleNotification,
+        // Add callbacks for connection status
+        () => setConnectionStatus('connected'),
+        () => setConnectionStatus('disconnected')
       );
 
       client.connect();
@@ -98,12 +102,23 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  const sendTestMessage = () => {
+    if (wsClient) {
+      wsClient.sendMessage('/app/test', {
+        message: 'Test message',
+        userId: user?.userId
+      });
+    }
+  };
+
   // Value to be provided by the context
   const value = {
     notifications,
     unreadCount,
     markAsRead,
-    markAllAsRead
+    markAllAsRead,
+    connectionStatus,
+    sendTestMessage
   };
 
   return (

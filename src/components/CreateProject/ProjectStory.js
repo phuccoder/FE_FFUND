@@ -9,39 +9,22 @@ const TiptapEditor = dynamic(() => import('./custom/TiptapEditor'), {
 });
 
 // Character limit constants
-const MAX_TOTAL_CHARS = 5000;
-const DEFAULT_PART_TITLE = 'Project Overview';
+const MAX_CHARS = 5000;
+const MAX_RISKS_CHARS = 2000; // Smaller limit for risks section
 
 /**
  * Rich text editor for project story using Tiptap with enhanced block functionality
  * @param {Object} props Component props
- * @param {Array|string} props.formData Project story content (string for backward compatibility or array of parts)
+ * @param {string} props.formData Project story content
+ * @param {string} props.risksData Project risks and challenges content
  * @param {Function} props.updateFormData Function to update parent form state
  * @returns {JSX.Element} Project story editor component
  */
-export default function ProjectStory({ formData, updateFormData }) {
-  // Handle both legacy string format and new array format
-  const initializeStoryParts = () => {
-    if (!formData) {
-      return [{ id: 1, title: DEFAULT_PART_TITLE, content: '' }];
-    }
-
-    // Handle legacy format (string content)
-    if (typeof formData === 'string') {
-      return [{ id: 1, title: DEFAULT_PART_TITLE, content: formData }];
-    }
-
-    // Handle new format (array of parts)
-    if (Array.isArray(formData) && formData.length > 0) {
-      return formData;
-    }
-
-    // Default fallback
-    return [{ id: 1, title: DEFAULT_PART_TITLE, content: '' }];
-  };
-
-  const [storyParts, setStoryParts] = useState(initializeStoryParts);
+export default function ProjectStory({ formData, risksData, updateFormData, uploadImage }) {
+  const [content, setContent] = useState(formData || '');
+  const [risksContent, setRisksContent] = useState(risksData || '');
   const [charCount, setCharCount] = useState(0);
+  const [risksCharCount, setRisksCharCount] = useState(0);
   const [wordCount, setWordCount] = useState(0);
   const [blockCount, setBlockCount] = useState({
     images: 0,
@@ -52,183 +35,67 @@ export default function ProjectStory({ formData, updateFormData }) {
     others: 0
   });
   const [storyComplexityScore, setStoryComplexityScore] = useState(0);
-  const [activePart, setActivePart] = useState(0); // Index of the currently active part
-  const [nextId, setNextId] = useState(() => {
-    // Find the highest id in existing parts + 1
-    const ids = storyParts.map(part => part.id);
-    return ids.length ? Math.max(...ids) + 1 : 2;
-  });
 
   // Keep state in sync with props
   useEffect(() => {
-    const newParts = initializeStoryParts();
-    if (JSON.stringify(newParts) !== JSON.stringify(storyParts)) {
-      setStoryParts(newParts);
-
-      // Update nextId based on the highest existing id
-      const ids = newParts.map(part => part.id);
-      setNextId(ids.length ? Math.max(...ids) + 1 : 2);
-    }
-  }, [formData]);
-
-  // Update parent component with new story parts
-  const updateParentFormData = useCallback((updatedParts) => {
-    updateFormData(updatedParts);
-  }, [updateFormData]);
-
-  // Handle content change for a specific part
-  const handlePartContentChange = useCallback((partIndex, newContent) => {
-    setStoryParts(prevParts => {
-      const updatedParts = [...prevParts];
-      updatedParts[partIndex] = {
-        ...updatedParts[partIndex],
-        content: newContent
-      };
-
-      // Update parent form data
-      updateParentFormData(updatedParts);
-      return updatedParts;
-    });
-  }, [updateParentFormData]);
-
-  // Handle part title change
-  const handlePartTitleChange = useCallback((partIndex, newTitle) => {
-    setStoryParts(prevParts => {
-      const updatedParts = [...prevParts];
-      updatedParts[partIndex] = {
-        ...updatedParts[partIndex],
-        title: newTitle
-      };
-
-      // Update parent form data
-      updateParentFormData(updatedParts);
-      return updatedParts;
-    });
-  }, [updateParentFormData]);
-
-  // Add a new story part
-  const addStoryPart = useCallback(() => {
-    const newPart = {
-      id: nextId,
-      title: `Part ${nextId}`,
-      content: ''
-    };
-
-    setStoryParts(prevParts => {
-      const updatedParts = [...prevParts, newPart];
-      // Update parent form data
-      updateParentFormData(updatedParts);
-      return updatedParts;
-    });
-
-    setNextId(id => id + 1);
-    // Set the new part as active
-    setTimeout(() => {
-      setActivePart(storyParts.length);
-    }, 100);
-  }, [nextId, storyParts.length, updateParentFormData]);
-
-  // Remove a story part
-  const removeStoryPart = useCallback((partIndex) => {
-    if (storyParts.length <= 1) {
-      // Don't allow removing the last part
-      return;
+    if (formData !== content) {
+      setContent(formData || '');
     }
 
-    setStoryParts(prevParts => {
-      const updatedParts = prevParts.filter((_, index) => index !== partIndex);
-      // Update parent form data
-      updateParentFormData(updatedParts);
-      return updatedParts;
-    });
-
-    // Adjust active part if needed
-    if (activePart >= partIndex && activePart > 0) {
-      setActivePart(activePart - 1);
-    } else if (activePart >= storyParts.length - 1) {
-      setActivePart(storyParts.length - 2);
+    // Initialize risks with a default header if empty
+    if (!risksData) {
+      const defaultRisks = '<h1>Risks and Challenges</h1><p>Here we outline potential risks and challenges our project may face, and how we plan to address them.</p>';
+      setRisksContent(defaultRisks);
+      updateFormData({ story: formData || '', risks: defaultRisks });
+    } else if (risksData !== risksContent) {
+      setRisksContent(risksData || '');
     }
-  }, [storyParts, activePart, updateParentFormData]);
-
-  // Move a part up or down
-  const movePart = useCallback((partIndex, direction) => {
-    if ((direction === 'up' && partIndex === 0) ||
-      (direction === 'down' && partIndex === storyParts.length - 1)) {
-      return; // Cannot move further
-    }
-
-    const newIndex = direction === 'up' ? partIndex - 1 : partIndex + 1;
-
-    setStoryParts(prevParts => {
-      const updatedParts = [...prevParts];
-      [updatedParts[partIndex], updatedParts[newIndex]] = [updatedParts[newIndex], updatedParts[partIndex]];
-
-      // Update parent form data
-      updateParentFormData(updatedParts);
-      return updatedParts;
-    });
-
-    // Update active part to follow the moved part
-    setActivePart(newIndex);
-  }, [storyParts.length, updateParentFormData]);
+  }, [formData, risksData]);
 
   // Analyze content and update metrics
   useEffect(() => {
     const analyzeContent = () => {
-      if (typeof window === 'undefined') return;
+      if (!content || typeof window === 'undefined') return;
 
-      let totalChars = 0;
-      let totalWords = 0;
-      let images = 0;
-      let headings = 0;
-      let paragraphs = 0;
-      let lists = 0;
-      let videos = 0;
-      let others = 0;
+      console.log('Content being processed in ProjectStory:', content.substring(0, 100) + '...');
+      // Create a temporary element to parse HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
 
-      // Combine and analyze all parts
-      storyParts.forEach(part => {
-        if (!part.content) return;
+      // Extract text content for character and word count
+      const plainText = tempDiv.textContent || '';
+      const chars = plainText.length;
+      setCharCount(chars);
 
-        // Create a temporary element to parse HTML
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = part.content;
+      // Count words by splitting on spaces and filtering empty strings
+      const words = plainText.split(/\s+/).filter(word => word.length > 0);
+      setWordCount(words.length);
 
-        // Extract text content for character and word count
-        const plainText = tempDiv.textContent || '';
-        totalChars += plainText.length;
+      // Count different block types
+      const images = tempDiv.querySelectorAll('img').length;
+      const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
+      const paragraphs = tempDiv.querySelectorAll('p').length;
+      const lists = tempDiv.querySelectorAll('ul, ol').length;
+      const videos = tempDiv.querySelectorAll('.ProseMirror-youtube-iframe').length;
 
-        // Count words by splitting on spaces and filtering empty strings
-        const words = plainText.split(/\s+/).filter(word => word.length > 0);
-        totalWords += words.length;
-
-        // Count different block types
-        images += tempDiv.querySelectorAll('img').length;
-        headings += tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
-        paragraphs += tempDiv.querySelectorAll('p').length;
-        lists += tempDiv.querySelectorAll('ul, ol').length;
-        videos += tempDiv.querySelectorAll('.ProseMirror-youtube-iframe').length;
-
-        // Other blocks (blockquotes, code blocks, etc.)
-        const blockquotes = tempDiv.querySelectorAll('blockquote').length;
-        const codeBlocks = tempDiv.querySelectorAll('pre').length;
-        others += blockquotes + codeBlocks;
-      });
-
-      setCharCount(totalChars);
-      setWordCount(totalWords);
+      // Other blocks (blockquotes, code blocks, etc.)
+      const blockquotes = tempDiv.querySelectorAll('blockquote').length;
+      const codeBlocks = tempDiv.querySelectorAll('pre').length;
+      const others = blockquotes + codeBlocks;
 
       const newBlockCount = { images, headings, paragraphs, lists, videos, others };
       setBlockCount(newBlockCount);
 
       // Calculate a complexity score based on variety and length
+      // More diverse content and appropriate length yields a higher score
       let complexityScore = 0;
 
       // Base score from text length (max: 40 points)
-      if (totalChars > 3000) complexityScore += 40;
-      else if (totalChars > 2000) complexityScore += 30;
-      else if (totalChars > 1000) complexityScore += 20;
-      else if (totalChars > 500) complexityScore += 10;
+      // Adjusted for 5000 character limit
+      if (chars > 3000) complexityScore += 40;
+      else if (chars > 2000) complexityScore += 30;
+      else if (chars > 1000) complexityScore += 20;
+      else if (chars > 500) complexityScore += 10;
 
       // Add points for content variety (max: 60 points)
       if (headings > 0) complexityScore += Math.min(headings * 5, 15); // Up to 15 points
@@ -241,7 +108,27 @@ export default function ProjectStory({ formData, updateFormData }) {
     };
 
     analyzeContent();
-  }, [storyParts]);
+  }, [content]);
+
+  // Count characters in risks section
+  useEffect(() => {
+    if (!risksContent || typeof window === 'undefined') return;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = risksContent;
+    const plainText = tempDiv.textContent || '';
+    setRisksCharCount(plainText.length);
+  }, [risksContent]);
+
+  const handleChange = useCallback((newContent) => {
+    setContent(newContent);
+    updateFormData({ story: newContent, risks: risksContent });
+  }, [risksContent, updateFormData]);
+
+  const handleRisksChange = useCallback((newContent) => {
+    setRisksContent(newContent);
+    updateFormData({ story: content, risks: newContent });
+  }, [content, updateFormData]);
 
   // Helper to get feedback text based on complexity score
   const getComplexityFeedback = () => {
@@ -274,9 +161,25 @@ export default function ProjectStory({ formData, updateFormData }) {
   };
 
   // Calculate percentage of character limit used
-  const percentUsed = Math.round((charCount / MAX_TOTAL_CHARS) * 100);
+  const percentUsed = Math.round((charCount / MAX_CHARS) * 100);
+  const risksPercentUsed = Math.round((risksCharCount / MAX_RISKS_CHARS) * 100);
 
   const feedback = getComplexityFeedback();
+
+  const handleImageUpload = async (file) => {
+    if (uploadImage && typeof uploadImage === 'function') {
+      console.log('Passing image upload to parent handler');
+      return await uploadImage(file);
+    } else {
+      console.warn('No image upload handler provided');
+      // Fall back to base64 encoding if no upload function provided
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result);
+        reader.readAsDataURL(file);
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -291,7 +194,7 @@ export default function ProjectStory({ formData, updateFormData }) {
             <h3 className="text-sm font-medium text-blue-800">Enhanced Project Story</h3>
             <div className="mt-2 text-sm text-blue-700">
               <p>
-                Create a rich, visual story about your project using multiple sections. Your total story is limited to {MAX_TOTAL_CHARS.toLocaleString()} characters across all sections.
+                Create a rich, visual story about your project using different content blocks. Your story is limited to {MAX_CHARS.toLocaleString()} characters.
               </p>
             </div>
           </div>
@@ -299,208 +202,207 @@ export default function ProjectStory({ formData, updateFormData }) {
       </div>
 
       <div>
-        <label htmlFor="story" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="story" className="block text-sm font-medium text-gray-700">
           Project Story *
         </label>
+        <div className="mt-1">
+          {typeof window !== 'undefined' && (
+            <TiptapEditor
+              content={content}
+              onChange={handleChange}
+              placeholder="Start writing your project story here..."
+              onImageUpload={handleImageUpload}
+            />
+          )}
 
-        {/* Story tabs navigation */}
-        <div className="mb-4 border-b border-gray-200 overflow-x-auto">
-          <div className="flex">
-            {storyParts.map((part, index) => (
-              <button
-                key={part.id}
-                className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap ${index === activePart
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                onClick={() => setActivePart(index)}
-              >
-                {part.title || `Part ${part.id}`}
-              </button>
-            ))}
+          {/* Content analysis display */}
+          <div className="mt-4 bg-gray-50 rounded-md p-4 border border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Content Analysis</h4>
 
-            {/* Add part button */}
-            <button
-              type="button"
-              onClick={addStoryPart}
-              className="py-2 px-4 text-sm font-medium text-blue-600 border-b-2 border-transparent hover:border-blue-300 flex items-center"
-              disabled={charCount >= MAX_TOTAL_CHARS}
-            >
-              <svg className="h-5 w-5 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add Section
-            </button>
+            {/* Character limit usage bar */}
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-700">Character Usage</span>
+                <span className="text-xs font-medium text-gray-700">{charCount.toLocaleString()}/{MAX_CHARS.toLocaleString()} ({percentUsed}%)</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${percentUsed > 95 ? 'bg-red-500' :
+                    percentUsed > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                  style={{ width: `${Math.min(percentUsed, 100)}%` }}
+                ></div>
+              </div>
+              <p className="text-xs mt-1 text-gray-500">Use your characters wisely for maximum impact</p>
+            </div>
+
+            {/* Story complexity score */}
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-700">Story Complexity</span>
+                <span className="text-xs font-medium text-gray-700">{storyComplexityScore}/100</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${storyComplexityScore >= 80 ? 'bg-green-600' :
+                    storyComplexityScore >= 60 ? 'bg-green-500' :
+                      storyComplexityScore >= 40 ? 'bg-blue-500' :
+                        storyComplexityScore >= 20 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                  style={{ width: `${storyComplexityScore}%` }}
+                ></div>
+              </div>
+              <p className={`text-xs mt-1 ${feedback.color}`}>{feedback.text}</p>
+            </div>
+
+            {/* Content metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Words</div>
+                <div className="font-medium">{wordCount.toLocaleString()}</div>
+              </div>
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Paragraphs</div>
+                <div className="font-medium">{blockCount.paragraphs}</div>
+              </div>
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Headings</div>
+                <div className="font-medium">{blockCount.headings}</div>
+              </div>
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Images</div>
+                <div className="font-medium">{blockCount.images}</div>
+              </div>
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Lists</div>
+                <div className="font-medium">{blockCount.lists}</div>
+              </div>
+              <div className="p-2 bg-white rounded border border-gray-200">
+                <div className="text-xs text-gray-500">Media Elements</div>
+                <div className="font-medium">{blockCount.images + blockCount.videos}</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Active part editor and controls */}
-        {storyParts.map((part, index) => (
-          <div key={part.id} className={index === activePart ? 'block' : 'hidden'}>
-            <div className="flex items-center mb-2 space-x-2">
-              {/* Part title input */}
-              <input
-                type="text"
-                value={part.title || ''}
-                onChange={e => handlePartTitleChange(index, e.target.value)}
-                placeholder="Section Title"
-                // The part after the title input field
-                className="text-sm font-medium border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 flex-1"
-              />
+        {/* Risks and Challenges Section */}
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <div className="flex items-center mb-4">
+            <svg className="h-5 w-5 text-yellow-500 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <label htmlFor="risks" className="block text-sm font-medium text-gray-700">
+              Risks and Challenges *
+            </label>
+          </div>
 
-              {/* Part controls */}
-              <div className="flex space-x-1">
-                <button
-                  type="button"
-                  onClick={() => movePart(index, 'up')}
-                  disabled={index === 0}
-                  className={`p-1 rounded-md ${index === 0 ? 'text-gray-300' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                  title="Move up"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => movePart(index, 'down')}
-                  disabled={index === storyParts.length - 1}
-                  className={`p-1 rounded-md ${index === storyParts.length - 1 ? 'text-gray-300' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                  title="Move down"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeStoryPart(index)}
-                  disabled={storyParts.length <= 1}
-                  className={`p-1 rounded-md ${storyParts.length <= 1 ? 'text-gray-300' : 'text-red-500 hover:bg-red-50'}`}
-                  title="Remove section"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* TipTap editor */}
-            <div className="mb-4">
+          <div className="mt-1">
+            {typeof window !== 'undefined' && (
               <TiptapEditor
-                content={part.content || ''}
-                onChange={content => handlePartContentChange(index, content)}
-                placeholder="Start writing your project story here..."
+                content={risksContent}
+                onChange={handleRisksChange}
+                placeholder="Describe potential risks and challenges of your project, and how you plan to overcome them..."
+                onImageUpload={handleImageUpload}
               />
-            </div>
-          </div>
-        ))}
+            )}
 
-        {/* Story metrics */}
-        <div className="mt-6 border-t border-gray-200 pt-4">
-          <div className="flex flex-col sm:flex-row sm:justify-between text-sm">
-            <div className="mb-4 sm:mb-0">
-              <span className="font-medium text-gray-700">Content Stats:</span>
-              <ul className="mt-2 text-gray-600 space-y-1">
-                <li>
-                  Characters: <span className="font-medium">{charCount.toLocaleString()}</span>
-                  <span className="ml-1 text-xs text-gray-500">
-                    (max {MAX_TOTAL_CHARS.toLocaleString()})
-                  </span>
-                </li>
-                <li>Words: <span className="font-medium">{wordCount.toLocaleString()}</span></li>
-                <li>Sections: <span className="font-medium">{storyParts.length}</span></li>
-              </ul>
-            </div>
-
-            <div>
-              <span className="font-medium text-gray-700">Content Elements:</span>
-              <ul className="mt-2 text-gray-600 space-y-1">
-                <li>Paragraphs: <span className="font-medium">{blockCount.paragraphs}</span></li>
-                <li>Headings: <span className="font-medium">{blockCount.headings}</span></li>
-                <li>Images: <span className="font-medium">{blockCount.images}</span></li>
-                <li>Lists: <span className="font-medium">{blockCount.lists}</span></li>
-                <li>Videos: <span className="font-medium">{blockCount.videos}</span></li>
-                <li>Other blocks: <span className="font-medium">{blockCount.others}</span></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Character limit progress */}
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium text-gray-700">
-                Character Limit ({percentUsed}%)
-              </span>
-              <span className={`text-xs font-medium ${percentUsed > 90 ? 'text-red-600' : 'text-gray-500'}`}>
-                {charCount.toLocaleString()} / {MAX_TOTAL_CHARS.toLocaleString()}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className={`h-2.5 rounded-full ${percentUsed > 90 ? 'bg-red-600' : percentUsed > 70 ? 'bg-yellow-400' : 'bg-green-600'
-                  }`}
-                style={{ width: `${Math.min(100, percentUsed)}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Story quality feedback */}
-          <div className="mt-6">
-            <div className="flex items-center">
-              <div className="mr-2">
-                <svg className="h-5 w-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
+            {/* Risks character count */}
+            <div className="mt-2">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-medium text-gray-700">Character Usage</span>
+                <span className="text-xs font-medium text-gray-700">
+                  {risksCharCount.toLocaleString()}/{MAX_RISKS_CHARS.toLocaleString()} ({risksPercentUsed}%)
+                </span>
               </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-700">Story Quality Score:</h4>
-                <div className="flex items-center mt-1">
-                  <div className="w-1/4 mr-4">
-                    <div className="h-2.5 rounded-full bg-gray-200">
-                      <div
-                        className={`h-2.5 rounded-full ${storyComplexityScore > 70 ? 'bg-green-600' :
-                            storyComplexityScore > 40 ? 'bg-blue-600' :
-                              storyComplexityScore > 20 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                        style={{ width: `${Math.min(100, storyComplexityScore)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <span className={`text-sm ${feedback.color}`}>{feedback.text}</span>
-                </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${risksPercentUsed > 95 ? 'bg-red-500' :
+                    risksPercentUsed > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                  style={{ width: `${Math.min(risksPercentUsed, 100)}%` }}
+                ></div>
               </div>
+              <p className="text-xs mt-1 text-gray-500">
+                Being transparent about risks builds trust with your backers
+              </p>
+            </div>
+
+            {/* Risks guide */}
+            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+              <h4 className="text-sm font-medium text-yellow-800 mb-2">Why This Matters:</h4>
+              <p className="text-xs text-yellow-700">
+                Acknowledging risks and challenges shows backers that you&apos;ve thought through potential
+                issues and have plans to address them. This transparency builds trust and demonstrates
+                your preparedness to handle obstacles.
+              </p>
+
+              <h4 className="text-sm font-medium text-yellow-800 mt-3 mb-1">Consider Including:</h4>
+              <ul className="list-disc pl-5 text-xs text-yellow-700 space-y-1">
+                <li>Manufacturing challenges or dependencies</li>
+                <li>Potential timeline delays and how you&apos;ll manage them</li>
+                <li>Technical hurdles you might encounter</li>
+                <li>Supply chain considerations</li>
+                <li>Team capacity challenges</li>
+                <li>Your mitigation strategies for each risk</li>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* Story writing tips */}
-        <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Tips for a Great Project Story:</h4>
-          <ul className="text-xs text-gray-600 space-y-2">
-            <li>• <strong>Start with a hook</strong> to grab attention in the first few sentences</li>
-            <li>• <strong>Use headings</strong> to break up your content into easy-to-read sections</li>
-            <li>• <strong>Include images</strong> to show your project, prototypes, sketches, or team</li>
-            <li>• <strong>Keep paragraphs short</strong> for better readability</li>
-            <li>• <strong>Tell your story</strong> - why this project matters to you and why it should matter to backers</li>
-            <li>• <strong>Include a timeline</strong> showing your production plan and delivery schedule</li>
-            <li>• <strong>Be transparent</strong> about challenges you might face and how you'll overcome them</li>
+        <div className="mt-8 border-t border-gray-200 pt-6 space-y-4">
+          <h3 className="text-sm font-medium text-gray-700">Making the Most of Your 5,000 Characters:</h3>
+          <ul className="list-disc pl-5 text-sm text-gray-600 space-y-2">
+            <li><span className="font-medium">Be concise but comprehensive:</span> Every character counts, so focus on what matters most.</li>
+            <li><span className="font-medium">Use visual elements:</span> Images help tell your story without using up your character limit.</li>
+            <li><span className="font-medium">Structure with headings:</span> Break up content into scannable sections with clear headings.</li>
+            <li><span className="font-medium">Use bullet points:</span> Lists convey information efficiently in limited space.</li>
+            <li><span className="font-medium">Focus on key details:</span> Highlight unique features, benefits, and your project timeline.</li>
+            <li><span className="font-medium">Remove redundancies:</span> Edit ruthlessly to eliminate repetitive content.</li>
+            <li><span className="font-medium">Balance text and media:</span> Combine text with strategic images to maximize impact.</li>
           </ul>
+        </div>
+
+        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-md p-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Content Priority Guide:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-xs text-gray-600">
+              <p className="font-medium text-gray-700 mb-1">High-Impact Elements (Prioritize These)</p>
+              <ul className="space-y-1">
+                <li>• <b>Project overview:</b> Clear explanation of your concept</li>
+                <li>• <b>Key features:</b> What makes your project unique</li>
+                <li>• <b>Visual elements:</b> Strategic images that show your product</li>
+                <li>• <b>Team credentials:</b> Brief background establishing credibility</li>
+                <li>• <b>Timeline:</b> Concise schedule for production and delivery</li>
+              </ul>
+            </div>
+            <div className="text-xs text-gray-600">
+              <p className="font-medium text-gray-700 mb-1">Lower-Priority Elements (If Space Permits)</p>
+              <ul className="space-y-1">
+                <li>• <b>Detailed backstory:</b> Summarize rather than narrate</li>
+                <li>• <b>Technical specifications:</b> Focus on differentiators</li>
+                <li>• <b>Market analysis:</b> Brief mention of market need</li>
+                <li>• <b>Multiple testimonials:</b> Choose one strong quote</li>
+                <li>• <b>Long paragraphs:</b> Break into smaller, focused sections</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+// Add prop type validation
 ProjectStory.propTypes = {
-  formData: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.array
-  ]),
-  updateFormData: PropTypes.func.isRequired
+  formData: PropTypes.string,
+  risksData: PropTypes.string,
+  updateFormData: PropTypes.func.isRequired,
+  uploadImage: PropTypes.func
 };
 
+// Default props
 ProjectStory.defaultProps = {
-  formData: null
+  formData: '',
+  risksData: '',
+  uploadImage: null
 };

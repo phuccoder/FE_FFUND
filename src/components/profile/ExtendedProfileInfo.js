@@ -18,11 +18,12 @@ export default function ExtendedProfileInfo() {
   const [portfolioFileName, setPortfolioFileName] = useState('');
   const [currentPortfolio, setCurrentPortfolio] = useState('');
   const [showPdfViewer, setShowPdfViewer] = useState(false);
+  // Initialize form with default values for exeClass and fptFacility
   const [formData, setFormData] = useState({
     studentClass: '',
     studentCode: '',
-    exeClass: '',
-    fptFacility: ''
+    exeClass: 'EXE101',  // Default value added
+    fptFacility: 'CAN_THO'  // Default value added
   });
 
   const facilities = [
@@ -51,6 +52,7 @@ export default function ExtendedProfileInfo() {
           toast.warn('Please fill out your extended profile information.', {
             autoClose: false
           });
+          // No need to reset formData here as it already has default values
         } else {
           setFormData({
             studentClass: userData.studentClass || '',
@@ -67,6 +69,7 @@ export default function ExtendedProfileInfo() {
         toast.error('Failed to load extended profile information');
         setLoading(false);
         setIsNewUser(true); // Assume new user if fetch fails
+        // No need to reset formData here as it already has default values
       }
     };
 
@@ -124,20 +127,21 @@ export default function ExtendedProfileInfo() {
     try {
       setSaving(true);
       
-      const founderData = {
-        studentClass: formData.studentClass,
-        studentCode: formData.studentCode,
-        exeClass: formData.exeClass,
-        fptFacility: formData.fptFacility
-      };
+      // Log the data being sent to API for debugging
+      console.log('Sending founder data to API:', formData);
       
       // Determine whether to create or update based on isNewUser flag
       let result;
       if (isNewUser) {
-        result = await createUserExtendedInfo(founderData);
+        result = await createUserExtendedInfo({
+          studentClass: formData.studentClass,
+          studentCode: formData.studentCode,
+          exeClass: formData.exeClass,  // Ensure this is included
+          fptFacility: formData.fptFacility  // Ensure this is included
+        });
         setIsNewUser(false); // No longer a new user after creation
       } else {
-        result = await updateUserExtendedInfo(founderData);
+        result = await updateUserExtendedInfo(formData);
       }
       
       toast.success(`Founder information ${isNewUser ? 'created' : 'updated'} successfully`);
