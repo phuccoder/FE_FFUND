@@ -67,11 +67,9 @@ function CreateProject() {
       },
     },
     paymentInfo: {
-      accountName: '',
-      accountNumber: '',
-      bankName: '',
-      swiftCode: '',
-      country: '',
+      id: null,
+      stripeAccountId: null,
+      status: 'NOT_STARTED', 
     },
   });
   const [authStatus, setAuthStatus] = useState({

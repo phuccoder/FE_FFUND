@@ -13,10 +13,14 @@ import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler'
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import UpdateBlog from '@/components/UpdateBlog/UpdateBlog';
 
+// Import the services
+import { milestoneService } from 'src/services/milestoneService';
+import { milestoneItemService } from 'src/services/milestoneItemService';
+
 function EditProjectPage() {
   const router = useRouter();
   const { projectId } = router.query;
-  
+
   const [currentSection, setCurrentSection] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -26,6 +30,15 @@ function EditProjectPage() {
   const [originalData, setOriginalData] = useState({});
   const [projectStatus, setProjectStatus] = useState('DRAFT');
   const [existingUpdates, setExistingUpdates] = useState([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const debugFormData = () => {
+    console.log("DEBUG - Current form state:", {
+      projectId: formData.projectId,
+      fundraisingInfoProjectId: formData.fundraisingInfo?.projectId,
+      phasesExist: Array.isArray(formData.fundraisingInfo?.phases),
+      phasesLength: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases.length : 0
+    });
+  };
   const [editRestrictions, setEditRestrictions] = useState({
     basicInfo: true,
     fundraisingInfo: true,
@@ -38,9 +51,9 @@ function EditProjectPage() {
     'swotAnalysis', 'businessModelCanvas', 'financialInformation'
   ]);
   const [formData, setFormData] = useState({
-    // Add termsAgreed: true to unlock all sections in the navigation
-    termsAgreed: true,
+    projectId: null,
     basicInfo: {
+      projectId: null,
       title: '',
       category: '',
       shortDescription: '',
@@ -51,6 +64,7 @@ function EditProjectPage() {
       isClassPotential: false,
     },
     fundraisingInfo: {
+      projectId: null,
       startDate: '',
       phases: []
     },
@@ -110,7 +124,7 @@ function EditProjectPage() {
           isAuthenticated: false,
           isLoading: false
         });
-        
+
         // Redirect to login if not authenticated
         router.push('/login?redirect=' + encodeURIComponent(router.asPath));
       }
@@ -119,19 +133,369 @@ function EditProjectPage() {
     checkAuth();
   }, [router]);
 
+  // Add this effect to immediately set the projectId when available
+  useEffect(() => {
+    // Only run when projectId from router is available and valid
+    if (projectId && typeof projectId === 'string') {
+      console.log("Setting project ID from router:", projectId);
+
+      // Update all places where projectId is needed
+      setFormData(prevData => ({
+        ...prevData,
+        projectId: projectId,
+        basicInfo: {
+          ...prevData.basicInfo,
+          projectId: projectId
+        },
+        fundraisingInfo: {
+          ...prevData.fundraisingInfo,
+          projectId: projectId
+        },
+        projectStory: {
+          ...prevData.projectStory,
+          projectId: projectId
+        },
+        // Update other sections as needed
+      }));
+    }
+  }, [projectId]);
+
   // Load project data when projectId is available
   useEffect(() => {
     if (projectId && !authStatus.isLoading && authStatus.isAuthenticated) {
-      loadProjectData(projectId);
-      // Also load project updates
-      loadProjectUpdates(projectId);
+      console.log("Initial project ID from router query:", projectId);
+
+      // Set projectId directly into formData to ensure it's available early
+      setFormData(prevData => ({
+        ...prevData,
+        projectId: projectId
+      }));
+
+      // First load basic project data
+      loadProjectData(projectId).then(() => {
+        console.log("Basic project data loaded, now loading detailed data");
+
+        // After basic data is loaded, load all related data
+        loadAllProjectData(projectId);
+
+        // Also load project updates
+        loadProjectUpdates(projectId);
+      }).catch(error => {
+        console.error("Error in project data loading sequence:", error);
+      });
     }
   }, [projectId, authStatus.isLoading, authStatus.isAuthenticated]);
 
-  // Load project updates
-  const loadProjectUpdates = async (pid) => {
+  useEffect(() => {
+    // This effect helps when projectId comes from API response
+    const extractProjectIdFromRawData = () => {
+      try {
+        // Check local storage first for previously stored ID
+        const storedId = localStorage.getItem('founderProjectId');
+
+        // Try to extract from URL query
+        const queryId = router.query.projectId;
+
+        // If we have a stored or query ID, use it
+        if (storedId || queryId) {
+          const idToUse = queryId || storedId;
+          console.log("Using project ID from URL/localStorage:", idToUse);
+
+          setFormData(prevData => ({
+            ...prevData,
+            projectId: idToUse,
+            fundraisingInfo: {
+              ...prevData.fundraisingInfo,
+              projectId: idToUse
+            }
+          }));
+
+          // Force load phases with this ID
+          loadProjectPhases(idToUse);
+        }
+      } catch (err) {
+        console.error("Error extracting project ID:", err);
+      }
+    };
+
+    // Run once when component mounts
+    extractProjectIdFromRawData();
+  }, []);
+
+  // New function to load all project-related data
+  const loadAllProjectData = async (projectId) => {
     try {
-      const updates = await projectService.getProjectUpdates(pid);
+      console.log("Loading all data for project:", projectId);
+
+      // Use a flag to track data loading status
+      const dataLoadingPromises = [];
+
+      // Load phases
+      dataLoadingPromises.push(loadProjectPhases(projectId));
+
+      // Load story
+      dataLoadingPromises.push(loadProjectStory(projectId));
+
+      // Load rewards/milestones
+      dataLoadingPromises.push(loadProjectRewards(projectId));
+
+      // Load documents
+      dataLoadingPromises.push(loadProjectDocuments(projectId));
+
+      // Wait for all data to load
+      await Promise.all(dataLoadingPromises);
+
+      console.log("All project data loaded successfully");
+    } catch (error) {
+      console.error("Error loading all project data:", error);
+    }
+  };
+
+  // Load phases for the project
+  const loadProjectPhases = async (projectId) => {
+    try {
+      console.log("Fetching phases for project ID:", projectId);
+
+      if (!projectId) {
+        console.error("No project ID provided for phase loading");
+
+        // Try to get ID from other sources
+        const fallbackId = router.query.projectId || localStorage.getItem('founderProjectId');
+        if (fallbackId) {
+          console.log("Using fallback project ID for phase loading:", fallbackId);
+          return loadProjectPhases(fallbackId); // Retry with fallback ID
+        }
+        return;
+      }
+
+      // Force a re-set of projectId in the formData before loading phases
+      setFormData(prevData => ({
+        ...prevData,
+        projectId: projectId,
+        fundraisingInfo: {
+          ...prevData.fundraisingInfo,
+          projectId: projectId
+        }
+      }));
+
+      // Explicitly call the API with project ID
+      const phasesData = await projectService.getPhaseByProject(projectId);
+      console.log("Phases data loaded:", phasesData);
+
+      // Convert to array if needed
+      const phasesArray = Array.isArray(phasesData) ? phasesData : [];
+      console.log(`Setting ${phasesArray.length} phases for project ${projectId}`);
+
+      // Update with phases data
+      setFormData(prevData => {
+        return {
+          ...prevData,
+          projectId: projectId,
+          fundraisingInfo: {
+            ...prevData.fundraisingInfo,
+            projectId: projectId,
+            startDate: phasesArray.length > 0 ? phasesArray[0]?.startDate || '' : '',
+            phases: phasesArray
+          }
+        };
+      });
+
+      // Save project ID to localStorage for persistence
+      localStorage.setItem('founderProjectId', projectId);
+
+      // Call debug after updating
+      setTimeout(() => debugFormData(), 0);
+
+      return phasesArray;
+    } catch (error) {
+      console.error(`Error loading project phases for ID ${projectId}:`, error);
+
+      // Still update with empty phases to avoid null reference
+      setFormData(prevData => {
+        console.log(`Setting empty phases array for project ${projectId} after error`);
+        return {
+          ...prevData,
+          projectId: projectId,
+          fundraisingInfo: {
+            ...prevData.fundraisingInfo,
+            projectId: projectId,
+            phases: []
+          }
+        };
+      });
+
+      // Call debug after updating
+      setTimeout(() => debugFormData(), 0);
+
+      return [];
+    }
+  };
+
+  // Load story data for the project
+  const loadProjectStory = async (projectId) => {
+    try {
+      console.log("Fetching story data for project:", projectId);
+      const storyData = await projectService.getProjectStoryByProjectId(projectId);
+      console.log("Story data:", storyData);
+
+      if (storyData) {
+        // Make sure all possible ID fields are included
+        const storyId =
+          storyData.projectStoryId ||
+          storyData.id ||
+          (storyData.data ? storyData.data.projectStoryId || storyData.data.id : null);
+
+        setFormData(prevData => ({
+          ...prevData,
+          projectStory: {
+            id: storyId,
+            projectStoryId: storyId,
+            story: storyData.story || storyData.content || '',
+            risks: storyData.risks || '',
+            status: storyData.status || 'DRAFT',
+            projectId: projectId
+          }
+        }));
+
+        console.log("Set project story with ID:", storyId);
+      }
+    } catch (error) {
+      console.error("Error loading project story:", error);
+    }
+  };
+
+  // Load rewards/milestones for the project
+  const loadProjectRewards = async (projectId) => {
+    try {
+      // First get phases to get their IDs
+      console.log("Fetching rewards for project:", projectId);
+      const phases = await projectService.getPhaseByProject(projectId);
+      console.log("Phases for reward loading:", phases);
+
+      if (!phases || !Array.isArray(phases) || phases.length === 0) {
+        console.log("No phases found for milestone loading");
+        return;
+      }
+
+      // For each phase, get its milestones
+      console.log("Loading milestones for phases:", phases);
+      const allRewards = [];
+
+      for (const phase of phases) {
+        try {
+          if (!phase.id) {
+            console.warn("Phase missing ID, skipping milestone retrieval", phase);
+            continue;
+          }
+
+          console.log(`Getting milestones for phase ID: ${phase.id}`);
+          const milestones = await milestoneService.getMilestonesByPhaseId(phase.id);
+          console.log(`Milestones for phase ${phase.id}:`, milestones);
+
+          if (milestones && Array.isArray(milestones)) {
+            console.log(`Found ${milestones.length} milestones for phase ${phase.id}`);
+
+            // Process each milestone
+            for (const milestone of milestones) {
+              // Add phase information to milestone
+              const rewardWithPhase = {
+                ...milestone,
+                phaseId: phase.id,
+                phaseName: phase.name || 'Phase'
+              };
+
+              // Load items for this milestone if it has an ID
+              if (milestone.id) {
+                const milestoneDetails = await milestoneService.getMilestoneById(milestone.id);
+                console.log(`Milestone details for ID ${milestone.id}:`, milestoneDetails);
+
+                if (milestoneDetails && milestoneDetails.items) {
+                  rewardWithPhase.items = milestoneDetails.items;
+                }
+              }
+
+              allRewards.push(rewardWithPhase);
+            }
+          }
+        } catch (phaseError) {
+          console.error(`Error loading milestones for phase ${phase.id}:`, phaseError);
+        }
+      }
+
+      console.log("All rewards loaded:", allRewards);
+      setFormData(prevData => ({
+        ...prevData,
+        rewardInfo: allRewards
+      }));
+
+    } catch (error) {
+      console.error("Error loading project rewards:", error);
+    }
+  };
+
+  // Load documents for the project
+  const loadProjectDocuments = async (projectId) => {
+    try {
+      console.log("Fetching documents for project:", projectId);
+      const documentsData = await projectService.getProjectDocumentsByProjectId(projectId);
+      console.log("Documents data:", documentsData);
+
+      if (documentsData && Array.isArray(documentsData)) {
+        // Process documents into the required format
+        const processedDocs = {
+          mandatory: {
+            swotAnalysis: null,
+            businessModelCanvas: null,
+            businessPlan: null,
+            marketResearch: null,
+            financialInformation: null,
+            projectMedia: [],
+          },
+          optional: {
+            customerAcquisitionPlan: null,
+            revenueProof: null,
+            visionStrategy: null,
+          },
+        };
+
+        documentsData.forEach(doc => {
+          const docType = doc.type?.toLowerCase();
+
+          if (docType === 'swot_analysis') {
+            processedDocs.mandatory.swotAnalysis = doc;
+          } else if (docType === 'business_model_canvas') {
+            processedDocs.mandatory.businessModelCanvas = doc;
+          } else if (docType === 'business_plan') {
+            processedDocs.mandatory.businessPlan = doc;
+          } else if (docType === 'market_research') {
+            processedDocs.mandatory.marketResearch = doc;
+          } else if (docType === 'financial_information') {
+            processedDocs.mandatory.financialInformation = doc;
+          } else if (docType === 'project_media') {
+            processedDocs.mandatory.projectMedia.push(doc);
+          } else if (docType === 'customer_acquisition_plan') {
+            processedDocs.optional.customerAcquisitionPlan = doc;
+          } else if (docType === 'revenue_proof') {
+            processedDocs.optional.revenueProof = doc;
+          } else if (docType === 'vision_strategy') {
+            processedDocs.optional.visionStrategy = doc;
+          }
+        });
+
+        setFormData(prevData => ({
+          ...prevData,
+          requiredDocuments: processedDocs
+        }));
+      }
+    } catch (error) {
+      console.error("Error loading project documents:", error);
+    }
+  };
+
+  // Load project updates
+  const loadProjectUpdates = async (projectId) => {
+    try {
+      const updates = await projectService.getProjectUpdates(projectId);
       if (updates && Array.isArray(updates)) {
         setExistingUpdates(updates.map(update => ({
           title: update.title || '',
@@ -182,169 +546,187 @@ function EditProjectPage() {
     }
   }, [projectStatus]);
 
-  const loadProjectData = async (pid) => {
-    console.log("Loading project data for ID:", pid);
-    try {
-      const response = await projectService.getProjectById(pid);
-      console.log("Project data loaded:", response);
+  useEffect(() => {
+    console.log("Component state:", {
+      routerProjectId: projectId,
+      formDataProjectId: formData.projectId,
+      fundraisingInfoProjectId: formData.fundraisingInfo?.projectId,
+      basicInfoProjectId: formData.basicInfo?.projectId
+    });
+  }, [projectId, formData.projectId, formData.fundraisingInfo?.projectId, formData.basicInfo?.projectId]);
 
-      if (response) {
-        // Get project status
-        const status = response.status || 'DRAFT';
-        setProjectStatus(status);
+  const loadProjectData = async (projectId) => {
+    console.log("Loading project data for ID:", projectId);
+
+    try {
+      // Get project by ID directly
+      const projectData = await projectService.getProjectById(projectId);
+      console.log("API response for project:", projectData);
+
+      if (projectData) {
+        // Set project status
+        setProjectStatus(projectData.status || 'DRAFT');
 
         // Store original data for comparison
-        setOriginalData(response);
+        setOriginalData(projectData);
 
-        // Transform project data to match form structure
+        // Set edit mode
+        setIsEditMode(true);
+
+        // Store the projectId in localStorage for persistence
+        localStorage.setItem('founderProjectId', projectId);
+
+        // Update form data with project details
         setFormData(prevData => ({
           ...prevData,
-          projectId: response.id,
-          termsAgreed: true,
+          projectId: projectId,
           basicInfo: {
-            projectId: response.id,
-            title: response.title || '',
-            shortDescription: response.description || response.projectDescription || '',
-            projectDescription: response.description || response.projectDescription || '',
-            category: response.category?.id || '',
-            categoryId: response.category?.id || '',
-            subCategoryIds: response.subCategories?.map(sub => sub.id) || [],
-            location: response.location || response.projectLocation || '',
-            projectLocation: response.location || response.projectLocation || '',
-            projectUrl: response.projectUrl || '',
-            mainSocialMediaUrl: response.mainSocialMediaUrl || '',
-            projectVideoDemo: response.projectVideoDemo || '',
-            totalTargetAmount: response.totalTargetAmount || 1000,
-            isClassPotential: response.isClassPotential !== undefined
-              ? response.isClassPotential
+            ...prevData.basicInfo,
+            projectId: projectId,
+            title: projectData.title || '',
+            shortDescription: projectData.description || '',
+            projectDescription: projectData.description || '',
+            category: projectData.category?.id || '',
+            categoryId: projectData.category?.id || '',
+            subCategoryIds: projectData.subCategories?.map(sub => sub.id) || [],
+            location: projectData.location || '',
+            projectLocation: projectData.location || '',
+            projectUrl: projectData.projectUrl || '',
+            mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
+            projectVideoDemo: projectData.projectVideoDemo || '',
+            totalTargetAmount: projectData.totalTargetAmount || 1000,
+            isClassPotential: projectData.isClassPotential !== undefined
+              ? projectData.isClassPotential
               : false,
-            status: response.status || 'DRAFT',
-            // Add project image to the form data
-            projectImage: response.projectImage || null
+            status: projectData.status || 'DRAFT',
+            projectImage: projectData.projectImage || null
           },
-          projectStory: {
-            story: response.projectStory || response.story || '',
-            risks: response.risks || ''
-          },
-          paymentInfo: {
-            id: response.paymentId || response.payment?.id,
-            stripeAccountId: response.stripeAccountId || response.payment?.stripeAccountId,
-            status: (response.stripeAccountId || response.payment?.stripeAccountId) ? 'LINKED' :
-              (response.paymentId || response.payment?.id) ? 'PENDING' : 'NOT_STARTED'
+          // Initialize fundraisingInfo with projectId to avoid null reference issues
+          fundraisingInfo: {
+            ...prevData.fundraisingInfo,
+            projectId: projectId,
+            startDate: '',
+            phases: []
           }
         }));
 
-        // Load fundraising info separately if available
-        if (response.id) {
-          try {
-            console.log("Fetching fundraising info for project:", response.id);
-            const fundraisingData = await projectService.getProjectFundraisingInfo(response.id);
-            console.log("Fundraising data loaded:", fundraisingData);
-            
-            if (fundraisingData) {
-              setFormData(prevData => ({
-                ...prevData,
-                fundraisingInfo: {
-                  startDate: fundraisingData.startDate || '',
-                  phases: fundraisingData.phases || []
-                }
-              }));
-            }
-          } catch (err) {
-            console.error("Error loading fundraising info:", err);
-          }
-
-          // Load rewards data
-          try {
-            console.log("Fetching rewards for project:", response.id);
-            const rewardsData = await projectService.getProjectRewards(response.id);
-            console.log("Rewards data loaded:", rewardsData);
-            
-            if (rewardsData && Array.isArray(rewardsData)) {
-              setFormData(prevData => ({
-                ...prevData,
-                rewardInfo: rewardsData
-              }));
-            }
-          } catch (err) {
-            console.error("Error loading rewards info:", err);
-          }
-
-          // Load founder profile data
-          try {
-            console.log("Fetching founder info for project:", response.id);
-            const founderData = await projectService.getFounderInfo(response.id);
-            console.log("Founder data loaded:", founderData);
-            
-            if (founderData) {
-              setFormData(prevData => ({
-                ...prevData,
-                founderProfile: founderData
-              }));
-            }
-          } catch (err) {
-            console.error("Error loading founder info:", err);
-          }
-
-          // Load document data
-          try {
-            console.log("Fetching document info for project:", response.id);
-            const documentsData = await projectService.getProjectDocuments(response.id);
-            console.log("Documents data loaded:", documentsData);
-            
-            if (documentsData) {
-              setFormData(prevData => ({
-                ...prevData,
-                requiredDocuments: documentsData
-              }));
-            }
-          } catch (err) {
-            console.error("Error loading document info:", err);
-          }
-        }
+        return projectData;
+      } else {
+        console.error("No project found with ID:", projectId);
+        return null;
       }
     } catch (error) {
       console.error("Error loading project data:", error);
-      alert("Failed to load project data. Please try again later.");
+      alert(`Error loading project: ${error.message || 'Unknown error'}`);
+      throw error;
     }
   };
 
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating ${section} data:`, data);
-    
+
     // Check if we're in fundraising stage and detect changes
     if (projectStatus === 'FUNDRAISING') {
       // Check if section is allowed to be updated during fundraising
       if ((section === 'fundraisingInfo' || section === 'rewardInfo') ||
-          (section === 'requiredDocuments' && hasRestrictedDocumentChanges(data))) {
+        (section === 'requiredDocuments' && hasRestrictedDocumentChanges(data))) {
         alert("You cannot update this information while the project is in the fundraising stage.");
         return;
       }
-      
+
       // For allowed sections, flag that an update post will be required
       setUpdateRequired(true);
     }
 
+    // Make sure we preserve projectId in the updated data
+    let updatedData = data;
+    if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+      updatedData = {
+        ...data,
+        projectId: projectId || formData.projectId
+      };
+    }
+
+    // Log the section being updated with current projectId
+    console.log(`Updating ${section} with projectId:`, projectId || formData.projectId);
+
     // Update form data
     setFormData(prevData => {
+      // For rewardInfo, prevent unnecessary updates if data is the same
+      if (section === 'rewardInfo') {
+        // Deep comparison would be better, but for simple check:
+        if (JSON.stringify(prevData.rewardInfo) === JSON.stringify(updatedData)) {
+          console.log('Skipping rewardInfo update - no changes detected');
+          return prevData; // No change needed
+        }
+      }
+
+      // Special handling for fundraisingInfo to ensure projectId and phases are included
+      if (section === 'fundraisingInfo') {
+        // Ensure phases is always an array
+        const phases = Array.isArray(updatedData.phases) ? updatedData.phases : [];
+        console.log(`Updating fundraisingInfo with ${phases.length} phases`);
+
+        return {
+          ...prevData,
+          projectId: projectId || prevData.projectId,
+          [section]: {
+            ...updatedData,
+            projectId: projectId || prevData.projectId,
+            phases: phases
+          }
+        };
+      }
+
+      // Special handling for basicInfo (unchanged)
+      if (section === 'basicInfo') {
+        // Ensure all field mappings are properly maintained
+        const updatedBasicInfo = {
+          ...data,
+          projectId: projectId || data.projectId || prevData.projectId,
+          // Handle potential field name differences
+          category: data.category || data.categoryId,
+          categoryId: data.categoryId || data.category,
+          location: data.location || data.projectLocation,
+          projectLocation: data.projectLocation || data.location,
+          shortDescription: data.shortDescription || data.projectDescription,
+          projectDescription: data.projectDescription || data.shortDescription,
+          // Explicitly include the projectImage
+          projectImage: data.projectImage || prevData.basicInfo?.projectImage,
+        };
+
+        console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
+
+        return {
+          ...prevData,
+          projectId: projectId || prevData.projectId,
+          [section]: updatedBasicInfo,
+          // Also store projectImage at the top level for easier access
+          projectImage: data.projectImage || prevData.projectImage
+        };
+      }
+
+      // For other sections
       return {
         ...prevData,
-        [section]: data
+        projectId: projectId || prevData.projectId,
+        [section]: updatedData
       };
     });
+    setTimeout(() => debugFormData(), 0);
   };
 
   // Check if restricted documents have been changed
   const hasRestrictedDocumentChanges = (newDocData) => {
     const currentDocs = formData.requiredDocuments;
-    
+
     // Check for changes in restricted mandatory documents
     for (const docType of restrictedDocuments) {
       if (currentDocs?.mandatory?.[docType]?.id !== newDocData?.mandatory?.[docType]?.id) {
         return true;
       }
     }
-    
+
     return false;
   };
 
@@ -359,83 +741,185 @@ function EditProjectPage() {
         return;
       }
 
-      // Prepare data for update
+      // Get the project ID
       const projectId = formData.projectId;
+
+      if (!projectId) {
+        alert("No project ID found. Please save your project before submitting.");
+        return;
+      }
+
       console.log("Saving project with ID:", projectId);
-      
-      // Update basic info
+
+      // If project is in REJECTED status and now editing, change to PENDING_APPROVAL
+      if (projectStatus === 'REJECTED') {
+        const confirmSubmit = confirm(
+          "Once submitted, your project will be reviewed by our team. " +
+          "You won't be able to make changes during the review process. " +
+          "Are you sure you want to submit your project now?"
+        );
+
+        if (!confirmSubmit) {
+          setIsSaving(false);
+          return;
+        }
+
+        // Save each section first
+        await saveAllSections(projectId);
+
+        console.log("Resubmitting rejected project");
+        await projectService.submitProject(projectId);
+        setProjectStatus('PENDING_APPROVAL');
+
+        // Show success message
+        alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
+      } else {
+        // Just save all sections
+        await saveAllSections(projectId);
+        alert("Project updated successfully!");
+      }
+
+      // Reset the update required flag
+      setUpdateRequired(false);
+
+      // Reload project data
+      await loadProjectData(projectId);
+      await loadAllProjectData(projectId);
+
+    } catch (error) {
+      console.error("Error saving project:", error);
+      alert(`Failed to save project: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save all sections of the project
+  const saveAllSections = async (projectId) => {
+    console.log("Saving all sections for project:", projectId);
+
+    try {
+      // Save basic info
       if (editRestrictions.basicInfo) {
-        console.log("Updating basic info");
         await projectService.updateProjectInfo(projectId, formData.basicInfo);
       }
-      
-      // Update fundraising info
+
+      // Save fundraising info if allowed
       if (editRestrictions.fundraisingInfo) {
-        console.log("Updating fundraising info");
-        await projectService.updateFundraisingInfo(projectId, formData.fundraisingInfo);
+        // Update existing phases
+        console.log("Saving phases for project:", projectId);
+        console.log("Current phases in formData:", formData.fundraisingInfo.phases);
+
+        for (const phase of formData.fundraisingInfo.phases) {
+          try {
+            if (phase.id) {
+              console.log("Updating existing phase:", phase.id, phase);
+              await projectService.updateProjectPhase(phase.id, {
+                ...phase,
+                projectId: projectId
+              });
+            } else {
+              console.log("Creating new phase for project:", projectId, phase);
+              const newPhase = await projectService.createProjectPhase(projectId, {
+                ...phase,
+                projectId: projectId
+              });
+              console.log("Created new phase:", newPhase);
+            }
+          } catch (phaseError) {
+            console.error("Error saving phase:", phaseError);
+          }
+        }
       }
-      
-      // Update rewards
+
+      // Save rewards if allowed
       if (editRestrictions.rewardInfo) {
-        console.log("Updating reward info");
-        await projectService.updateProjectRewards(projectId, formData.rewardInfo);
+        console.log("Saving rewards:", formData.rewardInfo);
+
+        for (const reward of formData.rewardInfo) {
+          try {
+            if (reward.id) {
+              // Update existing reward
+              console.log(`Updating existing milestone: ${reward.id}`, reward);
+              await milestoneService.updateMilestone(reward.id, reward);
+
+              // Update its items
+              if (reward.items && Array.isArray(reward.items)) {
+                console.log(`Processing ${reward.items.length} items for milestone ${reward.id}`);
+
+                for (const item of reward.items) {
+                  if (item.id) {
+                    console.log(`Updating existing item: ${item.id}`, item);
+                    await milestoneItemService.updateMilestoneItem(item.id, item);
+                  } else {
+                    console.log(`Creating new item for milestone: ${reward.id}`, item);
+                    await milestoneItemService.createMilestoneItem(reward.id, item);
+                  }
+                }
+              }
+            } else if (reward.phaseId) {
+              // Create new reward
+              console.log(`Creating new milestone for phase: ${reward.phaseId}`, reward);
+              const newReward = await milestoneService.createMilestoneForPhase(reward.phaseId, reward);
+
+              // Create its items
+              if (newReward && newReward.id && reward.items && Array.isArray(reward.items)) {
+                console.log(`Creating ${reward.items.length} items for new milestone ${newReward.id}`);
+
+                for (const item of reward.items) {
+                  await milestoneItemService.createMilestoneItem(newReward.id, item);
+                }
+              }
+            } else {
+              console.warn("Cannot save reward without id or phaseId:", reward);
+            }
+          } catch (rewardError) {
+            console.error("Error saving reward:", rewardError);
+            throw rewardError;
+          }
+        }
       }
-      
-      // Update project story
+
+      // Save project story if allowed
       if (editRestrictions.projectStory) {
-        console.log("Updating project story");
-        await projectService.updateProjectStory(projectId, formData.projectStory);
+        if (formData.projectStory.id) {
+          await projectService.updateProjectStory(
+            formData.projectStory.id,
+            formData.projectStory
+          );
+        } else {
+          await projectService.createProjectStory(projectId, formData.projectStory);
+        }
       }
-      
-      // Update founder profile
+
+      // Save founder profile if allowed
       if (editRestrictions.founderProfile) {
-        console.log("Updating founder profile");
         await projectService.updateFounderProfile(projectId, formData.founderProfile);
       }
-      
-      // Update documents with restrictions
+
+      // Save documents if allowed
       if (editRestrictions.requiredDocuments) {
-        // If in fundraising stage, filter out restricted documents
+        // Handle document restrictions during fundraising
         if (projectStatus === 'FUNDRAISING') {
           const safeDocuments = { ...formData.requiredDocuments };
-          
+
           // Keep original values for restricted documents
           for (const docType of restrictedDocuments) {
             if (originalData?.requiredDocuments?.mandatory?.[docType]) {
               safeDocuments.mandatory[docType] = originalData.requiredDocuments.mandatory[docType];
             }
           }
-          
-          console.log("Updating documents with restrictions");
+
           await projectService.updateProjectDocuments(projectId, safeDocuments);
         } else {
-          // If not in fundraising, update all documents
-          console.log("Updating all documents");
           await projectService.updateProjectDocuments(projectId, formData.requiredDocuments);
         }
       }
-      
-      // If project is in REJECTED status and now editing, change to PENDING_APPROVAL
-      if (projectStatus === 'REJECTED') {
-        console.log("Resubmitting rejected project");
-        await projectService.submitProject(projectId);
-        setProjectStatus('PENDING_APPROVAL');
-      }
-      
-      // Reset the update required flag
-      setUpdateRequired(false);
-      
-      // Show success message
-      alert("Project updated successfully!");
-      
-      // Reload project data
-      await loadProjectData(projectId);
-      
+
+      console.log("All sections saved successfully");
     } catch (error) {
-      console.error("Error saving project:", error);
-      alert(`Failed to save project: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsSaving(false);
+      console.error("Error saving project sections:", error);
+      throw error;
     }
   };
 
@@ -478,16 +962,16 @@ function EditProjectPage() {
         updateType: 'GENERAL',
         isPublic: true
       });
-      
+
       // Refresh the list of updates
       await loadProjectUpdates(formData.projectId);
-      
+
       // Show success message
       alert("Update posted successfully!");
-      
+
       // Go back to first section
       setCurrentSection(0);
-      
+
       return true;
     } catch (error) {
       console.error("Error posting update:", error);
@@ -528,15 +1012,20 @@ function EditProjectPage() {
         updateFormData={(data) => handleUpdateFormData('basicInfo', data)}
         editMode={true}
         readOnly={!editRestrictions.basicInfo}
+        projectId={formData.projectId}
       />
     },
     {
       id: 'fundraising',
       name: 'Fundraising Information',
       component: <FundraisingInformation
-        formData={formData.fundraisingInfo}
+        formData={{
+          projectId: projectId || formData.projectId || router.query.projectId, // Try all possible sources
+          startDate: formData.fundraisingInfo?.startDate || '',
+          phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : []
+        }}
         updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
-        projectId={formData.projectId}
+        projectId={projectId || formData.projectId || router.query.projectId} // Try all possible sources
         readOnly={!editRestrictions.fundraisingInfo}
       />
     },
@@ -545,9 +1034,13 @@ function EditProjectPage() {
       name: 'Reward Information',
       component: <RewardInformation
         formData={formData.rewardInfo}
-        projectData={formData.fundraisingInfo}
+        projectData={{
+          ...formData.fundraisingInfo,
+          projectId: formData.projectId
+        }}
         updateFormData={(data) => handleUpdateFormData('rewardInfo', data)}
         readOnly={!editRestrictions.rewardInfo}
+        projectId={formData.projectId}
       />
     },
     {
@@ -588,10 +1081,11 @@ function EditProjectPage() {
     id: 'update-blog',
     name: 'Post Updates',
     component: (
-      <UpdateBlog 
+      <UpdateBlog
         onSave={handleSaveUpdate}
         onCancel={() => setCurrentSection(0)}
         existingUpdates={existingUpdates}
+        projectId={formData.projectId}
       />
     )
   };
@@ -601,6 +1095,9 @@ function EditProjectPage() {
 
   // Get status label and color
   const getStatusDisplay = (status) => {
+    // First normalize the status to handle case differences
+    const normalizedStatus = status?.toUpperCase() || 'DRAFT';
+
     const statusMap = {
       'DRAFT': { label: 'Draft', color: 'bg-gray-200 text-gray-800' },
       'PENDING_APPROVAL': { label: 'Pending Approval', color: 'bg-yellow-200 text-yellow-800' },
@@ -611,8 +1108,13 @@ function EditProjectPage() {
       'CANCELLED': { label: 'Cancelled', color: 'bg-red-100 text-red-800' },
       'SUSPENDED': { label: 'Suspended', color: 'bg-orange-200 text-orange-800' },
     };
-    
-    return statusMap[status] || { label: status, color: 'bg-gray-200 text-gray-800' };
+
+    console.log("Getting status display for:", normalizedStatus);
+
+    return statusMap[normalizedStatus] || {
+      label: status || 'Unknown Status',
+      color: 'bg-gray-200 text-gray-800'
+    };
   };
 
   const statusDisplay = getStatusDisplay(projectStatus);
@@ -642,7 +1144,7 @@ function EditProjectPage() {
                 {statusDisplay.label}
               </div>
             </div>
-            
+
             {/* Editing Restrictions Notice */}
             {projectStatus === 'FUNDRAISING' && !isUpdateBlogSection && (
               <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-4">
@@ -667,7 +1169,7 @@ function EditProjectPage() {
                 </div>
               </div>
             )}
-            
+
             {projectStatus === 'REJECTED' && !isUpdateBlogSection && (
               <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
                 <div className="flex">
@@ -718,9 +1220,8 @@ function EditProjectPage() {
                     <button
                       onClick={handleSave}
                       disabled={isSaving || isUpdateBlogSection}
-                      className={`${
-                        isSaving || isUpdateBlogSection ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                      } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
+                      className={`${isSaving || isUpdateBlogSection ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
                     >
                       {isSaving ? (
                         <>

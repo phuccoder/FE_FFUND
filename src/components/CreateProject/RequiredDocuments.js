@@ -37,9 +37,9 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       revenueProof: formData?.optional?.revenueProof || null,
       visionStrategy: formData?.optional?.visionStrategy || null
     },
-    ...formData 
+    ...formData
   });
-  
+
   // Track upload status and errors for each document
   const [uploadStatus, setUploadStatus] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -50,17 +50,17 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
   useEffect(() => {
     const loadExistingDocuments = async () => {
       if (!projectId) return;
-      
+
       try {
         setIsLoading(true);
         const documents = await projectService.getProjectDocumentsByProjectId(projectId);
         setExistingDocuments(Array.isArray(documents) ? documents : []);
-        
+
         // Map existing documents to form state
         if (documents && documents.length > 0) {
-          const updatedForm = {...form};
-          const urls = {...documentUrls};
-          
+          const updatedForm = { ...form };
+          const urls = { ...documentUrls };
+
           documents.forEach(doc => {
             // Find the form field that corresponds to this document type
             Object.entries(DOCUMENT_TYPES).forEach(([fieldName, docType]) => {
@@ -86,7 +86,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
               }
             });
           });
-          
+
           setForm(updatedForm);
           setDocumentUrls(urls);
           updateFormData(updatedForm);
@@ -101,10 +101,10 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
         setIsLoading(false);
       }
     };
-    
+
     loadExistingDocuments();
   }, [projectId]);
-  
+
   /**
    * Handles document upload to server
    * @param {File} file - File object to upload
@@ -119,55 +119,55 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       }));
       return;
     }
-    
+
     try {
       setUploadStatus(prev => ({
         ...prev,
         [fieldName]: { loading: true }
       }));
-      
+
       // 1. Create document metadata
       const documentType = DOCUMENT_TYPES[fieldName];
       if (!documentType) {
         throw new Error(`Unknown document type for field: ${fieldName}`);
       }
-      
+
       const documentData = {
         documentType,
         documentDescription: file.name
       };
-      
+
       const createdDocument = await projectService.createProjectDocument(projectId, documentData);
-      
+
       if (!createdDocument || !createdDocument.id) {
         throw new Error('Failed to create document metadata');
       }
-      
+
       // 2. Upload the actual file
       const uploadResult = await projectService.uploadDocumentFile(createdDocument.id, file);
-      
+
       if (!uploadResult) {
         throw new Error('File upload failed');
       }
-      
+
       // Update form state with successful upload
-      const updatedForm = {...form};
+      const updatedForm = { ...form };
       updatedForm[category][fieldName] = {
         name: file.name,
         documentId: createdDocument.id,
         file, // Keep file reference
         uploaded: true
       };
-      
+
       // Store document ID for viewing
       setDocumentUrls(prev => ({
         ...prev,
         [fieldName]: createdDocument.id
       }));
-      
+
       setForm(updatedForm);
       updateFormData(updatedForm);
-      
+
       setUploadStatus(prev => ({
         ...prev,
         [fieldName]: { success: true }
@@ -193,7 +193,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
             [fieldName]: file
           }
         });
-        
+
         // Start upload process
         await uploadDocument(file, category, fieldName);
       }
@@ -206,38 +206,59 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
    */
   const openDocument = async (documentId) => {
     if (!documentId) return;
-    
+
     try {
-      // Get document download URL
-      const downloadUrl = await projectService.getDocumentDownloadUrl(documentId);
-      if (downloadUrl) {
-        // Open in new tab
-        window.open(downloadUrl, '_blank');
+      // First check if we already have the URL in our existing documents
+      const document = existingDocuments.find(doc => doc.id === documentId);
+
+      if (document && document.documentUrl) {
+        // We have the URL directly, use it
+        window.open(document.documentUrl, '_blank');
+        return;
+      }
+
+      // If document URLs are stored in form state
+      const allDocFields = { ...form.mandatory, ...form.optional };
+      for (const field in allDocFields) {
+        if (allDocFields[field]?.documentId === documentId && allDocFields[field]?.documentUrl) {
+          window.open(allDocFields[field].documentUrl, '_blank');
+          return;
+        }
+      }
+
+      alert('Opening document...');
+
+      const response = await fetch(`/api/documents/${documentId}`);
+      const data = await response.json();
+
+      if (data && data.documentUrl) {
+        window.open(data.documentUrl, '_blank');
       } else {
-        console.error('Failed to get document download URL');
+        throw new Error('Document URL not found');
       }
     } catch (error) {
       console.error('Error opening document:', error);
+      alert('Unable to open document at this time');
     }
   };
 
   const renderFileInput = (category, fieldName, label, description = '') => {
-    const fileSelected = category === 'mandatory' || category === 'optional' 
-      ? form[category]?.[fieldName] 
+    const fileSelected = category === 'mandatory' || category === 'optional'
+      ? form[category]?.[fieldName]
       : null;
-      
+
     const status = uploadStatus[fieldName] || {};
     const isUploading = status.loading;
     const isUploaded = status.success || (fileSelected && fileSelected.uploaded);
     const hasError = status.error;
     const documentId = documentUrls[fieldName] || (fileSelected && fileSelected.documentId);
-    
+
     return (
       <div className="space-y-2">
         <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700">
           {label} {category === 'mandatory' && <span className="text-red-500">*</span>}
         </label>
-        
+
         <div className="flex items-center space-x-3">
           <div className="flex-grow">
             <input
@@ -270,7 +291,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
               )}
             </label>
           </div>
-          
+
           {fileSelected && (
             <div className="flex items-center">
               <div className={`rounded-md px-3 py-1 text-sm flex items-center ${isUploaded ? 'bg-green-50 text-green-800' : 'bg-blue-50 text-blue-800'}`}>
@@ -287,7 +308,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
                   {fileSelected.name || (typeof fileSelected === 'object' && fileSelected.uploaded ? fileSelected.name : 'File selected')}
                 </span>
               </div>
-              
+
               {/* View button - only show for uploaded documents */}
               {isUploaded && documentId && (
                 <button
@@ -305,11 +326,11 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
             </div>
           )}
         </div>
-        
+
         {hasError && (
           <p className="text-xs text-red-600 mt-1">{hasError}</p>
         )}
-        
+
         {description && (
           <p className="text-xs text-gray-500 mt-1">{description}</p>
         )}
@@ -328,7 +349,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
           <span className="ml-2 text-gray-700">Loading documents...</span>
         </div>
       )}
-      
+
       {!projectId && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -346,7 +367,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
           </div>
         </div>
       )}
-      
+
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
         <div className="flex">
           <div className="flex-shrink-0">
@@ -368,18 +389,18 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">Mandatory Documents</h3>
         <div className="space-y-6">
-          {renderFileInput('mandatory', 'swotAnalysis', 'SWOT Analysis', 
+          {renderFileInput('mandatory', 'swotAnalysis', 'SWOT Analysis',
             'Upload a document that analyzes your project\'s Strengths, Weaknesses, Opportunities, and Threats.')}
-          
+
           {renderFileInput('mandatory', 'businessModelCanvas', 'Business Model Canvas',
             'Upload your business model canvas showing key partners, activities, resources, value propositions, customer relationships, channels, customer segments, cost structure, and revenue streams.')}
-          
+
           {renderFileInput('mandatory', 'businessPlan', 'Business Plan',
             'Upload a comprehensive business plan including executive summary, market analysis, organization structure, product/service line, marketing strategy, and financial projections.')}
-          
+
           {renderFileInput('mandatory', 'marketResearch', 'Market Research & Feasibility Study',
             'Upload your research on target market, competition analysis, and project feasibility assessment.')}
-          
+
           {renderFileInput('mandatory', 'financialInformation', 'Financial Information',
             'Upload documentation showing current cash flow, break-even point, and 3-5 year forecast.')}
         </div>
@@ -390,14 +411,14 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
         <p className="text-sm text-gray-500 mb-6">
           These documents are not required but can strengthen your project proposal and increase your chances of approval.
         </p>
-        
+
         <div className="space-y-6">
           {renderFileInput('optional', 'customerAcquisitionPlan', 'Customer Acquisition Plan',
             'Upload your marketing and customer acquisition strategy.')}
-          
+
           {renderFileInput('optional', 'revenueProof', 'Transaction & Revenue Proof',
             'Upload documentation showing existing sales, revenue, or customer traction if applicable.')}
-          
+
           {renderFileInput('optional', 'visionStrategy', '5-Year Vision & Strategy',
             'Upload a document outlining your long-term vision and strategy.')}
         </div>
