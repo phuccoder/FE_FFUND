@@ -32,11 +32,9 @@ const projectService = {
      * @param {number} size - The number of projects per page (default: 10)
      * @returns {Promise<Object>} Object containing project data and pagination info
      */
-    getAllProjects: async (page = 1, size = 10) => {
+    getAllProjects: async (page = 0, size = 10) => {
         try {
-            console.log(`Fetching projects with page: ${page} and size: ${size}`);
-    
-            const response = await fetch(`${API_BASE_URL}/project/get-all?page=${page}&size=${size}`, {
+            const response = await fetch(`${API_BASE_URL}/project/search?page=${page}&size=${size}`, {
                 method: 'GET',
                 headers: {
                     'accept': '*/*'
@@ -44,40 +42,42 @@ const projectService = {
             });
     
             if (!response.ok) {
-                console.error(`Error: Received a non-OK status ${response.status} from API`);
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
     
             const result = await response.json();
-            console.log("Received all projects:", result);
-    
-            if (!result || !result.data) {
-                console.warn("No data found in the response or data is empty.");
+
+            if (!result || !result.data || !Array.isArray(result.data.data)) {
+                return [];
             }
     
-            return result.data || [];
+            return result.data.data || [];
         } catch (error) {
             console.error('Error fetching all projects:', error);
             throw error;
         }
-    },  
-    searchProjects: async (page = 1, size = 10, searchParams) => {
+    },
+    searchProjects: async (page = 0, size = 10, searchParams) => {
         try {
-          const query = searchParams.query;
-          const response = await fetch(
-            `https://quanbeo.duckdns.org/api/v1/project/search?page=${page}&size=${size}&sort=${searchParams.sort}&query=${query}`,
-            {
-              method: "GET",
-              headers: {
-                "accept": "*/*",
-              },
-            }
-          );
-          return await response.json();
+            const query = searchParams.query;
+            const sort = searchParams.sort || '+createdAt';
+    
+            const response = await fetch(
+                `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "accept": "*/*",
+                    },
+                }
+            );
+            
+            return await response.json();
         } catch (error) {
-          throw new Error("Error fetching projects search");
+            console.error("Error fetching projects search:", error);
+            throw new Error("Error fetching projects search");
         }
-    },  
+    },
     /**
      * Fetch all available categories
      * @returns {Promise<Array>} Array of category objects

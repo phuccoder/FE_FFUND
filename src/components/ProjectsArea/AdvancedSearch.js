@@ -1,3 +1,4 @@
+import projectService from "../../services/projectService";
 import React, { useState, useEffect } from "react";
 import { FaSearch } from "react-icons/fa";
 
@@ -10,27 +11,21 @@ const AdvancedSearch = ({ onSearch }) => {
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
 
   useEffect(() => {
+    // Fetch categories using projectService.getAllCategories
     const fetchCategories = async () => {
       try {
-        const response = await fetch("https://quanbeo.duckdns.org/api/v1/category/get-all", {
-          method: "GET",
-          headers: {
-            "accept": "*/*",
-          },
-        });
-  
-        const data = await response.json();
-        if (data.status === 200) {
-          setCategories(data.data);
-          console.log("Fetched categories:", data.data);
+        const data = await projectService.getAllCategories();
+        if (data && data.length > 0) {
+          setCategories(data);
+          console.log("Fetched categories:", data);
         } else {
-          console.error("Failed to fetch categories");
+          console.error("No categories found.");
         }
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
     };
-  
+
     fetchCategories();
   }, []);
 
@@ -45,59 +40,53 @@ const AdvancedSearch = ({ onSearch }) => {
 
   const handleMainCategoryChange = (event) => {
     setSelectedMainCategory(event.target.value);
-    setSelectedCategory([]);
+    setSelectedCategory([]); // Reset selected categories when main category changes
   };
 
   const handleSearch = async () => {
     const queryParts = [];
-  
+
     if (searchTerm) {
       queryParts.push(`title:eq:${searchTerm}`);
     }
-  
+
     if (selectedMainCategory !== "All") {
       queryParts.push(`category.name:eq:${selectedMainCategory}`);
     }
-  
+
     if (queryParts.length === 0) {
       console.error("No search criteria provided.");
       return;
     }
-  
+
     const sort = sortOption;
-  
     const query = queryParts.join(",");
-  
     console.log("Constructed Query:", query);
-  
+
+    // Ensure query is not undefined or empty before making the request
+    if (!query) {
+      console.error("Query is empty. Aborting search.");
+      return;
+    }
+
     const page = 0;
     const size = 10;
-  
+
     try {
-      const response = await fetch(
-        `https://quanbeo.duckdns.org/api/v1/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
-        {
-          method: "GET",
-          headers: {
-            "accept": "*/*",
-          },
-        }
-      );
-      const data = await response.json();
-  
-      if (data.status === 200) {
+      const response = await projectService.searchProjects(page, size, { query, sort });
+      if (response.status === 200) {
         onSearch({
-          projects: data.data,
+          projects: response,
           selectedCategory,
           sortOption,
         });
       } else {
-        console.error("Failed to fetch projects:", data.error);
+        console.error("Failed to fetch projects:", response.error);
       }
     } catch (error) {
       console.error("Error fetching projects:", error);
     }
-  };  
+  };
 
   const toggleSearch = () => {
     setIsSearchVisible(!isSearchVisible);
