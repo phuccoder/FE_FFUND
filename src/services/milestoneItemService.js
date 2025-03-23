@@ -137,23 +137,41 @@ export const milestoneItemService = {
  */
     uploadMilestoneItemImage: async (itemId, imageFile) => {
         try {
+            console.group('Image Upload Request');
+            console.log(`Uploading image for item ID: ${itemId}`);
+            console.log('Image file:', imageFile ? {
+                name: imageFile.name,
+                size: imageFile.size, 
+                type: imageFile.type
+            } : 'No file provided');
+            
             const token = await tokenManager.getValidToken();
             const formData = new FormData();
-            formData.append('image', imageFile);
+
+            formData.append('file', imageFile);
+            
+            console.log(`Using endpoint: ${MILESTONE_ITEM_UPLOAD_IMAGE_ENDPOINT(itemId)}`);
+            console.groupEnd();
+            
             const response = await fetch(MILESTONE_ITEM_UPLOAD_IMAGE_ENDPOINT(itemId), {
                 method: 'PATCH',
                 headers: {
+                    // Do NOT include Content-Type here - browser sets it with proper boundary for multipart/form-data
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: formData
             });
-
+    
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                console.error(`Upload failed with status ${response.status}: ${errorText}`);
+                throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
             }
-
-            return await response.json();
+    
+            const data = await response.json();
+            console.log('Upload successful:', data);
+            return data;
         } catch (error) {
             console.error('Failed to upload milestone item image:', error);
             throw error;

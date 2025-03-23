@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
+import ImageUpload from './ImageUpload';
 
 /**
  * Basic information form for project creation
@@ -33,6 +34,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [filteredSubcategories, setFilteredSubcategories] = useState([]);
+  const [projectImage, setProjectImage] = useState(formData?.projectImage || null);
   const [loading, setLoading] = useState({
     categories: false,
     subcategories: false,
@@ -57,54 +59,6 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       fetchFounderProject();
     }
   }, [editMode]);
-
-  // Fetch founder's existing project
-  const fetchFounderProject = async () => {
-    setLoading(prev => ({ ...prev, fetchingProject: true }));
-    setError(prev => ({ ...prev, fetchingProject: null }));
-
-    try {
-      const projects = await projectService.getProjectsByFounder();
-
-      // If founder has at least one project, load the first one
-      if (projects && projects.length > 0) {
-        const project = projects[0]; // Assuming we're working with the first project
-
-        // Map API response to form fields
-        const projectData = {
-          projectId: project.projectId,
-          title: project.title || '',
-          shortDescription: project.projectDescription || project.shortDescription || 'Brief description of the project',
-          location: project.projectLocation || project.location || '',
-          projectLocation: project.projectLocation || project.location || '', // Add both field names for consistency
-          isClassPotential: project.isClassPotential || false,
-          projectUrl: project.projectUrl || '',
-          mainSocialMediaUrl: project.mainSocialMediaUrl || '',
-          projectVideoDemo: project.projectVideoDemo || '',
-          categoryId: project.category?.id?.toString() || '',
-          subCategoryIds: project.subCategories?.map(sub => sub.id) || [],
-          totalTargetAmount: project.totalTargetAmount || 1000,
-          status: project.status || 'DRAFT'
-        };
-
-        // Update form state
-        setForm(projectData);
-
-        // Update parent state
-        updateFormData({
-          ...projectData
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching founder project:', err);
-      setError(prev => ({
-        ...prev,
-        fetchingProject: 'Failed to load existing project. Please try again later.'
-      }));
-    } finally {
-      setLoading(prev => ({ ...prev, fetchingProject: false }));
-    }
-  };
 
   // Filter subcategories when category changes
   useEffect(() => {
@@ -136,6 +90,84 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       setFilteredSubcategories([]);
     }
   }, [form.categoryId, categories]);
+
+  useEffect(() => {
+    if (formData?.projectImage && formData.projectImage !== projectImage) {
+      console.log('Updating projectImage from formData:', formData.projectImage);
+      setProjectImage(formData.projectImage);
+    }
+  }, [formData]);
+
+  // Fetch founder's existing project
+  const fetchFounderProject = async () => {
+    setLoading(prev => ({ ...prev, fetchingProject: true }));
+    setError(prev => ({ ...prev, fetchingProject: null }));
+
+    try {
+      const response = await projectService.getProjectsByFounder();
+      console.log('Raw API response from getProjectsByFounder:', response);
+
+      // Handle different response formats
+      let projects = [];
+      if (response && response.data && Array.isArray(response.data)) {
+        projects = response.data;
+      } else if (response && Array.isArray(response)) {
+        projects = response;
+      } else if (response && response.data) {
+        projects = [response.data];
+      } else if (response) {
+        projects = [response];
+      }
+
+      // If founder has at least one project, load the first one
+      if (projects && projects.length > 0) {
+        const project = projects[0]; // Assuming we're working with the first project
+        console.log('Selected project raw data:', project);
+        console.log('Project Image URL from API:', project.projectImage);
+
+        // Map API response to form fields
+        const projectData = {
+          projectId: project.id || project.projectId,
+          title: project.title || '',
+          shortDescription: project.description || project.projectDescription || project.shortDescription || 'Brief description of the project',
+          location: project.location || project.projectLocation || '',
+          projectLocation: project.location || project.projectLocation || '',
+          isClassPotential: project.isClassPotential || false,
+          projectUrl: project.projectUrl || '',
+          mainSocialMediaUrl: project.mainSocialMediaUrl || '',
+          projectVideoDemo: project.projectVideoDemo || '',
+          categoryId: project.category?.id?.toString() || '',
+          subCategoryIds: project.subCategories?.map(sub => sub.id) || [],
+          totalTargetAmount: project.totalTargetAmount || 1000,
+          status: project.status || 'DRAFT',
+          projectImage: project.projectImage || null
+        };
+
+        console.log('Transformed project data with image URL:', projectData);
+
+        // Update form state
+        setForm(projectData);
+
+        // Update projectImage state explicitly
+        console.log('Setting projectImage state to:', project.projectImage);
+        setProjectImage(project.projectImage);
+
+        // Update parent state
+        updateFormData({
+          ...projectData,
+          projectImage: project.projectImage
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching founder project:', err);
+      setError(prev => ({
+        ...prev,
+        fetchingProject: 'Failed to load existing project. Please try again later.'
+      }));
+    } finally {
+      setLoading(prev => ({ ...prev, fetchingProject: false }));
+    }
+  };
 
   const fetchCategories = async () => {
     setLoading(prev => ({ ...prev, categories: true }));
@@ -304,6 +336,88 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     };
   };
 
+  // Update the handleImageUpdate function:
+  const handleImageUpdate = (imageResult) => {
+    console.log('Project image updated:', imageResult);
+
+    if (imageResult === null) {
+      // Image was removed
+      console.log('Removing project image');
+
+      // Start with setting the state for the project image
+      setProjectImage(null);
+
+      // Create a new form object with removed image properties
+      const updatedForm = {
+        ...form,
+        projectImage: null,
+        projectImageFile: null // Also clear any stored file
+      };
+
+      // Update the form state
+      setForm(updatedForm);
+
+      // Update parent component using the new form object (not the old form reference)
+      updateFormData(updatedForm);
+
+      console.log('Project image removed from form:', updatedForm);
+      return;
+    }
+
+    // Handle different possible formats of the image result
+    if (typeof imageResult === 'string') {
+      // Direct URL was provided
+      console.log('Setting project image from URL:', imageResult);
+
+      setProjectImage(imageResult);
+
+      const updatedForm = {
+        ...form,
+        projectImage: imageResult,
+        projectImageFile: null // Clear any previous file since we now have a URL
+      };
+
+      setForm(updatedForm);
+      updateFormData(updatedForm);
+
+    } else if (imageResult && imageResult.tempUrl) {
+      // Temporary URL with pending server update
+      console.log('Setting temporary image URL:', imageResult.tempUrl);
+
+      setProjectImage(imageResult.tempUrl);
+
+      const updatedForm = {
+        ...form,
+        projectImage: imageResult.tempUrl,
+        pendingImageUpdate: true
+      };
+
+      setForm(updatedForm);
+      updateFormData(updatedForm);
+
+    } else if (imageResult && (imageResult.isLocalPreview || imageResult.file)) {
+      // File object was provided (either directly or with isLocalPreview flag)
+      const file = imageResult.file || imageResult;
+      const previewUrl = imageResult.previewUrl || URL.createObjectURL(file);
+
+      console.log('Setting project image from file:', file.name);
+      console.log('Preview URL:', previewUrl);
+
+      setProjectImage(previewUrl);
+
+      const updatedForm = {
+        ...form,
+        projectImage: previewUrl,
+        projectImageFile: file
+      };
+
+      setForm(updatedForm);
+      updateFormData(updatedForm);
+    } else {
+      console.error('Unexpected image result format:', imageResult);
+    }
+  };
+
   // This focuses only on the handleSubmit function which needs fixing
 
   const handleSubmit = async (e) => {
@@ -376,7 +490,16 @@ export default function BasicInformation({ formData, updateFormData, editMode })
         console.log("Updated form with projectId:", updatedForm);
         setForm(updatedForm);
 
-        // Pass the projectId back to the parent component
+        if (projectId && form.projectImageFile && !form.projectImage.startsWith('http')) {
+          try {
+            console.log('Uploading project image after project creation');
+            const uploadResult = await projectService.uploadProjectImage(projectId, form.projectImageFile);
+            console.log('Image upload result after project creation:', uploadResult);
+
+          } catch (imageError) {
+            console.error('Error uploading project image after project creation:', imageError);
+          }
+        }
 
         updateFormData({
           ...updatedForm,
@@ -772,6 +895,12 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           </p>
         </div>
       </div>
+
+      <ImageUpload
+        projectId={form.projectId}
+        currentImage={projectImage}
+        onImageUpdate={handleImageUpdate}
+      />
 
       <div className="pt-5">
         <div className="flex justify-end">
