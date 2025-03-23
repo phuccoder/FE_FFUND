@@ -19,7 +19,7 @@ import { milestoneItemService } from 'src/services/milestoneItemService';
 
 function EditProjectPage() {
   const router = useRouter();
-  const { projectId } = router.query;
+  const { projectId: routerProjectId } = router.query;
 
   const [currentSection, setCurrentSection] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -31,6 +31,7 @@ function EditProjectPage() {
   const [projectStatus, setProjectStatus] = useState('DRAFT');
   const [existingUpdates, setExistingUpdates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
+
   const debugFormData = () => {
     console.log("DEBUG - Current form state:", {
       projectId: formData.projectId,
@@ -108,6 +109,44 @@ function EditProjectPage() {
     isAuthenticated: false,
     isLoading: true
   });
+  const ensureProjectId = () => {
+    // Order of precedence: router query > localStorage > formData
+    let id = routerProjectId;
+
+    if (!id && typeof window !== 'undefined') {
+      id = localStorage.getItem('founderProjectId');
+    }
+
+    return id;
+  };
+
+  useEffect(() => {
+    if (router.isReady) {
+      const id = ensureProjectId();
+      if (id) {
+        console.log("Found project ID from available sources:", id);
+
+        // Immediately store in localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('founderProjectId', id);
+        }
+
+        // Update form data with the ID
+        setFormData(prevData => ({
+          ...prevData,
+          projectId: id,
+          basicInfo: {
+            ...prevData.basicInfo,
+            projectId: id
+          },
+          fundraisingInfo: {
+            ...prevData.fundraisingInfo,
+            projectId: id
+          }
+        }));
+      }
+    }
+  }, [router.isReady]);
 
   // Check authentication status
   useEffect(() => {
@@ -135,56 +174,25 @@ function EditProjectPage() {
 
   // Add this effect to immediately set the projectId when available
   useEffect(() => {
-    // Only run when projectId from router is available and valid
-    if (projectId && typeof projectId === 'string') {
-      console.log("Setting project ID from router:", projectId);
+    const id = ensureProjectId();
 
-      // Update all places where projectId is needed
-      setFormData(prevData => ({
-        ...prevData,
-        projectId: projectId,
-        basicInfo: {
-          ...prevData.basicInfo,
-          projectId: projectId
-        },
-        fundraisingInfo: {
-          ...prevData.fundraisingInfo,
-          projectId: projectId
-        },
-        projectStory: {
-          ...prevData.projectStory,
-          projectId: projectId
-        },
-        // Update other sections as needed
-      }));
-    }
-  }, [projectId]);
-
-  // Load project data when projectId is available
-  useEffect(() => {
-    if (projectId && !authStatus.isLoading && authStatus.isAuthenticated) {
-      console.log("Initial project ID from router query:", projectId);
-
-      // Set projectId directly into formData to ensure it's available early
-      setFormData(prevData => ({
-        ...prevData,
-        projectId: projectId
-      }));
+    if (id && !authStatus.isLoading && authStatus.isAuthenticated) {
+      console.log("Loading project with ID:", id);
 
       // First load basic project data
-      loadProjectData(projectId).then(() => {
+      loadProjectData(id).then(() => {
         console.log("Basic project data loaded, now loading detailed data");
 
         // After basic data is loaded, load all related data
-        loadAllProjectData(projectId);
+        loadAllProjectData(id);
 
         // Also load project updates
-        loadProjectUpdates(projectId);
+        loadProjectUpdates(id);
       }).catch(error => {
         console.error("Error in project data loading sequence:", error);
       });
     }
-  }, [projectId, authStatus.isLoading, authStatus.isAuthenticated]);
+  }, [routerProjectId, authStatus.isLoading, authStatus.isAuthenticated]);
 
   useEffect(() => {
     // This effect helps when projectId comes from API response
@@ -260,23 +268,13 @@ function EditProjectPage() {
         console.error("No project ID provided for phase loading");
 
         // Try to get ID from other sources
-        const fallbackId = router.query.projectId || localStorage.getItem('founderProjectId');
+        const fallbackId = ensureProjectId();
         if (fallbackId) {
           console.log("Using fallback project ID for phase loading:", fallbackId);
           return loadProjectPhases(fallbackId); // Retry with fallback ID
         }
         return;
       }
-
-      // Force a re-set of projectId in the formData before loading phases
-      setFormData(prevData => ({
-        ...prevData,
-        projectId: projectId,
-        fundraisingInfo: {
-          ...prevData.fundraisingInfo,
-          projectId: projectId
-        }
-      }));
 
       // Explicitly call the API with project ID
       const phasesData = await projectService.getPhaseByProject(projectId);
@@ -301,7 +299,9 @@ function EditProjectPage() {
       });
 
       // Save project ID to localStorage for persistence
-      localStorage.setItem('founderProjectId', projectId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('founderProjectId', projectId);
+      }
 
       // Call debug after updating
       setTimeout(() => debugFormData(), 0);
@@ -525,11 +525,12 @@ function EditProjectPage() {
         // During fundraising, only allow editing of specific sections
         restrictions.fundraisingInfo = false;
         restrictions.rewardInfo = false;
+      } else if (projectStatus === 'APPROVED') {
+        // When approved but not yet in fundraising, disable fundraising info
+        restrictions.fundraisingInfo = false;
+        restrictions.rewardInfo = false;
       } else if (projectStatus === 'PENDING_APPROVAL' || projectStatus === 'REJECTED') {
         // While waiting for approval or after rejection, allow editing all sections
-        // No restrictions needed
-      } else if (projectStatus === 'APPROVED') {
-        // When approved but not yet in fundraising, allow editing all sections
         // No restrictions needed
       } else if (projectStatus === 'FUNDRAISING_COMPLETED') {
         // After fundraising ends, allow editing all sections
@@ -543,29 +544,39 @@ function EditProjectPage() {
 
       // Update restriction state
       setEditRestrictions(restrictions);
+      console.log("Updated edit restrictions based on status:", projectStatus, restrictions);
     }
   }, [projectStatus]);
 
   useEffect(() => {
     console.log("Component state:", {
-      routerProjectId: projectId,
+      routerProjectId, // Use routerProjectId instead of undefined projectId
       formDataProjectId: formData.projectId,
       fundraisingInfoProjectId: formData.fundraisingInfo?.projectId,
       basicInfoProjectId: formData.basicInfo?.projectId
     });
-  }, [projectId, formData.projectId, formData.fundraisingInfo?.projectId, formData.basicInfo?.projectId]);
+  }, [routerProjectId, formData.projectId, formData.fundraisingInfo?.projectId, formData.basicInfo?.projectId]);
 
-  const loadProjectData = async (projectId) => {
-    console.log("Loading project data for ID:", projectId);
+  const loadProjectData = async (id) => {
+    if (!id) {
+      console.error("No project ID provided to loadProjectData");
+      return null;
+    }
+
+    console.log("Loading project data for ID:", id);
 
     try {
       // Get project by ID directly
-      const projectData = await projectService.getProjectById(projectId);
+      const projectData = await projectService.getProjectById(id);
       console.log("API response for project:", projectData);
 
       if (projectData) {
-        // Set project status
-        setProjectStatus(projectData.status || 'DRAFT');
+        // Ensure we're using the correct status field from the API response
+        const status = projectData.status || 'DRAFT';
+        console.log("Project status from API:", status);
+
+        // Set project status - make sure to use the status from the API
+        setProjectStatus(status);
 
         // Store original data for comparison
         setOriginalData(projectData);
@@ -574,15 +585,18 @@ function EditProjectPage() {
         setIsEditMode(true);
 
         // Store the projectId in localStorage for persistence
-        localStorage.setItem('founderProjectId', projectId);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('founderProjectId', id);
+          console.log("Project ID saved to localStorage in loadProjectData:", id);
+        }
 
-        // Update form data with project details
+        // Update form data with project details and ensure projectId is consistent
         setFormData(prevData => ({
           ...prevData,
-          projectId: projectId,
+          projectId: id,
           basicInfo: {
             ...prevData.basicInfo,
-            projectId: projectId,
+            projectId: id,
             title: projectData.title || '',
             shortDescription: projectData.description || '',
             projectDescription: projectData.description || '',
@@ -598,13 +612,13 @@ function EditProjectPage() {
             isClassPotential: projectData.isClassPotential !== undefined
               ? projectData.isClassPotential
               : false,
-            status: projectData.status || 'DRAFT',
+            status: status, // Also update status in basicInfo
             projectImage: projectData.projectImage || null
           },
           // Initialize fundraisingInfo with projectId to avoid null reference issues
           fundraisingInfo: {
             ...prevData.fundraisingInfo,
-            projectId: projectId,
+            projectId: id,
             startDate: '',
             phases: []
           }
@@ -612,7 +626,7 @@ function EditProjectPage() {
 
         return projectData;
       } else {
-        console.error("No project found with ID:", projectId);
+        console.error("No project found with ID:", id);
         return null;
       }
     } catch (error) {
@@ -624,7 +638,7 @@ function EditProjectPage() {
 
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating ${section} data:`, data);
-
+  
     // Check if we're in fundraising stage and detect changes
     if (projectStatus === 'FUNDRAISING') {
       // Check if section is allowed to be updated during fundraising
@@ -633,23 +647,23 @@ function EditProjectPage() {
         alert("You cannot update this information while the project is in the fundraising stage.");
         return;
       }
-
+  
       // For allowed sections, flag that an update post will be required
       setUpdateRequired(true);
     }
-
+  
     // Make sure we preserve projectId in the updated data
     let updatedData = data;
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
       updatedData = {
         ...data,
-        projectId: projectId || formData.projectId
+        projectId: formData.projectId // Use formData.projectId instead of projectId
       };
     }
-
+  
     // Log the section being updated with current projectId
-    console.log(`Updating ${section} with projectId:`, projectId || formData.projectId);
-
+    console.log(`Updating ${section} with projectId:`, formData.projectId);
+  
     // Update form data
     setFormData(prevData => {
       // For rewardInfo, prevent unnecessary updates if data is the same
@@ -660,30 +674,30 @@ function EditProjectPage() {
           return prevData; // No change needed
         }
       }
-
+  
       // Special handling for fundraisingInfo to ensure projectId and phases are included
       if (section === 'fundraisingInfo') {
         // Ensure phases is always an array
         const phases = Array.isArray(updatedData.phases) ? updatedData.phases : [];
         console.log(`Updating fundraisingInfo with ${phases.length} phases`);
-
+  
         return {
           ...prevData,
-          projectId: projectId || prevData.projectId,
+          projectId: prevData.projectId,
           [section]: {
             ...updatedData,
-            projectId: projectId || prevData.projectId,
+            projectId: prevData.projectId,
             phases: phases
           }
         };
       }
-
+  
       // Special handling for basicInfo (unchanged)
       if (section === 'basicInfo') {
         // Ensure all field mappings are properly maintained
         const updatedBasicInfo = {
           ...data,
-          projectId: projectId || data.projectId || prevData.projectId,
+          projectId: data.projectId || prevData.projectId,
           // Handle potential field name differences
           category: data.category || data.categoryId,
           categoryId: data.categoryId || data.category,
@@ -694,28 +708,28 @@ function EditProjectPage() {
           // Explicitly include the projectImage
           projectImage: data.projectImage || prevData.basicInfo?.projectImage,
         };
-
+  
         console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
-
+  
         return {
           ...prevData,
-          projectId: projectId || prevData.projectId,
+          projectId: prevData.projectId,
           [section]: updatedBasicInfo,
           // Also store projectImage at the top level for easier access
           projectImage: data.projectImage || prevData.projectImage
         };
       }
-
+  
       // For other sections
       return {
         ...prevData,
-        projectId: projectId || prevData.projectId,
+        projectId: prevData.projectId,
         [section]: updatedData
       };
     });
     setTimeout(() => debugFormData(), 0);
   };
-
+  
   // Check if restricted documents have been changed
   const hasRestrictedDocumentChanges = (newDocData) => {
     const currentDocs = formData.requiredDocuments;
@@ -1018,16 +1032,39 @@ function EditProjectPage() {
     {
       id: 'fundraising',
       name: 'Fundraising Information',
-      component: <FundraisingInformation
-        formData={{
-          projectId: projectId || formData.projectId || router.query.projectId, // Try all possible sources
-          startDate: formData.fundraisingInfo?.startDate || '',
-          phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : []
-        }}
-        updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
-        projectId={projectId || formData.projectId || router.query.projectId} // Try all possible sources
-        readOnly={!editRestrictions.fundraisingInfo}
-      />
+      component: (
+        <>
+          {(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') && (
+            <div className="mb-6 bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Editing Restricted</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Fundraising information cannot be modified for {projectStatus === 'FUNDRAISING' ? 'a project in fundraising stage' : 'an approved project'}.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className={`${(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') ? 'opacity-70 pointer-events-none' : ''}`}>
+            <FundraisingInformation
+              formData={{
+                projectId: formData.projectId,
+                startDate: formData.fundraisingInfo?.startDate || '',
+                phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : []
+              }}
+              updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
+              projectId={formData.projectId}
+              readOnly={(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') || !editRestrictions.fundraisingInfo}
+            />
+          </div>
+        </>
+      )
     },
     {
       id: 'rewards',
@@ -1039,10 +1076,11 @@ function EditProjectPage() {
           projectId: formData.projectId
         }}
         updateFormData={(data) => handleUpdateFormData('rewardInfo', data)}
-        readOnly={!editRestrictions.rewardInfo}
+        readOnly={!editRestrictions.rewardInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED'}
         projectId={formData.projectId}
       />
     },
+    // Rest of the sections with consistent projectId usage
     {
       id: 'story',
       name: 'Project Story',
