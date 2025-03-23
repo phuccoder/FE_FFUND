@@ -19,41 +19,104 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   useEffect(() => {
     // Skip if we've already fetched or encountered an error
     if (fetchAttempted) return;
-
-    if (initialStoryData && initialStoryData.story) {
+  
+    if (initialStoryData) {
       console.log('Using provided initialStoryData:', initialStoryData);
-      setStoryData(initialStoryData);
-      setLoading(false);
-      setFetchAttempted(true);
-      return;
-    }
-
-    // First priority: use the project ID passed as a prop
-    if (propProjectId) {
-      setFetchAttempted(true);
-      fetchStoryData(propProjectId);
-      return;
-    }
-
-    // Second priority: try to get ID from URL if component is ready
-    if (router.isReady) {
-      const { id } = router.query;
-      if (id) {
+      setStoryData({
+        story: initialStoryData.story || '',
+        risks: initialStoryData.risks || ''
+      });
+  
+      // More comprehensive check for story ID from initialStoryData
+      // Check all possible fields where the ID might be stored
+      const storyIdFromData =
+        initialStoryData.id ||
+        initialStoryData.storyId ||
+        initialStoryData.projectStoryId ||
+        (initialStoryData.projectStory &&
+          (initialStoryData.projectStory.id ||
+            initialStoryData.projectStory.storyId ||
+            initialStoryData.projectStory.projectStoryId));
+  
+      if (storyIdFromData) {
+        console.log('Found story ID in initialStoryData:', storyIdFromData);
+        setStoryId(storyIdFromData);
+  
+        // Also set the publish status if available
+        if (initialStoryData.status || (initialStoryData.projectStory && initialStoryData.projectStory.status)) {
+          setPublishStatus(initialStoryData.status || initialStoryData.projectStory.status);
+        }
+  
+        setLoading(false);
         setFetchAttempted(true);
-        fetchStoryData(id);
         return;
       }
-
-      // If router is ready but no ID exists, set error
-      if (!loading) return; // Prevent setting error multiple times
-
-      console.error('No project ID available from props or URL');
-      setError('Project ID is missing. Cannot load story data.');
+      // If we have initialStoryData but no ID, and there's content,
+      // this might be a new story that hasn't been saved yet
+      else if (initialStoryData.story || initialStoryData.risks) {
+        console.log('No ID in initialStoryData, but content exists');
+        setLoading(false);
+        setFetchAttempted(true);
+        return;
+      }
+    }
+    
+    // If we get here, we don't have initialStoryData, so we need to try fetching
+    const currentProjectId = propProjectId || (router.isReady && router.query.id);
+    
+    if (currentProjectId) {
+      console.log('No initialStoryData, fetching from API with projectId:', currentProjectId);
+      fetchStoryData(currentProjectId);
+    } else {
+      // No project ID and no initial data, set default content and stop loading
+      console.log('No projectId available for API fetch, using default content');
+      createDefaultContent();
       setLoading(false);
       setFetchAttempted(true);
     }
-  }, [router.isReady, router.query, propProjectId, loading, fetchAttempted]);
+  }, [router.isReady, router.query, propProjectId, fetchAttempted, initialStoryData]);
+  
+  // Add this function to end the loading state if it's been too long
+  useEffect(() => {
+    // Safety timeout to prevent infinite loading state
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log('Loading timeout reached, using default content');
+        createDefaultContent();
+        setLoading(false);
+        setFetchAttempted(true);
+        setError(null);
+      }
+    }, 5000); // 5-second timeout
+    
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
 
+  useEffect(() => {
+    // This effect runs when initialStoryData changes
+    if (!initialStoryData) return;
+
+    // Check if we need to update the storyId
+    const newStoryId =
+      initialStoryData.id ||
+      initialStoryData.storyId ||
+      initialStoryData.projectStoryId ||
+      (initialStoryData.projectStory &&
+        (initialStoryData.projectStory.id ||
+          initialStoryData.projectStory.storyId ||
+          initialStoryData.projectStory.projectStoryId));
+
+    // Only update if we have a new ID and it's different from the current one
+    if (newStoryId && newStoryId !== storyId) {
+      console.log('Updating storyId from changed initialStoryData:', newStoryId);
+      setStoryId(newStoryId);
+
+      // Also update publish status if provided
+      if (initialStoryData.status || (initialStoryData.projectStory && initialStoryData.projectStory.status)) {
+        setPublishStatus(initialStoryData.status || initialStoryData.projectStory.status);
+      }
+    }
+  }, [initialStoryData, storyId]);
 
   // Parse API blocks format to HTML for the editor - enhancing video handling
   const parseBlocksToHtml = (blocks) => {
@@ -1112,24 +1175,27 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       if (updateFormData && typeof updateFormData === 'function') {
         const hasContent = Boolean(storyData.story || storyData.risks);
         const now = Date.now();
-
+  
         // Only update if sufficient time has passed since last update (at least 2 seconds)
         if (hasContent && now - lastUpdateRef.current > 2000) {
           lastUpdateRef.current = now;
-
+  
           // Use timeout to further debounce
           const timeoutId = setTimeout(() => {
             updateFormData({
               story: storyData.story || '',
-              risks: storyData.risks || ''
+              risks: storyData.risks || '',
+              id: storyId,              
+              projectStoryId: storyId,  
+              status: publishStatus     
             });
           }, 500);
-
+  
           return () => clearTimeout(timeoutId);
         }
       }
     }
-  }, [storyId, loading, initialStoryData, storyData]);
+  }, [storyId, loading, initialStoryData, storyData, publishStatus, updateFormData]);
 
   // Handler for story content change
   const handleContentChange = useCallback((data) => {
@@ -1276,7 +1342,10 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         console.log('Explicitly updating parent form data on save');
         updateFormData({
           story: processedStoryHtml,
-          risks: processedRisksHtml
+          risks: processedRisksHtml,
+          id: storyId,              
+          projectStoryId: storyId,  
+          status: publishStatus
         });
       }
 
