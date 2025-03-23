@@ -138,33 +138,47 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     useEffect(() => {
         // Only update parent formData when milestones have been loaded
         if (milestones.length > 0) {
-          // Format milestones to match rewardInfo structure
-          const formattedRewards = milestones.map(milestone => ({
-            id: milestone.id,
-            title: milestone.title,
-            description: milestone.description || '',
-            amount: milestone.price || '0',
-            phaseId: milestone.phaseId,
-            estimatedDelivery: milestone.estimatedDelivery || new Date().toISOString().split('T')[0],
-            items: milestone.items || []
-          }));
-          
-          // Update parent component state
-          updateFormData(formattedRewards);
+            // Format milestones to match rewardInfo structure
+            const formattedRewards = milestones.map(milestone => ({
+                id: milestone.id,
+                title: milestone.title,
+                description: milestone.description || '',
+                amount: milestone.price || '0',
+                phaseId: milestone.phaseId,
+                estimatedDelivery: milestone.estimatedDelivery || new Date().toISOString().split('T')[0],
+                items: milestone.items || []
+            }));
+
+            // Update parent component state
+            updateFormData(formattedRewards);
         }
-      }, [milestones]);
+    }, [milestones]);
 
     // Fetch items for a specific milestone
     const fetchMilestoneItems = async (milestoneId) => {
         try {
+            setLoading(true);
             const response = await milestoneService.getMilestoneById(milestoneId);
+            console.log(`Fetched milestone ${milestoneId} details:`, response);
 
             // If the milestone details include items
-            if (response && response.items) {
+            if (response) {
+                let updatedItems = [];
+
+                // Extract items based on API response format
+                if (response.items && Array.isArray(response.items)) {
+                    updatedItems = response.items;
+                } else if (response.data && response.data.items && Array.isArray(response.data.items)) {
+                    updatedItems = response.data.items;
+                }
+
+                // Log the extracted items for debugging
+                console.log(`Extracted ${updatedItems.length} items for milestone ${milestoneId}:`, updatedItems);
+
                 // Update the milestone in our state with the items
                 setMilestones(prevMilestones =>
                     prevMilestones.map(m =>
-                        m.id === milestoneId ? { ...m, items: response.items } : m
+                        m.id === milestoneId ? { ...m, items: updatedItems } : m
                     )
                 );
             }
@@ -172,7 +186,10 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             return response;
         } catch (error) {
             console.error(`Error fetching items for milestone ${milestoneId}:`, error);
+            setError(`Failed to load items for milestone. Please try again.`);
             return null;
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -266,10 +283,133 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         }
     };
 
+    const debugImageFile = (file) => {
+        if (!file) {
+            console.log('No file selected');
+            return;
+        }
+
+        console.group('Image File Debug');
+        console.log('File name:', file.name);
+        console.log('File type:', file.type);
+        console.log('File size:', Math.round(file.size / 1024), 'KB');
+        console.log('Is File object:', file instanceof File);
+        console.groupEnd();
+    };
+
     // Add an item to a milestone
     const addMilestoneItem = async () => {
         if (!currentMilestoneItem.name || !selectedMilestone) {
             setError('Please provide a name for the item and select a milestone.');
+            return;
+        }
+    
+        setLoading(true);
+        setError(null);
+    
+        try {
+            // Step 1: Create the item first
+            const newItemData = {
+                name: currentMilestoneItem.name,
+                quantity: parseInt(currentMilestoneItem.quantity) || 1,
+            };
+    
+            console.log('Creating new milestone item with data:', newItemData);
+    
+            const itemResponse = await milestoneItemService.createMilestoneItem(
+                selectedMilestone,
+                newItemData
+            );
+    
+            console.log('Item creation response:', itemResponse);
+    
+            // Step 2: Extract the item ID from the response (based on the actual API response format)
+            let itemId = null;
+            
+            // Check different response formats to find the ID
+            if (itemResponse && typeof itemResponse.data === 'number') {
+                itemId = itemResponse.data;
+            } else if (itemResponse && itemResponse.id) {
+                itemId = itemResponse.id;
+            } else if (itemResponse && itemResponse.data && itemResponse.data.id) {
+                itemId = itemResponse.data.id;
+            }
+    
+            console.log('Extracted item ID:', itemId);
+    
+            if (!itemId) {
+                console.error('Failed to extract item ID from response:', itemResponse);
+                setError('Item created but failed to extract ID for image upload');
+            }
+    
+            // Step 3: Upload the image if available and we have an ID
+            if (currentMilestoneItem.image && itemId) {
+                console.log(`Now uploading image for item ${itemId}`);
+                debugImageFile(currentMilestoneItem.image);
+    
+                try {
+                    // Allow the backend to process the item creation first
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    console.time('Image upload');
+                    const imageResponse = await milestoneItemService.uploadMilestoneItemImage(
+                        itemId,
+                        currentMilestoneItem.image
+                    );
+                    console.timeEnd('Image upload');
+    
+                    console.log('Image upload response:', imageResponse);
+                    setSuccess('Item added with image successfully!');
+                } catch (imageError) {
+                    console.error('Error uploading image:', imageError);
+                    setError(`Item created but image upload failed: ${imageError.message || 'Unknown error'}`);
+                    // Continue even if image upload fails
+                }
+            } else if (!currentMilestoneItem.image) {
+                console.log('No image to upload');
+                setSuccess('Item added successfully!');
+            } else if (!itemId) {
+                console.error('Missing item ID, cannot upload image');
+                setError('Item created but could not get ID for image upload');
+            }
+    
+            // Reset form
+            setCurrentMilestoneItem({
+                name: '',
+                quantity: 1,
+                image: null,
+                imagePreview: null
+            });
+    
+            // Close the form
+            setShowMilestoneItemForm(false);
+    
+            // Clear file input
+            if (milestoneFileInputRef.current) {
+                milestoneFileInputRef.current.value = '';
+            }
+    
+            // Add a small delay to ensure the API has processed the changes
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Immediately refresh the milestone to get updated items
+            await fetchMilestoneItems(selectedMilestone);
+    
+            // Also refresh all milestones to ensure parent component has latest data
+            await fetchMilestones();
+    
+        } catch (error) {
+            console.error('Error adding item to milestone:', error);
+            setError(`Failed to add item: ${error.message || 'Unknown error'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update the updateMilestoneItem function similarly
+    const updateMilestoneItem = async (itemId, updatedData) => {
+        if (!itemId) {
+            setError('Missing item ID for update');
             return;
         }
 
@@ -277,31 +417,39 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         setError(null);
 
         try {
-            // Create the item
-            const newItemData = {
-                name: currentMilestoneItem.name,
-                quantity: currentMilestoneItem.quantity,
+            // Only include the image if a new one was selected
+            const dataToUpdate = {
+                name: updatedData.name,
+                quantity: parseInt(updatedData.quantity) || 1,
             };
 
-            const itemResponse = await milestoneItemService.createMilestoneItem(
-                selectedMilestone,
-                newItemData
-            );
+            console.log(`Updating item ${itemId} with data:`, dataToUpdate);
 
-            // If there's an image, upload it
-            if (currentMilestoneItem.image && itemResponse && itemResponse.id) {
-                await milestoneItemService.uploadMilestoneItemImage(
-                    itemResponse.id,
-                    currentMilestoneItem.image
-                );
+            const response = await milestoneItemService.updateMilestoneItem(itemId, dataToUpdate);
+            console.log('Item update response:', response);
+
+            // If there's a new image, upload it
+            if (updatedData.image instanceof File) {
+                console.log(`Uploading new image for item ${itemId}`);
+                debugImageFile(updatedData.image);
+
+                try {
+                    const imageResponse = await milestoneItemService.uploadMilestoneItemImage(
+                        itemId,
+                        updatedData.image
+                    );
+
+                    console.log('Image upload response:', imageResponse);
+                } catch (imageError) {
+                    console.error('Error uploading image:', imageError);
+                    setError(`Item updated but image upload failed: ${imageError.message || 'Unknown error'}`);
+                    // Continue execution even if image upload fails
+                }
             }
 
-            setSuccess('Item added to milestone successfully!');
+            setSuccess('Item updated successfully!');
 
-            // Refresh the milestone to get updated items
-            fetchMilestoneItems(selectedMilestone);
-
-            // Reset form
+            // Reset form and close modal
             setCurrentMilestoneItem({
                 name: '',
                 quantity: 1,
@@ -315,30 +463,18 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             if (milestoneFileInputRef.current) {
                 milestoneFileInputRef.current.value = '';
             }
-        } catch (error) {
-            console.error('Error adding item to milestone:', error);
-            setError('Failed to add item. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Update a milestone item
-    const updateMilestoneItem = async (itemId, updatedData) => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            await milestoneItemService.updateMilestoneItem(itemId, updatedData);
-            setSuccess('Item updated successfully!');
 
             // Refresh the milestone to get updated items
             if (selectedMilestone) {
-                fetchMilestoneItems(selectedMilestone);
+                await fetchMilestoneItems(selectedMilestone);
             }
+
+            // Also refresh all milestones to ensure parent component has latest data
+            await fetchMilestones();
+
         } catch (error) {
             console.error('Error updating milestone item:', error);
-            setError('Failed to update item. Please try again.');
+            setError(`Failed to update item: ${error.message || 'Unknown error'}`);
         } finally {
             setLoading(false);
         }
@@ -354,13 +490,19 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         setError(null);
 
         try {
-            await milestoneItemService.deleteMilestoneItem(itemId);
+            const response = await milestoneItemService.deleteMilestoneItem(itemId);
+            console.log('Item deletion response:', response);
+
             setSuccess('Item deleted successfully!');
 
             // Refresh the milestone to get updated items
             if (selectedMilestone) {
-                fetchMilestoneItems(selectedMilestone);
+                await fetchMilestoneItems(selectedMilestone);
             }
+
+            // Also refresh all milestones to ensure parent component has latest data
+            await fetchMilestones();
+
         } catch (error) {
             console.error('Error deleting milestone item:', error);
             setError('Failed to delete item. Please try again.');
@@ -399,6 +541,12 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             return;
         }
 
+        // Validate file size (10MB max)
+        if (file.size > 10 * 1024 * 1024) {
+            setError('Image must be less than 10MB');
+            return;
+        }
+
         // Create preview for UI
         const reader = new FileReader();
         reader.onload = () => {
@@ -409,6 +557,9 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             }));
         };
         reader.readAsDataURL(file);
+
+        // Clear any existing errors
+        setError(null);
     };
 
     const addItem = () => {
@@ -745,12 +896,16 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                                                 <div className="flex items-center">
                                                                     {item.imageUrl ? (
                                                                         <div className="h-10 w-10 mr-2 relative rounded overflow-hidden bg-gray-100">
-                                                                            <Image
-                                                                                src={item.imageUrl}
+                                                                            <img
+                                                                                src={`${item.imageUrl}?t=${Date.now()}`} // Add cache-busting timestamp
                                                                                 alt={item.name}
                                                                                 width={40}
                                                                                 height={40}
                                                                                 className="h-full w-full object-cover"
+                                                                                onError={(e) => {
+                                                                                    console.error(`Failed to load image for item ${item.id}`);
+                                                                                    e.target.src = "https://via.placeholder.com/40x40?text=No+Image";
+                                                                                }}
                                                                             />
                                                                         </div>
                                                                     ) : (
@@ -1034,9 +1189,48 @@ export default function RewardInformation({ formData, updateFormData, projectDat
 
                                 <div>
                                     <label htmlFor="item-image" className="block text-sm font-medium text-gray-700">
-                                        Image
+                                        Item Image
                                     </label>
-                                    <div className="mt-1 flex items-center">
+                                    <div className="mt-1 flex items-center space-x-2">
+                                        {currentMilestoneItem.imagePreview ? (
+                                            <div className="relative">
+                                                <img
+                                                    src={currentMilestoneItem.imagePreview}
+                                                    alt="Item preview"
+                                                    className="h-24 w-24 object-cover rounded-md border border-gray-200"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setCurrentMilestoneItem(prev => ({
+                                                            ...prev,
+                                                            image: null,
+                                                            imagePreview: null
+                                                        }));
+                                                        if (milestoneFileInputRef.current) {
+                                                            milestoneFileInputRef.current.value = '';
+                                                        }
+                                                    }}
+                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
+                                                    title="Remove image"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <label
+                                                htmlFor="item-image"
+                                                className="cursor-pointer flex flex-col items-center justify-center h-24 w-24 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50"
+                                            >
+                                                <svg className="h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                </svg>
+                                                <span className="mt-1 text-xs text-gray-500">Upload Image</span>
+                                            </label>
+                                        )}
+
                                         <input
                                             type="file"
                                             id="item-image"
@@ -1046,23 +1240,12 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                             onChange={handleMilestoneItemImageChange}
                                             className="sr-only"
                                         />
-                                        <label
-                                            htmlFor="item-image"
-                                            className="cursor-pointer inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                        >
-                                            {currentMilestoneItem.imagePreview ? (
-                                                <img
-                                                    src={currentMilestoneItem.imagePreview}
-                                                    alt="Item preview"
-                                                    className="h-10 w-10 object-cover rounded-md"
-                                                />
-                                            ) : (
-                                                <svg className="h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                </svg>
-                                            )}
-                                            <span className="ml-2">Upload Image</span>
-                                        </label>
+
+                                        <div className="text-sm text-gray-500">
+                                            <p>Recommended: Square image (1:1 ratio)</p>
+                                            <p>Max size: 10MB</p>
+                                            <p>Formats: JPG, PNG, GIF, WEBP</p>
+                                        </div>
                                     </div>
                                 </div>
 

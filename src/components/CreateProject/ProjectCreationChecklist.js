@@ -34,7 +34,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
         // Count completed fields - initialize to 0
         let completed = 0;
-        const total = 9;
+        const total = 10;
 
         // Check each field with improved value detection
         const checks = {
@@ -53,7 +53,8 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           mainSocialMediaUrl: !!basicInfo.mainSocialMediaUrl,
           projectVideoDemo: !!basicInfo.projectVideoDemo,
           // FIXED: Only count as complete if explicitly set by the user to true
-          isClassPotential: basicInfo.isClassPotential === true
+          isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false,
+          projectImage: !!basicInfo.projectImage
         };
 
         // Count completed fields

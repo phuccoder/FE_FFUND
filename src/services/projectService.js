@@ -24,6 +24,7 @@ const PROJECT_CREATE_DOCUMENT_ENDPOINT = (id) => `${API_BASE_URL}/project-docume
 const PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT = (id) => `${API_BASE_URL}/project-document/upload-file-document/${id}`;
 const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-document/get-by-project-id/${id}`;
 const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
+const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-image/${id}`;
 /**
  * Project related API service methods
  */
@@ -701,7 +702,54 @@ const projectService = {
             console.error(`Error submitting project ${projectId}:`, error);
             throw error;
         }
-    }
+    },
+
+    uploadProjectImage: async (projectId, file) => {
+        try {
+            console.log(`Uploading image for project ${projectId}`);
+
+            if (!projectId) {
+                throw new Error('No project ID provided for image upload');
+            }
+
+            if (!file) {
+                throw new Error('No file provided for image upload');
+            }
+
+            // Create form data for file upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_UPLOAD_IMAGE_ENDPOINT(projectId), {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                console.error(`Image upload failed with status: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to upload project image');
+            }
+
+            const result = await response.json();
+            console.log('Project image upload successful:', result);
+
+            // Handle different response formats
+            if (result && result.data && result.data.url) return result.data;
+            if (result && result.data && result.data.imageUrl) return result.data;
+            if (result && result.url) return result;
+            if (result && result.imageUrl) return result;
+
+            return result;
+        } catch (error) {
+            console.error(`Error uploading project image for project ${projectId}:`, error);
+            throw error;
+        }
+    },
 };
 
 export default projectService;

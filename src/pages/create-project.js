@@ -16,7 +16,7 @@ import { tokenManager } from '@/utils/tokenManager';
 import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
- function CreateProject() {
+function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,8 +281,16 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
   }, [formData]);
 
   const handleUpdateFormData = (section, data) => {
+    console.log(`Updating form data for section ${section}:`, data);
+
     // Check if data contains a projectId
-    const projectId = data.projectId;
+    const projectId = data.projectId || data.id;
+    const projectImage = data.projectImage;
+
+    // Log the projectImage if it exists
+    if (projectImage) {
+      console.log(`Section ${section} includes projectImage:`, projectImage);
+    }
 
     // If a new projectId is received, store it in localStorage
     if (projectId && (!formData.projectId || formData.projectId !== projectId)) {
@@ -291,23 +299,83 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
     }
 
     setFormData(prevData => {
+      // Special handling for basicInfo to ensure consistent field structure
+      if (section === 'basicInfo') {
+        // Ensure all field mappings are properly maintained
+        const updatedBasicInfo = {
+          ...data,
+          projectId: projectId || data.projectId || prevData.projectId,
+          // Handle potential field name differences
+          category: data.category || data.categoryId,
+          categoryId: data.categoryId || data.category,
+          location: data.location || data.projectLocation,
+          projectLocation: data.projectLocation || data.location,
+          shortDescription: data.shortDescription || data.projectDescription,
+          projectDescription: data.projectDescription || data.shortDescription,
+          // Explicitly include the projectImage
+          projectImage: data.projectImage || prevData.basicInfo?.projectImage,
+        };
 
-      if (projectId && prevData.projectId !== projectId) {
-        console.log("New project created with ID:", projectId);
+        console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
+
         return {
           ...prevData,
-          projectId,
-          [section]: data
+          projectId: projectId || prevData.projectId,
+          [section]: updatedBasicInfo,
+          // Also store projectImage at the top level for easier access
+          projectImage: data.projectImage || prevData.projectImage
         };
       }
 
-      // Otherwise just update the specific section
+      // For other sections, just update normally
       return {
         ...prevData,
+        projectId: projectId || prevData.projectId,
         [section]: data
       };
     });
   };
+
+  // When loading initial project data after page load
+  const loadInitialProjectData = async () => {
+    try {
+      const projectId = localStorage.getItem('founderProjectId');
+      if (projectId) {
+        const projectDetails = await projectService.getProjectById(projectId);
+        const projectData = projectDetails.data || projectDetails;
+
+        // Log the project image
+        console.log('Loading project with image:', projectData.projectImage);
+
+        setFormData(prev => ({
+          ...prev,
+          projectId: projectData.id,
+          basicInfo: {
+            projectId: projectData.id,
+            title: projectData.title || '',
+            shortDescription: projectData.description || '',
+            projectDescription: projectData.description || '',
+            location: projectData.location || '',
+            projectLocation: projectData.location || '',
+            projectUrl: projectData.projectUrl || '',
+            mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
+            projectVideoDemo: projectData.projectVideoDemo || '',
+            categoryId: projectData.category?.id || '',
+            subCategoryIds: projectData.subCategories?.map(sub => sub.id) || [],
+            totalTargetAmount: projectData.totalTargetAmount || 1000,
+            status: projectData.status || 'DRAFT',
+            isClassPotential: projectData.isClassPotential || false,
+            projectImage: projectData.projectImage || null
+          },
+          // Also store at top level
+          projectImage: projectData.projectImage || null
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading initial project data:', error);
+    }
+  };
+
   // Check if the first two sections are completed to enable navigation to later sections
   const isInitialSectionsComplete = () => {
     const isTermsComplete = Boolean(formData.termsAgreed);
@@ -326,7 +394,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
       basicInfo.projectUrl &&
       basicInfo.mainSocialMediaUrl &&
       basicInfo.projectVideoDemo &&
-      basicInfo.isClassPotential !== undefined
+      basicInfo.projectImage
     );
 
     return isTermsComplete && isBasicInfoComplete;
@@ -559,7 +627,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 
       // Reload the project data to get the updated status
       await loadProjectData();
-      window.location.href = '/'; 
+      window.location.href = '/';
 
     } catch (error) {
       console.error('Error submitting project:', error);
@@ -662,8 +730,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
                   onClick={handleSubmit}
                   disabled={isSubmitting}
                   className={`ml-auto ${isSubmitting
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-green-600 hover:bg-green-700"
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
                     } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
                 >
                   {isSubmitting ? (
@@ -695,7 +763,7 @@ export default function CreateProjectPage() {
   return (
     <>
       <ProtectedRoute requiredRoles={['FOUNDER']}>
-      <CreateProject />
+        <CreateProject />
       </ProtectedRoute>
     </>
   );

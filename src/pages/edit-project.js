@@ -200,7 +200,6 @@ function EditProjectPage() {
         setFormData(prevData => ({
           ...prevData,
           projectId: response.id,
-          // Always set termsAgreed to true for editing
           termsAgreed: true,
           basicInfo: {
             projectId: response.id,
@@ -219,7 +218,9 @@ function EditProjectPage() {
             isClassPotential: response.isClassPotential !== undefined
               ? response.isClassPotential
               : false,
-            status: response.status || 'DRAFT'
+            status: response.status || 'DRAFT',
+            // Add project image to the form data
+            projectImage: response.projectImage || null
           },
           projectStory: {
             story: response.projectStory || response.story || '',
