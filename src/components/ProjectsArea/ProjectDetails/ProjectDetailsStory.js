@@ -1,47 +1,138 @@
-import { projectDetailsStory } from "@/data/projectsArea";
-import React from "react";
+import { useEffect, useState } from "react";
 import { Col, Row } from "react-bootstrap";
-import Image from "next/image";
+import projectService from "../../../services/projectService";
 
-const { id, text, lists, text2, items, text3, image, images } =
-  projectDetailsStory;
+const ProjectDetailsStory = ({ getClassName, project }) => {
+  const [projectStory, setProjectStory] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const ProjectDetailsStory = ({ getClassName }) => {
+  const { id } = project;
+
+  useEffect(() => {
+    const fetchProjectStory = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        console.log('Fetching project story for projectId:', id);
+        const data = await projectService.getProjectStoryById(id);
+        console.log('Received project story data:', data);
+
+        if (data && data.data && Array.isArray(data.data.blocks) && data.data.blocks.length > 0) {
+          setProjectStory(data);
+        } else {
+          setError("Invalid data structure or no blocks found.");
+          console.log('Invalid data structure:', data);
+        }
+      } catch (error) {
+        setError("Failed to fetch project story.");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProjectStory();
+    } else {
+      setError("No valid project ID.");
+      setLoading(false);
+    }
+  }, [id]);
+
+  if (loading) {
+    return <div>Loading project story...</div>;
+  }
+
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  if (!projectStory) {
+    return <div>No project story found.</div>;
+  }
+
   return (
-    <div className={getClassName?.(id)} id={id} role="tabpanel">
-      <div className="project-details-content-top">
-        <p>{text}</p>
-        <ul>
-          {lists.map((list, i) => (
-            <li key={i}>
-              <i className="flaticon-check"></i> {list}
-            </li>
-          ))}
-        </ul>
-        <div className="project-details-thumb">
-          <Image src={image.src} alt="" />
-        </div>
-      </div>
-      <div className="project-details-item">
-        <p>{text2}</p>
-        {items.map(({ id, title, text, className = "" }) => (
-          <div className={`item ${className}`} key={id}>
-            <i className="flaticon-checkmark"></i>
-            <h5 className="title">{title}</h5>
-            <p>{text}</p>
-          </div>
-        ))}
-        <Row>
-          {images.map((image, i) => (
-            <Col lg={6} md={6} sm={6} key={i}>
-              <div className="project-details-thumb">
-                <Image src={image.src} alt="" />
-              </div>
-            </Col>
-          ))}
-        </Row>
-        <p className="text">{text3}</p>
-      </div>
+    <div className={getClassName?.("pills-home")} id="pills-home" role="tabpanel">
+      <Row>
+        {Array.isArray(projectStory.data?.blocks) && projectStory.data.blocks.length > 0 ? (
+          projectStory.data.blocks.map((block) => {
+            const { storyBlockId, type, content, metadata } = block;
+
+            console.log('Block data:', block);
+
+            if (type === "HEADING") {
+              return (
+                <Col key={storyBlockId} xs={12}>
+                  <h2>{content}</h2>
+                </Col>
+              );
+            }
+
+            if (type === "TEXT") {
+              return (
+                <Col key={storyBlockId} xs={12}>
+                  <p dangerouslySetInnerHTML={{ __html: content }} />
+                  {metadata?.additionalProp1?.listType === "bullet" && (
+                    <ul>
+                      {content.split("<li>").map((item, index) => {
+                        if (item) {
+                          return (
+                            <li key={index} dangerouslySetInnerHTML={{ __html: item }} />
+                          );
+                        }
+                        return null;
+                      })}
+                    </ul>
+                  )}
+                  {metadata?.additionalProp1?.listType === "ordered" && (
+                    <ol>
+                      {content.split("<li>").map((item, index) => {
+                        if (item) {
+                          return (
+                            <li key={index} dangerouslySetInnerHTML={{ __html: item }} />
+                          );
+                        }
+                        return null;
+                      })}
+                    </ol>
+                  )}
+                </Col>
+              );
+            }
+
+            if (type === "IMAGE") {
+              return (
+                <Col key={storyBlockId} xs={12} md={6}>
+                  <div className="project-details-thumb">
+                    <img src={content} alt="Project Image" width={400} height={200} />
+                  </div>
+                </Col>
+              );
+            }
+
+            if (type === "VIDEO") {
+              return (
+                <Col key={storyBlockId} xs={12}>
+                  <div className="project-details-thumb">
+                    <iframe
+                      src={content}
+                      width={metadata?.additionalProp1?.width || "560px"}
+                      height={metadata?.additionalProp1?.height || "315px"}
+                      frameBorder="0"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                </Col>
+              );
+            }
+
+            return null;
+          })
+        ) : (
+          <div>No blocks found.</div>
+        )}
+      </Row>
     </div>
   );
 };

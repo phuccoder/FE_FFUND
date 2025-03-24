@@ -1,20 +1,23 @@
-import { projectDetailsTabBtns } from "@/data/projectsArea";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import ProjectDetailsComments from "./ProjectDetailsComments";
 import ProjectDetailsFaq from "./ProjectDetailsFaq";
 import ProjectDetailsSidebar from "./ProjectDetailsSidebar";
 import ProjectDetailsStory from "./ProjectDetailsStory";
 import ProjectDetailsUpdates from "./ProjectDetailsUpdates";
+import { projectDetailsTabBtns } from "@/data/projectsArea";
 
-const ProjectDetailsContent = () => {
+const ProjectDetailsContent = ({ project }) => {
   const [current, setCurrent] = useState("pills-home");
+
 
   const getClassName = (id = "") => {
     const active = current === id;
     return `tab-pane animated${active ? " fadeIn show active" : ""}`;
   };
 
+  console.log("Project Data in ProjectDetailsContent:", project);
+  
   return (
     <section className="project-details-content-area pb-110">
       <Container>
@@ -38,14 +41,14 @@ const ProjectDetailsContent = () => {
               </ul>
             </div>
             <div className="tab-content" id="pills-tabContent">
-              <ProjectDetailsStory getClassName={getClassName} />
-              <ProjectDetailsFaq getClassName={getClassName} />
-              <ProjectDetailsUpdates getClassName={getClassName} />
-              <ProjectDetailsComments getClassName={getClassName} />
+              <ProjectDetailsStory getClassName={getClassName} project={project} />
+              <ProjectDetailsFaq getClassName={getClassName} project={project} />
+              <ProjectDetailsUpdates getClassName={getClassName} project={project} />
+              <ProjectDetailsComments getClassName={getClassName} project={project} />
             </div>
           </Col>
           <Col lg={4} md={7} sm={9}>
-            <ProjectDetailsSidebar />
+            <ProjectDetailsSidebar project={project} />
           </Col>
         </Row>
       </Container>

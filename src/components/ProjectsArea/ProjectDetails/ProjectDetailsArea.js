@@ -1,20 +1,26 @@
 import React from "react";
 import { Col, Container, Row } from "react-bootstrap";
-import Image from "next/image";
 
 const ProjectDetailsArea = ({ project }) => {
   if (!project) {
     return <div>Loading project data...</div>;
   }
 
-  const { title, projectImage, projectUrl, status, category, subCategories, mainSocialMediaUrl, description } = project;
+  const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description } = project;
 
   const raised = 5000;
-  const goal = 10000;
   const backers = 150;
   const daysLeft = 10;
   const categoryName = category ? category.name : "Uncategorized";
-  const raisedPercentage = (raised / goal) * 100 || 0;
+  const raisedPercentage = (raised / totalTargetAmount) * 100 || 0;
+
+  const statusStyle = {
+    backgroundColor: "green",
+    color: "white",
+    padding: "5px 15px",
+    borderRadius: "5px",
+  };
+
   return (
     <section className="project-details-area pt-120 pb-190">
       <Container>
@@ -22,7 +28,13 @@ const ProjectDetailsArea = ({ project }) => {
           <Col lg={7}>
             <div className="project-details-thumb">
               <div className="image-container" style={{ textAlign: "center" }}>
-                <Image src={projectImage} alt={title} width={600} height={600} style={{ maxWidth: "100%", height: "auto" }} />
+                <img
+                  src={projectImage}
+                  alt={title}
+                  width={600}
+                  height={600}
+                  style={{ maxWidth: "100%", height: "auto" }}
+                />
               </div>
               <div className="icon">
                 <i className="fa fa-heart"></i>
@@ -32,7 +44,7 @@ const ProjectDetailsArea = ({ project }) => {
           <Col lg={5}>
             <div className="project-details-content">
               <div className="details-btn">
-                <span>{status}</span>
+                <span style={statusStyle}>{status}</span>
                 <div className="flag">
                   <p>{categoryName}</p>
                 </div>
@@ -64,7 +76,7 @@ const ProjectDetailsArea = ({ project }) => {
               </div>
               <div className="projects-goal">
                 <span>
-                  Goal: <span>{goal} USD</span>
+                  Goal: <span>{totalTargetAmount} USD</span>
                 </span>
               </div>
               <div className="project-btn mt-25">
