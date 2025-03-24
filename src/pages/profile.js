@@ -6,8 +6,9 @@ import ExtendedProfileInfo from '../components/profile/ExtendedProfileInfo';
 import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
 import { getUserById } from '../services/userService';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function Profile() {
+ function ProfilePage() {
     const [key, setKey] = useState('basic');
     const [userRole, setUserRole] = useState(null);
 
@@ -78,5 +79,13 @@ export default function Profile() {
                 </Container>
             </Layout>
         </>
+    );
+}
+
+export default function Profile(){
+    return (
+        <ProtectedRoute requiredRoles={['FOUNDER', 'MEMBER']}>
+            <ProfilePage />
+        </ProtectedRoute>
     );
 }

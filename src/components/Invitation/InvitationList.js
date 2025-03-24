@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isValid, parseISO } from 'date-fns'; // Added isValid and parseISO imports
 import invitationService from 'src/services/invitationService';
 
 const InvitationList = () => {
@@ -11,19 +11,39 @@ const InvitationList = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [pageSize] = useState(10);
 
-  const formatDateSafely = (dateString) => {
-    if (!dateString) return 'N/A';
+  const formatDateSafely = (dateValue) => {
+    if (!dateValue) return 'N/A';
     
     try {
-      const date = new Date(dateString);
-      // Check if the date is valid before formatting
-      if (!isValid(date)) {
-        console.warn(`Invalid date encountered: ${dateString}`);
-        return 'Invalid date';
+      // Check if the date is an array [year, month, day, hour, minute, second, nanos]
+      if (Array.isArray(dateValue)) {
+        console.log('Date is array format:', dateValue);
+        // Extract components from array - Java LocalDateTime format
+        const [year, month, day, hour, minute, second] = dateValue;
+        // JavaScript months are 0-indexed, so subtract 1 from month
+        const date = new Date(year, month - 1, day, hour, minute, second);
+        return formatDistanceToNow(date, { addSuffix: true });
       }
-      return formatDistanceToNow(date, { addSuffix: true });
+      
+      // If it's a string, try to parse as ISO
+      if (typeof dateValue === 'string') {
+        const date = parseISO(dateValue);
+        if (isValid(date)) {
+          return formatDistanceToNow(date, { addSuffix: true });
+        }
+      }
+      
+      // Try with direct Date constructor as fallback
+      const directDate = new Date(dateValue);
+      if (directDate.toString() !== 'Invalid Date') {
+        return formatDistanceToNow(directDate, { addSuffix: true });
+      }
+      
+      // If we get here, we couldn't parse the date
+      console.warn('Could not parse date:', dateValue);
+      return 'Invalid date';
     } catch (error) {
-      console.error('Date formatting error:', error, dateString);
+      console.error('Date formatting error:', error, dateValue);
       return 'Date error';
     }
   };
@@ -89,6 +109,46 @@ const InvitationList = () => {
       case 'PENDING':
       default:
         return 'bg-orange-100 text-orange-800'; // Changed to orange for pending
+    }
+  };
+
+  // Debug function to log date issues
+  const debugDate = (dateValue) => {
+    try {
+      console.group(`Date Debug: ${dateValue}`);
+      
+      // Check if it's an array
+      if (Array.isArray(dateValue)) {
+        console.log('Is array with length:', dateValue.length);
+        console.log('Array values:', dateValue);
+        
+        // Try to construct a date from array
+        if (dateValue.length >= 3) {
+          const [year, month, day, hour = 0, minute = 0, second = 0] = dateValue;
+          const date = new Date(year, month - 1, day, hour, minute, second);
+          console.log('Constructed Date from array:', date.toString());
+          console.log('isValid:', !isNaN(date.getTime()));
+          console.log('Formatted:', formatDistanceToNow(date, { addSuffix: true }));
+        }
+      } else {
+        // If string, try parseISO
+        if (typeof dateValue === 'string') {
+          const parsedIso = parseISO(dateValue);
+          console.log('parseISO result:', parsedIso);
+          console.log('isValid(parseISO):', isValid(parsedIso));
+        }
+        
+        // Try direct Date constructor
+        const directDate = new Date(dateValue);
+        console.log('new Date() result:', directDate);
+        console.log('isValid(new Date()):', !isNaN(directDate.getTime()));
+        console.log('toString():', directDate.toString());
+      }
+      
+      console.groupEnd();
+    } catch (e) {
+      console.error('Debug date error:', e);
+      console.groupEnd();
     }
   };
 

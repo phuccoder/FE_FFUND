@@ -14,10 +14,12 @@ import Layout from '@/components/Layout/Layout';
 import projectService from 'src/services/projectService';
 import { tokenManager } from '@/utils/tokenManager';
 import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function CreateProject() {
+function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     termsAgreed: false,
     basicInfo: {
@@ -65,11 +67,9 @@ export default function CreateProject() {
       },
     },
     paymentInfo: {
-      accountName: '',
-      accountNumber: '',
-      bankName: '',
-      swiftCode: '',
-      country: '',
+      id: null,
+      stripeAccountId: null,
+      status: 'NOT_STARTED', 
     },
   });
   const [authStatus, setAuthStatus] = useState({
@@ -127,47 +127,63 @@ export default function CreateProject() {
         // If response is an array, take first element
         activeProject = response[0];
         console.log("Found active project from array:", activeProject);
-      } else if (response && response.projectId) {
+      } else if (response && (response.projectId || response.id)) {
         // If response is a single project object
         activeProject = response;
         console.log("Found active project (single object):", activeProject);
+      } else if (response && response.data) {
+        // If response has a data property (nested response)
+        activeProject = response.data;
+        console.log("Found active project in response.data:", activeProject);
       }
 
-      if (activeProject && activeProject.projectId) {
+      if (activeProject && (activeProject.projectId || activeProject.id)) {
+        // Get the project ID, accounting for different field names
+        const projectId = activeProject.projectId || activeProject.id;
+
         // Store the projectId in localStorage for persistence
-        localStorage.setItem('founderProjectId', activeProject.projectId);
+        localStorage.setItem('founderProjectId', projectId);
 
         // Update UI state
         setIsEditMode(true);
 
-        console.log("Setting project data with ID:", activeProject.projectId);
+        console.log("Setting project data with ID:", projectId);
 
         // Update form data with project details
         setFormData(prevData => ({
           ...prevData,
-          projectId: activeProject.projectId,
+          projectId: projectId,
           basicInfo: {
             ...prevData.basicInfo,
-            projectId: activeProject.projectId,
-            title: activeProject.projectTitle || '',
-            shortDescription: activeProject.projectDescription || '',
+            projectId: projectId,
+            title: activeProject.title || activeProject.projectTitle || '',
+            shortDescription: activeProject.description || activeProject.projectDescription || '',
+            projectDescription: activeProject.description || activeProject.projectDescription || '',
             category: activeProject.category?.id || '',
             categoryId: activeProject.category?.id || '',
             subCategoryIds: activeProject.subCategories?.map(sub => sub.id) || [],
-            location: activeProject.projectLocation || '',
-            projectLocation: activeProject.projectLocation || '',
+            location: activeProject.location || activeProject.projectLocation || '',
+            projectLocation: activeProject.location || activeProject.projectLocation || '',
             projectUrl: activeProject.projectUrl || '',
             mainSocialMediaUrl: activeProject.mainSocialMediaUrl || '',
             projectVideoDemo: activeProject.projectVideoDemo || '',
+            totalTargetAmount: activeProject.totalTargetAmount || 1000,
             isClassPotential: activeProject.isClassPotential !== undefined
               ? activeProject.isClassPotential
-              : false
+              : false,
+            status: activeProject.status || 'DRAFT'
           },
           projectStory: {
             ...prevData.projectStory,
             story: activeProject.projectStory || '',
             risks: activeProject.risks || ''
           },
+          paymentInfo: {
+            id: activeProject.paymentId || activeProject.payment?.id,
+            stripeAccountId: activeProject.stripeAccountId || activeProject.payment?.stripeAccountId,
+            status: (activeProject.stripeAccountId || activeProject.payment?.stripeAccountId) ? 'LINKED' :
+              (activeProject.paymentId || activeProject.payment?.id) ? 'PENDING' : 'NOT_STARTED'
+          }
         }));
       } else {
         // User has no projects, clear any stored projectId
@@ -263,8 +279,16 @@ export default function CreateProject() {
   }, [formData]);
 
   const handleUpdateFormData = (section, data) => {
+    console.log(`Updating form data for section ${section}:`, data);
+
     // Check if data contains a projectId
-    const projectId = data.projectId;
+    const projectId = data.projectId || data.id;
+    const projectImage = data.projectImage;
+
+    // Log the projectImage if it exists
+    if (projectImage) {
+      console.log(`Section ${section} includes projectImage:`, projectImage);
+    }
 
     // If a new projectId is received, store it in localStorage
     if (projectId && (!formData.projectId || formData.projectId !== projectId)) {
@@ -273,23 +297,83 @@ export default function CreateProject() {
     }
 
     setFormData(prevData => {
+      // Special handling for basicInfo to ensure consistent field structure
+      if (section === 'basicInfo') {
+        // Ensure all field mappings are properly maintained
+        const updatedBasicInfo = {
+          ...data,
+          projectId: projectId || data.projectId || prevData.projectId,
+          // Handle potential field name differences
+          category: data.category || data.categoryId,
+          categoryId: data.categoryId || data.category,
+          location: data.location || data.projectLocation,
+          projectLocation: data.projectLocation || data.location,
+          shortDescription: data.shortDescription || data.projectDescription,
+          projectDescription: data.projectDescription || data.shortDescription,
+          // Explicitly include the projectImage
+          projectImage: data.projectImage || prevData.basicInfo?.projectImage,
+        };
 
-      if (projectId && prevData.projectId !== projectId) {
-        console.log("New project created with ID:", projectId);
+        console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
+
         return {
           ...prevData,
-          projectId,
-          [section]: data
+          projectId: projectId || prevData.projectId,
+          [section]: updatedBasicInfo,
+          // Also store projectImage at the top level for easier access
+          projectImage: data.projectImage || prevData.projectImage
         };
       }
 
-      // Otherwise just update the specific section
+      // For other sections, just update normally
       return {
         ...prevData,
+        projectId: projectId || prevData.projectId,
         [section]: data
       };
     });
   };
+
+  // When loading initial project data after page load
+  const loadInitialProjectData = async () => {
+    try {
+      const projectId = localStorage.getItem('founderProjectId');
+      if (projectId) {
+        const projectDetails = await projectService.getProjectById(projectId);
+        const projectData = projectDetails.data || projectDetails;
+
+        // Log the project image
+        console.log('Loading project with image:', projectData.projectImage);
+
+        setFormData(prev => ({
+          ...prev,
+          projectId: projectData.id,
+          basicInfo: {
+            projectId: projectData.id,
+            title: projectData.title || '',
+            shortDescription: projectData.description || '',
+            projectDescription: projectData.description || '',
+            location: projectData.location || '',
+            projectLocation: projectData.location || '',
+            projectUrl: projectData.projectUrl || '',
+            mainSocialMediaUrl: projectData.mainSocialMediaUrl || '',
+            projectVideoDemo: projectData.projectVideoDemo || '',
+            categoryId: projectData.category?.id || '',
+            subCategoryIds: projectData.subCategories?.map(sub => sub.id) || [],
+            totalTargetAmount: projectData.totalTargetAmount || 1000,
+            status: projectData.status || 'DRAFT',
+            isClassPotential: projectData.isClassPotential || false,
+            projectImage: projectData.projectImage || null
+          },
+          // Also store at top level
+          projectImage: projectData.projectImage || null
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading initial project data:', error);
+    }
+  };
+
   // Check if the first two sections are completed to enable navigation to later sections
   const isInitialSectionsComplete = () => {
     const isTermsComplete = Boolean(formData.termsAgreed);
@@ -308,7 +392,7 @@ export default function CreateProject() {
       basicInfo.projectUrl &&
       basicInfo.mainSocialMediaUrl &&
       basicInfo.projectVideoDemo &&
-      basicInfo.isClassPotential !== undefined
+      basicInfo.projectImage
     );
 
     return isTermsComplete && isBasicInfoComplete;
@@ -346,7 +430,18 @@ export default function CreateProject() {
 
   const sections = [
     { id: 'terms', name: 'Rules & Terms', component: <RulesTerms formData={formData.termsAgreed} updateFormData={(data) => handleUpdateFormData('termsAgreed', data)} /> },
-    { id: 'basic', name: 'Basic Information', component: <BasicInformation formData={formData.basicInfo} updateFormData={(data) => handleUpdateFormData('basicInfo', data)} editMode={isEditMode} /> },
+    {
+      id: 'basic',
+      name: 'Basic Information',
+      component: <BasicInformation
+        formData={{
+          ...formData.basicInfo,
+          projectId: formData.projectId || formData.basicInfo?.projectId,
+        }}
+        updateFormData={(data) => handleUpdateFormData('basicInfo', data)}
+        editMode={isEditMode}
+      />
+    },
     { id: 'fundraising', name: 'Fundraising Information', component: <FundraisingInformation formData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
     { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
     // Update the ProjectStoryHandler section in the sections array
@@ -359,9 +454,62 @@ export default function CreateProject() {
         updateFormData={(data) => handleUpdateFormData('projectStory', data)}
       />
     },
-    { id: 'founder', name: 'Founder Profile', component: <FounderProfile formData={formData.founderProfile} updateFormData={(data) => handleUpdateFormData('founderProfile', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
-    { id: 'documents', name: 'Required Documents', component: <RequiredDocuments formData={formData.requiredDocuments} updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)} /> },
-    { id: 'payment', name: 'Payment Information', component: <PaymentInformation formData={formData.paymentInfo} updateFormData={(data) => handleUpdateFormData('paymentInfo', data)} /> },
+    {
+      id: 'founder',
+      name: 'Founder Profile',
+      component: <FounderProfile
+        formData={formData.founderProfile}
+        updateFormData={(data) => handleUpdateFormData('founderProfile', data)}
+        projectId={formData.projectId || formData.basicInfo?.projectId}
+      />
+    },
+    {
+      id: 'documents',
+      name: 'Required Documents',
+      component: <RequiredDocuments
+        formData={formData.requiredDocuments}
+        updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)}
+        projectId={formData.projectId || formData.basicInfo?.projectId}
+      />
+    },
+    // In the payment section component:
+
+    {
+      id: 'payment',
+      name: 'Payment Information',
+      component: <PaymentInformation
+        projectData={{
+          id: formData.projectId || formData.basicInfo?.projectId,
+          title: formData.basicInfo?.title
+        }}
+        updateFormData={(data) => {
+          console.log("PaymentInfo update received:", JSON.stringify(data, null, 4));
+
+          // Only update if we received valid data
+          if (data && (data.id || data.stripeAccountId || data.paymentInfo)) {
+            // Handle data coming in different formats
+            const paymentData = data.paymentInfo || data;
+
+            setFormData(prevData => ({
+              ...prevData,
+              paymentInfo: {
+                ...prevData.paymentInfo,
+                ...paymentData,
+                // Ensure critical fields are preserved
+                id: paymentData.id || prevData.paymentInfo?.id,
+                stripeAccountId: paymentData.stripeAccountId || prevData.paymentInfo?.stripeAccountId,
+                // Set status based on available data
+                status: paymentData.stripeAccountId ? 'LINKED' :
+                  paymentData.id ? 'PENDING' : 'NOT_STARTED'
+              }
+            }));
+          }
+        }}
+        readOnly={!formData.projectId && !formData.basicInfo?.projectId}
+        // Pass current payment info to component for reference
+        paymentInfo={formData.paymentInfo}
+      />
+    }
   ];
 
   const goToNextSection = () => {
@@ -372,7 +520,6 @@ export default function CreateProject() {
         return;
       }
 
-      // If going from second section without completing it, show warning
       // If going from second section without completing it, show warning
       if (currentSection === 1) {
         const basicInfo = formData.basicInfo;
@@ -405,7 +552,7 @@ export default function CreateProject() {
       // If going from project story to founder profile section, check if project story is complete
       if (currentSection === 4) { // Index of project story section
         if (!isProjectStoryComplete()) {
-          alert("Please complete the Project Story section before proceeding to the Founder Profile section.");
+          alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
           return;
         }
       }
@@ -448,12 +595,43 @@ export default function CreateProject() {
       return;
     }
 
+    // Get the project ID
+    const projectId = formData.projectId || formData.basicInfo?.projectId;
+
+    if (!projectId) {
+      alert("No project ID found. Please save your project before submitting.");
+      return;
+    }
+
     try {
-      // API call would go here
-      console.log("Form data to submit:", formData);
-      alert('Project submitted for review!');
+      // Show confirmation dialog
+      const confirmSubmit = confirm(
+        "Once submitted, your project will be reviewed by our team. " +
+        "You won't be able to make changes during the review process. " +
+        "Are you sure you want to submit your project now?"
+      );
+
+      if (!confirmSubmit) return;
+
+      // Show loading state
+      setIsSubmitting(true);
+
+      // Call the API to submit the project
+      const result = await projectService.submitProject(projectId);
+      console.log("Project submission result:", result);
+
+      // Show success message
+      alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
+
+      // Reload the project data to get the updated status
+      await loadProjectData();
+      window.location.href = '/';
+
     } catch (error) {
       console.error('Error submitting project:', error);
+      alert(`Failed to submit project: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -468,6 +646,12 @@ export default function CreateProject() {
     // Check if each phase has at least one reward
     const phaseIds = formData.fundraisingInfo.phases.map(phase => phase.id);
     const rewardPhaseIds = formData.rewardInfo.map(reward => reward.phaseId);
+
+    // Payment info check - we don't block submission on this but show a warning
+    if (!formData.paymentInfo || !formData.paymentInfo.status || formData.paymentInfo.status !== 'LINKED') {
+      const proceedWithoutPayment = confirm('Your payment information is not set up or not linked yet. You can still submit your project, but you will not be able to receive payments until you connect your Stripe account. Do you want to proceed?');
+      if (!proceedWithoutPayment) return false;
+    }
 
     // Make sure each phase has at least one reward
     return phaseIds.every(phaseId => rewardPhaseIds.includes(phaseId));
@@ -542,9 +726,23 @@ export default function CreateProject() {
               ) : (
                 <button
                   onClick={handleSubmit}
-                  className="ml-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg"
+                  disabled={isSubmitting}
+                  className={`ml-auto ${isSubmitting
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
+                    } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
                 >
-                  Submit Project
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Project"
+                  )}
                 </button>
               )}
             </div>
@@ -555,6 +753,16 @@ export default function CreateProject() {
           </div>
         </div>
       </Layout>
+    </>
+  );
+}
+
+export default function CreateProjectPage() {
+  return (
+    <>
+      <ProtectedRoute requiredRoles={['FOUNDER']}>
+        <CreateProject />
+      </ProtectedRoute>
     </>
   );
 }
