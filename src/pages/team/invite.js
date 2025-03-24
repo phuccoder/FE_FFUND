@@ -9,8 +9,9 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
-const InviteTeamMembers = () => {
+const InviteTeamMembersPage = () => {
     const router = useRouter();
     const { team, loading, error: teamError, refreshTeam } = useTeam();
     const [newMemberEmail, setNewMemberEmail] = useState("");
@@ -171,4 +172,11 @@ const InviteTeamMembers = () => {
     );
 };
 
-export default InviteTeamMembers;
+export default function InviteTeamMembers(){
+    return (
+        <ProtectedRoute requiredRoles={['FOUNDER']}>
+            <InviteTeamMembersPage />
+        </ProtectedRoute>
+        
+    );
+}
