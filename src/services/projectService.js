@@ -30,6 +30,58 @@ const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-im
  */
 const projectService = {
     /**
+     * Fetch all projects with pagination
+     * @param {number} page - The page number (default: 1)
+     * @param {number} size - The number of projects per page (default: 10)
+     * @returns {Promise<Object>} Object containing project data and pagination info
+     */
+    getAllProjects: async (page = 0, size = 10) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/project/search?page=${page}&size=${size}`, {
+                method: 'GET',
+                headers: {
+                    'accept': '*/*'
+                }
+            });
+    
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+    
+            const result = await response.json();
+
+            if (!result || !result.data || !Array.isArray(result.data.data)) {
+                return [];
+            }
+    
+            return result.data.data || [];
+        } catch (error) {
+            console.error('Error fetching all projects:', error);
+            throw error;
+        }
+    },
+    searchProjects: async (page = 0, size = 10, searchParams) => {
+        try {
+            const query = searchParams.query;
+            const sort = searchParams.sort || '+createdAt';
+    
+            const response = await fetch(
+                `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
+                {
+                    method: "GET",
+                    headers: {
+                        "accept": "*/*",
+                    },
+                }
+            );
+            
+            return await response.json();
+        } catch (error) {
+            console.error("Error fetching projects search:", error);
+            throw new Error("Error fetching projects search");
+        }
+    },
+    /**
      * Fetch all available categories
      * @returns {Promise<Array>} Array of category objects
      */
@@ -182,13 +234,10 @@ const projectService = {
 
     getProjectById: async (projectId) => {
         try {
-            const token = await tokenManager.getValidToken();
-
             const response = await fetch(PROJECT_BY_ID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 }
             });
 

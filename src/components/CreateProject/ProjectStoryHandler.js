@@ -1316,11 +1316,9 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         content.includes('youtube.com/embed/')
       );
     });
-
     console.log(`Found ${youtubeUrlParagraphs.length} paragraphs with YouTube URLs`);
     console.log('--- End YouTube Debug ---');
   };
-
 
   // Handle manual saving of the story
   const handleSaveStory = useCallback(async () => {
