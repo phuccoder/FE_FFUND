@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Dropdown, Badge } from 'react-bootstrap';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell } from 'react-feather';
+
 import { useNotifications } from '@/context/NotificationContext';
+import { Bell } from 'lucide-react';
 
 const NotificationDropdown = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
