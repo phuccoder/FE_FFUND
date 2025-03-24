@@ -258,7 +258,6 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
         <label htmlFor={fieldName} className="block text-sm font-medium text-gray-700">
           {label} {category === 'mandatory' && <span className="text-red-500">*</span>}
         </label>
-
         <div className="flex items-center space-x-3">
           <div className="flex-grow">
             <input
