@@ -16,6 +16,7 @@ import UpdateBlog from '@/components/UpdateBlog/UpdateBlog';
 // Import the services
 import { milestoneService } from 'src/services/milestoneService';
 import { milestoneItemService } from 'src/services/milestoneItemService';
+import updatePostService from 'src/services/updatePostService';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -105,10 +106,12 @@ function EditProjectPage() {
       status: 'NOT_STARTED'
     },
   });
+
   const [authStatus, setAuthStatus] = useState({
     isAuthenticated: false,
     isLoading: true
   });
+
   const updateAllProjectIds = (id) => {
     if (!id) {
       console.warn("Attempted to update project IDs with null/undefined value");
@@ -122,35 +125,59 @@ function EditProjectPage() {
       localStorage.setItem('founderProjectId', id);
     }
 
-    // Then update state with consistent IDs everywhere
-    setFormData(prevData => ({
-      ...prevData,
-      projectId: id,
-      basicInfo: {
-        ...prevData.basicInfo,
-        projectId: id
-      },
-      fundraisingInfo: {
-        ...prevData.fundraisingInfo,
-        projectId: id,
-        phases: Array.isArray(prevData.fundraisingInfo?.phases)
-          ? prevData.fundraisingInfo.phases.map(phase => ({
+    // Create a more thorough update across all state properties
+    setFormData(prevData => {
+      // Create a deep clone of the existing data
+      const updatedData = JSON.parse(JSON.stringify(prevData));
+
+      // Set top-level projectId
+      updatedData.projectId = id;
+
+      // Set basic info projectId
+      if (updatedData.basicInfo) {
+        updatedData.basicInfo.projectId = id;
+      }
+
+      // Set fundraising info projectId
+      if (updatedData.fundraisingInfo) {
+        updatedData.fundraisingInfo.projectId = id;
+
+        // Set phase projectIds
+        if (Array.isArray(updatedData.fundraisingInfo.phases)) {
+          updatedData.fundraisingInfo.phases = updatedData.fundraisingInfo.phases.map(phase => ({
             ...phase,
             projectId: id
-          }))
-          : []
-      },
-      projectStory: {
-        ...prevData.projectStory,
-        projectId: id
+          }));
+        }
       }
-    }));
+
+      // Set project story projectId
+      if (updatedData.projectStory) {
+        updatedData.projectStory.projectId = id;
+      }
+
+      // Set reward info projectIds
+      if (Array.isArray(updatedData.rewardInfo)) {
+        updatedData.rewardInfo = updatedData.rewardInfo.map(reward => ({
+          ...reward,
+          projectId: id
+        }));
+      }
+
+      return updatedData;
+    });
 
     // Log the update for debugging
-    setTimeout(() => debugFormData(), 0);
+    setTimeout(() => {
+      console.log("Form data after ID update:", {
+        mainProjectId: formData.projectId,
+        basicInfoProjectId: formData.basicInfo?.projectId,
+        fundraisingInfoProjectId: formData.fundraisingInfo?.projectId,
+        phases: formData.fundraisingInfo?.phases?.length || 0
+      });
+    }, 100);
   };
 
-  // Replace the existing ensureProjectId function with this improved version
   const ensureProjectId = () => {
     // Check all possible sources for a project ID
     let id = null;
@@ -173,11 +200,6 @@ function EditProjectPage() {
       console.log("Using project ID from basicInfo:", id);
     }
 
-    if (!id && formData?.fundraisingInfo?.projectId) {
-      id = formData.fundraisingInfo.projectId;
-      console.log("Using project ID from fundraisingInfo:", id);
-    }
-
     // Finally check localStorage
     if (!id && typeof window !== 'undefined') {
       id = localStorage.getItem('founderProjectId');
@@ -196,23 +218,29 @@ function EditProjectPage() {
 
   useEffect(() => {
     if (router.isReady) {
-      // Get project ID from URL query parameter if available
-      const urlProjectId = router.query.projectId;
+      const id = router.query.projectId || ensureProjectId();
 
-      // If we have a URL project ID, use it
-      if (urlProjectId) {
-        console.log("Found project ID from URL:", urlProjectId);
-        updateAllProjectIds(urlProjectId);
-      } else {
-        // Otherwise try to find from other sources
-        const id = ensureProjectId();
-        if (id) {
-          console.log("Found project ID from available sources:", id);
-          updateAllProjectIds(id);
+      if (id && !authStatus.isLoading && authStatus.isAuthenticated) {
+        console.log("Loading project with ID:", id);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('founderProjectId', id);
         }
+
+        updateAllProjectIds(id);
+
+        loadProjectData(id).then(() => {
+          console.log("Basic project data loaded, now loading detailed data");
+
+          loadAllProjectData(id);
+
+          loadProjectUpdates(id);
+        }).catch(error => {
+          console.error("Error in project data loading sequence:", error);
+        });
       }
     }
-  }, [router.isReady]);
+  }, [router.isReady, authStatus.isLoading, authStatus.isAuthenticated]);
 
   // Check authentication status
   useEffect(() => {
@@ -238,27 +266,48 @@ function EditProjectPage() {
     checkAuth();
   }, [router]);
 
-  // Add this effect to immediately set the projectId when available
   useEffect(() => {
-    const id = ensureProjectId();
+    const initializeProject = async () => {
+      try {
+        // Only initialize once auth is ready
+        if (authStatus.isLoading || !authStatus.isAuthenticated) return;
 
-    if (id && !authStatus.isLoading && authStatus.isAuthenticated) {
-      console.log("Loading project with ID:", id);
+        console.log("Initializing project...");
 
-      // First load basic project data
-      loadProjectData(id).then(() => {
-        console.log("Basic project data loaded, now loading detailed data");
+        // Get project ID from all possible sources
+        const projectId = await getProjectIdFromAllSources();
+        console.log("Initial project ID from all sources:", projectId);
 
-        // After basic data is loaded, load all related data
-        loadAllProjectData(id);
+        if (!projectId) {
+          console.warn("No project ID found from any source");
+          return;
+        }
+
+        // Immediately store in localStorage for persistence
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('founderProjectId', projectId);
+        }
+
+        // Update all project IDs in state
+        updateAllProjectIds(projectId);
+
+        // Load project data with this ID
+        await loadProjectData(projectId);
+
+        // After basic data is loaded, get all related data
+        await loadAllProjectData(projectId);
 
         // Also load project updates
-        loadProjectUpdates(id);
-      }).catch(error => {
-        console.error("Error in project data loading sequence:", error);
-      });
-    }
-  }, [routerProjectId, authStatus.isLoading, authStatus.isAuthenticated]);
+        await loadProjectUpdates(projectId);
+
+        console.log("Project initialization complete with ID:", projectId);
+      } catch (error) {
+        console.error("Error during project initialization:", error);
+      }
+    };
+
+    initializeProject();
+  }, [router.isReady, authStatus.isAuthenticated, authStatus.isLoading]);
 
   useEffect(() => {
     // This effect helps when projectId comes from API response
@@ -275,17 +324,17 @@ function EditProjectPage() {
           const idToUse = queryId || storedId;
           console.log("Using project ID from URL/localStorage:", idToUse);
 
-          setFormData(prevData => ({
-            ...prevData,
-            projectId: idToUse,
-            fundraisingInfo: {
-              ...prevData.fundraisingInfo,
-              projectId: idToUse
-            }
-          }));
+          // Use the updateAllProjectIds function to ensure consistency
+          updateAllProjectIds(idToUse);
 
-          // Force load phases with this ID
-          loadProjectPhases(idToUse);
+          // Force load phases with this ID if needed
+          if (!formData.fundraisingInfo?.phases || formData.fundraisingInfo.phases.length === 0) {
+            loadProjectPhases(idToUse);
+          }
+        } else if (formData.basicInfo?.projectId) {
+          // Use ID from basicInfo if available
+          console.log("Using project ID from basicInfo:", formData.basicInfo.projectId);
+          updateAllProjectIds(formData.basicInfo.projectId);
         }
       } catch (err) {
         console.error("Error extracting project ID:", err);
@@ -294,7 +343,40 @@ function EditProjectPage() {
 
     // Run once when component mounts
     extractProjectIdFromRawData();
-  }, []);
+  }, [router.query]);
+
+  const getProjectIdFromAllSources = async () => {
+    // 1. Try URL query parameter (highest priority)
+    if (router.isReady && router.query.projectId) {
+      return router.query.projectId;
+    }
+
+    // 2. Try localStorage
+    if (typeof window !== 'undefined') {
+      const storedId = localStorage.getItem('founderProjectId');
+      if (storedId) return storedId;
+    }
+
+    // 3. Try to get latest project from API directly
+    try {
+      const response = await projectService.getProjectsByFounder();
+
+      // Handle different API response formats
+      if (Array.isArray(response) && response.length > 0) {
+        return response[0].projectId || response[0].id;
+      }
+      else if (response && (response.projectId || response.id)) {
+        return response.projectId || response.id;
+      }
+      else if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+        return response.data[0].projectId || response.data[0].id;
+      }
+    } catch (err) {
+      console.error("Error getting projects:", err);
+    }
+
+    return null;
+  };
 
   // New function to load all project-related data
   const loadAllProjectData = async (projectId) => {
@@ -570,16 +652,32 @@ function EditProjectPage() {
   // Load project updates
   const loadProjectUpdates = async (projectId) => {
     try {
-      const updates = await projectService.getProjectUpdates(projectId);
+      if (!projectId) {
+        console.error("No project ID provided for loading updates");
+        return;
+      }
+
+      console.log("Loading updates for project:", projectId);
+      const updates = await updatePostService.getUpdatePostByProjectId(projectId);
+
       if (updates && Array.isArray(updates)) {
         setExistingUpdates(updates.map(update => ({
+          id: update.id,
           title: update.title || '',
           content: update.content || '',
-          date: update.createdAt || new Date().toISOString()
+          postContent: update.postContent || update.content || '', // Support both field names
+          date: update.createdAt || new Date().toISOString(),
+          images: update.images || []
         })));
+
+        console.log(`Loaded ${updates.length} updates for project ${projectId}`);
+      } else {
+        console.log("No updates found for project:", projectId);
+        setExistingUpdates([]);
       }
     } catch (error) {
       console.error("Error loading project updates:", error);
+      setExistingUpdates([]);
     }
   };
 
@@ -638,11 +736,71 @@ function EditProjectPage() {
 
       // If no projectId is provided, try to find one from available sources
       if (!projectId) {
-        projectId = ensureProjectId();
+        projectId = await getProjectIdFromAllSources();
         if (!projectId) {
           console.error("No project ID available for loading data");
           return null;
         }
+      }
+
+      // First, immediately store the project ID to ensure it's available
+      updateAllProjectIds(projectId);
+
+      // Try to get the project directly by ID first (more reliable)
+      try {
+        const directProjectData = await projectService.getProjectById(projectId);
+        if (directProjectData) {
+          console.log("Successfully loaded project directly by ID:", directProjectData);
+
+          // Extract the project ID to ensure consistency
+          const extractedProjectId = directProjectData.projectId || directProjectData.id;
+
+          // Update all project IDs in state
+          updateAllProjectIds(extractedProjectId);
+
+          // Set project status
+          setProjectStatus(directProjectData.status || 'DRAFT');
+
+          // Store original data for comparison
+          setOriginalData(directProjectData);
+
+          // Set edit mode
+          setIsEditMode(true);
+
+          // Update form data with project details
+          const updateFormWithDirectData = {
+            projectId: extractedProjectId,
+            basicInfo: {
+              projectId: extractedProjectId,
+              title: directProjectData.title || '',
+              shortDescription: directProjectData.description || directProjectData.projectDescription || '',
+              projectDescription: directProjectData.description || directProjectData.projectDescription || '',
+              category: directProjectData.category?.id || '',
+              categoryId: directProjectData.category?.id || '',
+              subCategoryIds: directProjectData.subCategories?.map(sub => sub.id) || [],
+              location: directProjectData.location || directProjectData.projectLocation || '',
+              projectLocation: directProjectData.location || directProjectData.projectLocation || '',
+              projectUrl: directProjectData.projectUrl || '',
+              mainSocialMediaUrl: directProjectData.mainSocialMediaUrl || '',
+              projectVideoDemo: directProjectData.projectVideoDemo || '',
+              totalTargetAmount: directProjectData.totalTargetAmount || 1000,
+              isClassPotential: directProjectData.isClassPotential !== undefined
+                ? directProjectData.isClassPotential
+                : false,
+              status: directProjectData.status || 'DRAFT',
+              projectImage: directProjectData.projectImage || null
+            }
+          };
+
+          setFormData(prevData => ({
+            ...prevData,
+            ...updateFormWithDirectData
+          }));
+
+          return directProjectData;
+        }
+      } catch (directError) {
+        console.warn("Could not load project directly, falling back to founder projects:", directError);
       }
 
       // Get projects from founder API
@@ -685,12 +843,14 @@ function EditProjectPage() {
 
       // Extract the project ID that will be used consistently throughout the app
       const extractedProjectId = projectData.projectId || projectData.id;
-      console.log("Using project ID:", extractedProjectId);
 
       if (!extractedProjectId) {
         console.error("No project ID found in the response");
         return null;
       }
+
+      // Ensure consistent ID usage
+      updateAllProjectIds(extractedProjectId);
 
       // Set project status
       const status = projectData.status || 'DRAFT';
@@ -701,9 +861,6 @@ function EditProjectPage() {
 
       // Set edit mode
       setIsEditMode(true);
-
-      // Use our centralized function to update all project IDs consistently
-      updateAllProjectIds(extractedProjectId);
 
       // Update the form data with details from projectData
       setFormData(prevData => ({
@@ -742,6 +899,11 @@ function EditProjectPage() {
             : []
         }
       }));
+
+      // Immediately store in localStorage for persistence
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('founderProjectId', extractedProjectId);
+      }
 
       console.log("Project data loaded successfully with ID:", extractedProjectId);
       return projectData;
@@ -871,18 +1033,19 @@ function EditProjectPage() {
         return;
       }
 
-      // Get the project ID
-      const projectId = formData.projectId;
+      // Get the project ID using our reliable method
+      const projectId = ensureProjectId();
 
       if (!projectId) {
         alert("No project ID found. Please save your project before submitting.");
+        setIsSaving(false);
         return;
       }
 
       console.log("Saving project with ID:", projectId);
 
-      // If project is in REJECTED status and now editing, change to PENDING_APPROVAL
-      if (projectStatus === 'REJECTED') {
+      // If project is in DRAFT or REJECTED status, use submitProject
+      if (projectStatus === 'REJECTED' || projectStatus === 'DRAFT') {
         const confirmSubmit = confirm(
           "Once submitted, your project will be reviewed by our team. " +
           "You won't be able to make changes during the review process. " +
@@ -894,17 +1057,20 @@ function EditProjectPage() {
           return;
         }
 
-        // Save each section first
+        // First save all sections
         await saveAllSections(projectId);
 
-        console.log("Resubmitting rejected project");
+        // Then submit the project for review
+        console.log("Submitting project for review");
         await projectService.submitProject(projectId);
+
+        // Update status in local state
         setProjectStatus('PENDING_APPROVAL');
 
         // Show success message
         alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
       } else {
-        // Just save all sections
+        // For all other statuses, just save without submitting
         await saveAllSections(projectId);
         alert("Project updated successfully!");
       }
@@ -912,7 +1078,7 @@ function EditProjectPage() {
       // Reset the update required flag
       setUpdateRequired(false);
 
-      // Reload project data
+      // Reload project data to ensure UI is up to date
       await loadProjectData(projectId);
       await loadAllProjectData(projectId);
 
@@ -1064,10 +1230,9 @@ function EditProjectPage() {
 
       // Submit the update note
       console.log("Posting project update");
-      await projectService.postProjectUpdate(formData.projectId, {
-        content: updateNote,
-        updateType: 'PROJECT_EDIT',
-        isPublic: true
+      await updatePostService.createUpdatePost(formData.projectId, {
+        title: "Project Update",
+        postContent: updateNote,
       });
 
       // After posting update, save changes
@@ -1083,15 +1248,37 @@ function EditProjectPage() {
     }
   };
 
-  // Handle saving a new update from UpdateBlog component
   const handleSaveUpdate = async (update) => {
     try {
-      await projectService.postProjectUpdate(formData.projectId, {
+      if (!formData.projectId) {
+        const id = ensureProjectId();
+        if (!id) {
+          alert("No project ID found. Cannot post update.");
+          return false;
+        }
+      }
+
+      console.log("Posting update for project:", formData.projectId);
+
+      const createdUpdate = await updatePostService.createUpdatePost(formData.projectId, {
         title: update.title,
-        content: update.content,
-        updateType: 'GENERAL',
-        isPublic: true
+        postContent: update.postContent,
       });
+
+      // If update has images and was created successfully
+      if (update.images && update.images.length > 0 && createdUpdate && createdUpdate.id) {
+        console.log("Uploading images for update:", createdUpdate.id);
+
+        // Upload each image and get URLs
+        for (const image of update.images) {
+          try {
+            await updatePostService.uploadImage(createdUpdate.id, image);
+          } catch (imageError) {
+            console.error("Error uploading image:", imageError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
 
       // Refresh the list of updates
       await loadProjectUpdates(formData.projectId);
@@ -1196,7 +1383,6 @@ function EditProjectPage() {
         projectId={formData.projectId}
       />
     },
-    // Rest of the sections with consistent projectId usage
     {
       id: 'story',
       name: 'Project Story',
@@ -1251,7 +1437,7 @@ function EditProjectPage() {
         onSave={handleSaveUpdate}
         onCancel={() => setCurrentSection(0)}
         existingUpdates={existingUpdates}
-        projectId={formData.projectId}
+        projectId={formData.projectId || formData.basicInfo?.projectId}
       />
     )
   };
@@ -1399,6 +1585,8 @@ function EditProjectPage() {
                         </>
                       ) : projectStatus === 'REJECTED' ? (
                         "Save & Resubmit"
+                      ) : projectStatus === 'DRAFT' ? (
+                        "Save & Submit for Review"
                       ) : (
                         "Save Changes"
                       )}
