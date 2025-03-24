@@ -125,9 +125,13 @@ export default function BasicInformation({ formData, updateFormData, editMode })
         console.log('Selected project raw data:', project);
         console.log('Project Image URL from API:', project.projectImage);
 
+        const projectId = project.id || project.projectId || project._id || project.idProject || null;
+        console.log('Extracted projectId:', projectId);
+
         // Map API response to form fields
         const projectData = {
           projectId: project.id || project.projectId,
+          id: projectId,
           title: project.title || '',
           shortDescription: project.description || project.projectDescription || project.shortDescription || 'Brief description of the project',
           location: project.location || project.projectLocation || '',
@@ -155,7 +159,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
         // Update parent state
         updateFormData({
           ...projectData,
-          projectImage: project.projectImage
+          projectImage: project.projectImage,
+          projectId: projectId,
         });
       }
     } catch (err) {
