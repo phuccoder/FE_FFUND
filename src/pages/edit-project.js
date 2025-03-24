@@ -16,6 +16,7 @@ import UpdateBlog from '@/components/UpdateBlog/UpdateBlog';
 // Import the services
 import { milestoneService } from 'src/services/milestoneService';
 import { milestoneItemService } from 'src/services/milestoneItemService';
+import updatePostService from 'src/services/updatePostService';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -275,17 +276,17 @@ function EditProjectPage() {
           const idToUse = queryId || storedId;
           console.log("Using project ID from URL/localStorage:", idToUse);
 
-          setFormData(prevData => ({
-            ...prevData,
-            projectId: idToUse,
-            fundraisingInfo: {
-              ...prevData.fundraisingInfo,
-              projectId: idToUse
-            }
-          }));
+          // Use the updateAllProjectIds function to ensure consistency
+          updateAllProjectIds(idToUse);
 
-          // Force load phases with this ID
-          loadProjectPhases(idToUse);
+          // Force load phases with this ID if needed
+          if (!formData.fundraisingInfo?.phases || formData.fundraisingInfo.phases.length === 0) {
+            loadProjectPhases(idToUse);
+          }
+        } else if (formData.basicInfo?.projectId) {
+          // Use ID from basicInfo if available
+          console.log("Using project ID from basicInfo:", formData.basicInfo.projectId);
+          updateAllProjectIds(formData.basicInfo.projectId);
         }
       } catch (err) {
         console.error("Error extracting project ID:", err);
@@ -294,7 +295,7 @@ function EditProjectPage() {
 
     // Run once when component mounts
     extractProjectIdFromRawData();
-  }, []);
+  }, [router.query]);
 
   // New function to load all project-related data
   const loadAllProjectData = async (projectId) => {
@@ -570,16 +571,32 @@ function EditProjectPage() {
   // Load project updates
   const loadProjectUpdates = async (projectId) => {
     try {
-      const updates = await projectService.getProjectUpdates(projectId);
+      if (!projectId) {
+        console.error("No project ID provided for loading updates");
+        return;
+      }
+
+      console.log("Loading updates for project:", projectId);
+      const updates = await updatePostService.getUpdatePostByProjectId(projectId);
+
       if (updates && Array.isArray(updates)) {
         setExistingUpdates(updates.map(update => ({
+          id: update.id,
           title: update.title || '',
           content: update.content || '',
-          date: update.createdAt || new Date().toISOString()
+          postContent: update.postContent || update.content || '', // Support both field names
+          date: update.createdAt || new Date().toISOString(),
+          images: update.images || []
         })));
+
+        console.log(`Loaded ${updates.length} updates for project ${projectId}`);
+      } else {
+        console.log("No updates found for project:", projectId);
+        setExistingUpdates([]);
       }
     } catch (error) {
       console.error("Error loading project updates:", error);
+      setExistingUpdates([]);
     }
   };
 
@@ -1058,23 +1075,22 @@ function EditProjectPage() {
       alert("Please provide details about the changes you made.");
       return;
     }
-
+  
     try {
       setIsPosting(true);
-
+  
       // Submit the update note
       console.log("Posting project update");
-      await projectService.postProjectUpdate(formData.projectId, {
-        content: updateNote,
-        updateType: 'PROJECT_EDIT',
-        isPublic: true
+      await updatePostService.createUpdatePost(formData.projectId, {
+        title: "Project Update",
+        postContent: updateNote, 
       });
-
+  
       // After posting update, save changes
       setShowUpdateModal(false);
       await handleSave();
       setUpdateNote('');
-
+  
     } catch (error) {
       console.error("Error posting update:", error);
       alert(`Failed to post update: ${error.message || 'Unknown error'}`);
@@ -1083,15 +1099,37 @@ function EditProjectPage() {
     }
   };
 
-  // Handle saving a new update from UpdateBlog component
   const handleSaveUpdate = async (update) => {
     try {
-      await projectService.postProjectUpdate(formData.projectId, {
+      if (!formData.projectId) {
+        const id = ensureProjectId();
+        if (!id) {
+          alert("No project ID found. Cannot post update.");
+          return false;
+        }
+      }
+
+      console.log("Posting update for project:", formData.projectId);
+
+      const createdUpdate = await updatePostService.createUpdatePost(formData.projectId, {
         title: update.title,
-        content: update.content,
-        updateType: 'GENERAL',
-        isPublic: true
+        postContent: update.postContent, 
       });
+
+      // If update has images and was created successfully
+      if (update.images && update.images.length > 0 && createdUpdate && createdUpdate.id) {
+        console.log("Uploading images for update:", createdUpdate.id);
+
+        // Upload each image and get URLs
+        for (const image of update.images) {
+          try {
+            await updatePostService.uploadImage(createdUpdate.id, image);
+          } catch (imageError) {
+            console.error("Error uploading image:", imageError);
+            // Continue with other images even if one fails
+          }
+        }
+      }
 
       // Refresh the list of updates
       await loadProjectUpdates(formData.projectId);
@@ -1196,7 +1234,6 @@ function EditProjectPage() {
         projectId={formData.projectId}
       />
     },
-    // Rest of the sections with consistent projectId usage
     {
       id: 'story',
       name: 'Project Story',
@@ -1251,7 +1288,7 @@ function EditProjectPage() {
         onSave={handleSaveUpdate}
         onCancel={() => setCurrentSection(0)}
         existingUpdates={existingUpdates}
-        projectId={formData.projectId}
+        projectId={formData.projectId || formData.basicInfo?.projectId}
       />
     )
   };
