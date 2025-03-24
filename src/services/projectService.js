@@ -16,7 +16,7 @@ const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/upda
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_CREATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
-const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
+const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
 const PROJECT_UPDATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project-story/upload-image-to-story-block/${id}`;
 const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
@@ -534,10 +534,10 @@ const projectService = {
         }
     },
 
-    getProjectStoryById: async (storyId) => {
+    getProjectStoryById: async (projectId) => {
         try {
             const token = await tokenManager.getValidToken();
-            const response = await fetch(PROJECT_GET_STORY_BY_ID_ENDPOINT(storyId), {
+            const response = await fetch(PROJECT_GET_STORY_BY_ID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -552,7 +552,7 @@ const projectService = {
             const result = await response.json();
             return result.data || result;
         } catch (error) {
-            console.error(`Error fetching project story ${storyId}:`, error);
+            console.error(`Error fetching project story ${projectId}:`, error);
             throw error;
         }
     },
