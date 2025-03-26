@@ -78,6 +78,14 @@ function CreateProject() {
   });
 
   useEffect(() => {
+    const savedAgreement = localStorage.getItem('agreedToTerms');
+    setFormData((prevData) => ({
+      ...prevData,
+      termsAgreed: savedAgreement ? JSON.parse(savedAgreement) : false,
+    }));
+  }, []);
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const token = await tokenManager.getValidToken();
@@ -218,6 +226,7 @@ function CreateProject() {
   };
 
   // Update the useEffect to call this function
+  
   useEffect(() => {
     if (!authStatus.isLoading) {
       loadProjectData();
@@ -296,21 +305,23 @@ function CreateProject() {
       localStorage.setItem('founderProjectId', projectId);
     }
 
-    setFormData(prevData => {
+    // Handle termsAgreed section
+    if (section === 'termsAgreed') {
+      localStorage.setItem('agreedToTerms', JSON.stringify(data)); // Save to localStorage
+    }
+
+    setFormData((prevData) => {
       // Special handling for basicInfo to ensure consistent field structure
       if (section === 'basicInfo') {
-        // Ensure all field mappings are properly maintained
         const updatedBasicInfo = {
           ...data,
           projectId: projectId || data.projectId || prevData.projectId,
-          // Handle potential field name differences
           category: data.category || data.categoryId,
           categoryId: data.categoryId || data.category,
           location: data.location || data.projectLocation,
           projectLocation: data.projectLocation || data.location,
           shortDescription: data.shortDescription || data.projectDescription,
           projectDescription: data.projectDescription || data.shortDescription,
-          // Explicitly include the projectImage
           projectImage: data.projectImage || prevData.basicInfo?.projectImage,
         };
 
@@ -320,8 +331,7 @@ function CreateProject() {
           ...prevData,
           projectId: projectId || prevData.projectId,
           [section]: updatedBasicInfo,
-          // Also store projectImage at the top level for easier access
-          projectImage: data.projectImage || prevData.projectImage
+          projectImage: data.projectImage || prevData.projectImage,
         };
       }
 
@@ -329,7 +339,7 @@ function CreateProject() {
       return {
         ...prevData,
         projectId: projectId || prevData.projectId,
-        [section]: data
+        [section]: data,
       };
     });
   };
@@ -429,7 +439,16 @@ function CreateProject() {
   };
 
   const sections = [
-    { id: 'terms', name: 'Rules & Terms', component: <RulesTerms formData={formData.termsAgreed} updateFormData={(data) => handleUpdateFormData('termsAgreed', data)} /> },
+    {
+      id: 'terms',
+      name: 'Rules & Terms',
+      component: (
+        <RulesTerms
+          formData={formData.termsAgreed}
+          updateFormData={(data) => handleUpdateFormData('termsAgreed', data)}
+        />
+      ),
+    },
     {
       id: 'basic',
       name: 'Basic Information',
@@ -515,9 +534,12 @@ function CreateProject() {
   const goToNextSection = () => {
     if (currentSection < sections.length - 1) {
       // If going from first section to second without completing it, show warning
-      if (currentSection === 0 && !formData.termsAgreed) {
-        alert("Please agree to the rules and terms before proceeding.");
-        return;
+      if (currentSection === 0) {
+        const termsAgreed = formData.termsAgreed || JSON.parse(localStorage.getItem('agreedToTerms'));
+        if (!termsAgreed) {
+          alert("Please agree to the rules and terms before proceeding.");
+          return;
+        }
       }
 
       // If going from second section without completing it, show warning
@@ -527,7 +549,8 @@ function CreateProject() {
         const locationValue = basicInfo.location || basicInfo.locationId;
         const subCategoryValue = basicInfo.subCategory || basicInfo.subCategoryIds;
 
-        if (!basicInfo.title ||
+        if (
+          !basicInfo.title ||
           !categoryValue ||
           !subCategoryValue ||
           !basicInfo.shortDescription ||
@@ -535,14 +558,15 @@ function CreateProject() {
           !basicInfo.projectUrl ||
           !basicInfo.mainSocialMediaUrl ||
           !basicInfo.projectVideoDemo ||
-          basicInfo.isClassPotential === undefined) {
+          basicInfo.isClassPotential === undefined
+        ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;
         }
       }
 
       // If going from fundraising to rewards section, check if phases exist
-      if (currentSection === 2) { // Index of fundraising section
+      if (currentSection === 2) {
         if (!hasPhases()) {
           alert("Please add at least one funding phase before proceeding to rewards.");
           return;
@@ -550,7 +574,7 @@ function CreateProject() {
       }
 
       // If going from project story to founder profile section, check if project story is complete
-      if (currentSection === 4) { // Index of project story section
+      if (currentSection === 4) {
         if (!isProjectStoryComplete()) {
           alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
           return;
