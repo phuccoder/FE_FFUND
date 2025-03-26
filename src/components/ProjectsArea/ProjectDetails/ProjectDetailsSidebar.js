@@ -10,7 +10,7 @@ const ProjectDetailsSidebar = ({ project }) => {
   const router = useRouter();
 
   const { id } = project;
-  
+
   useEffect(() => {
     // Fetch phases for guest using projectId from the project prop
     const fetchPhases = async () => {
@@ -25,15 +25,15 @@ const ProjectDetailsSidebar = ({ project }) => {
           const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
           return { phaseId: phase.id, milestones: fetchedMilestones };
         });
-        
+
         const milestonesResults = await Promise.all(milestonesPromises);
-        
+
         // Convert array of results to object with phaseId as key
         const milestonesObj = milestonesResults.reduce((acc, { phaseId, milestones }) => {
           acc[phaseId] = milestones;
           return acc;
         }, {});
-        
+
         setMilestones(milestonesObj);
       } catch (err) {
         setError("Failed to load funding phases.");
@@ -47,10 +47,22 @@ const ProjectDetailsSidebar = ({ project }) => {
       fetchPhases();
     }
   }, [id]);
-  
+
   const handleContinueClick = (phaseId) => {
+    // Ensure phaseId is a string for URL parameters
+    const phaseIdParam = String(phaseId);
+    const projectIdParam = String(id);
+
+    console.log(`Redirecting to payment with projectId=${projectIdParam} and phaseId=${phaseIdParam}`);
+
     // Navigate to the payment page with project and phase IDs
-    router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
+    router.push({
+      pathname: '/payment',
+      query: {
+        projectId: projectIdParam,
+        phaseId: phaseIdParam
+      }
+    });
   };
   
   return (
@@ -68,7 +80,7 @@ const ProjectDetailsSidebar = ({ project }) => {
             <p><strong>Start Date:</strong> {`${phase.startDate[1]}/${phase.startDate[0]}`}</p>
             <p><strong>End Date:</strong> {`${phase.endDate[1]}/${phase.endDate[0]}`}</p>
           </div>
-          
+
           {/* Display milestones for each phase */}
           {milestones[phase.id] && milestones[phase.id].length > 0 ? (
             <div>
@@ -96,7 +108,7 @@ const ProjectDetailsSidebar = ({ project }) => {
             <div className="text-center text-sm text-gray-600">No milestones for this phase.</div>
           )}
 
-          <button 
+          <button
             className="main-btn w-full text-center mt-4"
             onClick={() => handleContinueClick(phase.id)}
           >
