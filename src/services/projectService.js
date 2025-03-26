@@ -20,7 +20,7 @@ const PROJECT_CREATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${i
 const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPDATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project-story/upload-image-to-story-block/${id}`;
-const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/story-public/${id}`;
+const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
 const PROJECT_CREATE_DOCUMENT_ENDPOINT = (id) => `${API_BASE_URL}/project-document/${id}`;
 const PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT = (id) => `${API_BASE_URL}/project-document/upload-file-document/${id}`;
 const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-document/get-by-project-id/${id}`;

@@ -1,7 +1,7 @@
 import Header from "@/components/Header/Header";
 import InvitationList from "@/components/Invitation/InvitationList";
 import Layout from "@/components/Layout/Layout";
-import PageTitle from "@/components/Reuseable/PageTitle";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const ManageInvitationsPage = () => {
   return (
@@ -28,4 +28,10 @@ const ManageInvitationsPage = () => {
   );
 };
 
-export default ManageInvitationsPage;
+export default function ManageInvitations() {
+  return(
+    <ProtectedRoute requiredRoles={['FOUNDER']}>
+      <ManageInvitationsPage />
+    </ProtectedRoute>
+  )
+}
