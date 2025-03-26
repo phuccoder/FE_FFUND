@@ -11,7 +11,6 @@ const AdvancedSearch = ({ onSearch }) => {
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
 
   useEffect(() => {
-    // Fetch categories using projectService.getAllCategories
     const fetchCategories = async () => {
       try {
         const data = await projectService.getAllCategories();
@@ -40,52 +39,33 @@ const AdvancedSearch = ({ onSearch }) => {
 
   const handleMainCategoryChange = (event) => {
     setSelectedMainCategory(event.target.value);
-    setSelectedCategory([]); // Reset selected categories when main category changes
+    setSelectedCategory([]); 
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     const queryParts = [];
 
     if (searchTerm) {
-      queryParts.push(`title:eq:${searchTerm}`);
+      queryParts.push(`title:eq:${encodeURIComponent(searchTerm)}`);
     }
 
     if (selectedMainCategory !== "All") {
-      queryParts.push(`category.name:eq:${selectedMainCategory}`);
+      queryParts.push(`category.name:eq:${encodeURIComponent(selectedMainCategory)}`);
     }
 
-    if (queryParts.length === 0) {
-      console.error("No search criteria provided.");
+    if (queryParts.length === 0 && selectedMainCategory === "All") {
+      onSearch(null);
       return;
     }
 
-    const sort = sortOption;
-    const query = queryParts.join(",");
-    console.log("Constructed Query:", query);
+    const searchParams = {
+      query: queryParts.join(","),
+      sort: sortOption
+    };
 
-    // Ensure query is not undefined or empty before making the request
-    if (!query) {
-      console.error("Query is empty. Aborting search.");
-      return;
-    }
-
-    const page = 0;
-    const size = 10;
-
-    try {
-      const response = await projectService.searchProjects(page, size, { query, sort });
-      if (response.status === 200) {
-        onSearch({
-          projects: response,
-          selectedCategory,
-          sortOption,
-        });
-      } else {
-        console.error("Failed to fetch projects:", response.error);
-      }
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-    }
+    console.log("Search parameters:", searchParams);
+    onSearch(searchParams);
+    setIsSearchVisible(false);
   };
 
   const toggleSearch = () => {

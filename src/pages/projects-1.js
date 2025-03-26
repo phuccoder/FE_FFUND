@@ -9,8 +9,8 @@ const Projects = () => {
   const [searchParams, setSearchParams] = useState(null);
 
   const handleSearch = (params) => {
+    console.log("Search parameters in Projects page:", params);
     setSearchParams(params);
-    console.log("Search parameters: ", params);
   };
 
   return (
