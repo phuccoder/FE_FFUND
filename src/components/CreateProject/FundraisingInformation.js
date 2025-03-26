@@ -361,7 +361,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       {/* Project Phases Overview */}
       <div className="border-b border-gray-200 pb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Project Phases</h2>
+          <h2 className="text-xl font-medium text-gray-900">Project Phases</h2>
           {form.phases && form.phases.length > 0 && (
             <div className="text-sm text-gray-500">
               <span className="font-medium">Total Funding Goal:</span> {formatCurrency(calculateTotalFunding())} |&nbsp;
