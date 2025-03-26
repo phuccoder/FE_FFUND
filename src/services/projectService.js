@@ -14,17 +14,20 @@ const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${i
 const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
+const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/guest/project/${id}`;
 const PROJECT_GET_FUNDING_PHASE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_CREATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_GET_STORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPDATE_STORY_ENDPOINT = (id) => `${API_BASE_URL}/project-story/${id}`;
 const PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project-story/upload-image-to-story-block/${id}`;
-const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/${id}`;
+const PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/project-story/project/story-public/${id}`;
 const PROJECT_CREATE_DOCUMENT_ENDPOINT = (id) => `${API_BASE_URL}/project-document/${id}`;
 const PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT = (id) => `${API_BASE_URL}/project-document/upload-file-document/${id}`;
 const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-document/get-by-project-id/${id}`;
 const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
 const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-image/${id}`;
+//Milestone
+const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
 /**
  * Project related API service methods
  */
@@ -470,6 +473,76 @@ const projectService = {
             throw error;
         }
     },
+    
+    getMilestoneByPhaseId: async (phaseId) => {
+        try{
+            const token = await tokenManager.getValidToken();
+            if(!token){
+                throw new Error("No authentication token avaiable")
+            }
+
+            const response = await fetch(PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT(phaseId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            // Check if the response is OK
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+            console.log("API response for milestones:", responseData);
+            
+            // Ensure the data has the correct structure
+            if (responseData && responseData.data && Array.isArray(responseData.data)) {
+                return responseData.data;
+            }
+
+            // Handle unexpected response format
+            console.warn("Unexpected response format from API:", responseData);
+            return [];
+        } catch (error) {
+            console.error('Error fetching milestones for phase:', error);
+            throw error;
+        }
+    },
+    
+    getPhasesForGuest: async (projectId) => {
+        try {
+            // Send GET request without authorization token for guest access
+            const response = await fetch(PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT(projectId), {
+                method: 'GET',
+                headers: {
+                    'accept': '*/*',
+                }
+            });
+
+            // Check if the response is OK
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            // Parse the JSON response
+            const responseData = await response.json();
+            console.log("API response for guest funding phases:", responseData);
+
+            // Ensure response structure is correct and contains phases data
+            if (responseData && responseData.data && Array.isArray(responseData.data)) {
+                return responseData.data;
+            }
+
+            // Return empty array if no proper data found
+            console.warn("Unexpected response format from API:", responseData);
+            return [];
+        } catch (error) {
+            console.error('Error fetching funding phases for guest:', error);
+            throw error;
+        }
+    },
 
     getPhaseById: async (phaseId) => {
         try {
@@ -524,8 +597,6 @@ const projectService = {
             if (!token) {
                 throw new Error("No authentication token available");
             }
-
-            console.log(`Fetching project story for project: ${projectId}`);
 
             const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
