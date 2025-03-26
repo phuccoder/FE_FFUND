@@ -84,7 +84,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 export default function Profile(){
     return (
-        <ProtectedRoute requiredRoles={['FOUNDER', 'MEMBER']}>
+        <ProtectedRoute requiredRoles={['FOUNDER', 'INVESTOR']}>
             <ProfilePage />
         </ProtectedRoute>
     );

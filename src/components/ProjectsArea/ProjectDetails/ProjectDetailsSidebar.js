@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import projectService from "../../../services/projectService";
+import { useRouter } from "next/router";
 
 const ProjectDetailsSidebar = ({ project }) => {
   const [phases, setPhases] = useState([]);  // State to store phase data
   const [milestones, setMilestones] = useState({}); // State to store milestones for each phase
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   const { id } = project;
   
@@ -19,13 +21,20 @@ const ProjectDetailsSidebar = ({ project }) => {
         setPhases(fetchedPhases);
 
         // For each phase, fetch milestones
-        fetchedPhases.forEach(async (phase) => {
+        const milestonesPromises = fetchedPhases.map(async (phase) => {
           const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
-          setMilestones((prevMilestones) => ({
-            ...prevMilestones,
-            [phase.id]: fetchedMilestones,  // Store milestones by phaseId
-          }));
+          return { phaseId: phase.id, milestones: fetchedMilestones };
         });
+        
+        const milestonesResults = await Promise.all(milestonesPromises);
+        
+        // Convert array of results to object with phaseId as key
+        const milestonesObj = milestonesResults.reduce((acc, { phaseId, milestones }) => {
+          acc[phaseId] = milestones;
+          return acc;
+        }, {});
+        
+        setMilestones(milestonesObj);
       } catch (err) {
         setError("Failed to load funding phases.");
         console.error(err);
@@ -37,7 +46,12 @@ const ProjectDetailsSidebar = ({ project }) => {
     if (id) {
       fetchPhases();
     }
-  }, [project]);
+  }, [id]);
+  
+  const handleContinueClick = (phaseId) => {
+    // Navigate to the payment page with project and phase IDs
+    router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
+  };
   
   return (
     <div className="project-details-sidebar p-6">
@@ -65,9 +79,11 @@ const ProjectDetailsSidebar = ({ project }) => {
                   <p className="text-gray-700 mb-2">{milestone.description}</p>
                   <p className="text-sm text-gray-600"><strong>Price:</strong> ${milestone.price}</p>
                   <div className="grid grid-cols-2 gap-6 mt-4">
-                    {milestone.items.map((item) => (
+                    {milestone.items && milestone.items.length > 0 && milestone.items.map((item) => (
                       <div key={item.id} className="milestone-item-card p-4 bg-white rounded-lg shadow-sm flex flex-col items-center">
-                        <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover mb-2 rounded-md" />
+                        {item.imageUrl && (
+                          <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover mb-2 rounded-md" />
+                        )}
                         <p className="text-center text-sm text-gray-800">{item.name}</p>
                         <span className="text-xs text-gray-500">Quantity: {item.quantity}</span>
                       </div>
@@ -80,9 +96,12 @@ const ProjectDetailsSidebar = ({ project }) => {
             <div className="text-center text-sm text-gray-600">No milestones for this phase.</div>
           )}
 
-          <a className="main-btn" href="#">
+          <button 
+            className="main-btn w-full text-center mt-4"
+            onClick={() => handleContinueClick(phase.id)}
+          >
             Continue now
-          </a>
+          </button>
         </div>
       ))}
     </div>
