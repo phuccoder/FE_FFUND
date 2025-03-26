@@ -201,8 +201,8 @@ export default function ImageUpload({ projectId, currentImage, onImageUpdate }) 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-gray-700">
-                    Project Cover Image
+                <label className="block text-lg font-medium text-gray-700">
+                    Project Cover Image<span className="text-red-500">*</span>
                 </label>
             </div>
 

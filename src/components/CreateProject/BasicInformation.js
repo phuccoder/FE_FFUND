@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
 import ImageUpload from './ImageUpload';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 
 /**
  * Basic information form for project creation
@@ -550,6 +552,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
   ];
 
   return (
+    <>
+    <ToastContainer />
     <form className="space-y-6" onSubmit={handleSubmit}>
       {/* Error messages */}
       {(error.categories || error.subcategories || error.submit || error.fetchingProject) && (
@@ -604,9 +608,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
             <div className="ml-3">
               <h3 className="text-sm font-medium text-green-800">Success!</h3>
               <div className="mt-2 text-sm text-green-700">
-                <p>Your project has been successfully {form.projectId ? 'updated' : 'created'} as a draft.</p>
-                {form.projectId && <p className="font-medium mt-1">Project ID: {form.projectId}</p>}
-                <p className="mt-1">You can now proceed to add funding phases in the next section.</p>
+                <p>Your project has been created successfully {form.projectId ? 'updated' : 'created'}</p>
               </div>
             </div>
           </div>
@@ -615,8 +617,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
 
       {/* Rest of the form fields remain the same */}
       <div>
-        <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-          Project Title *
+        <label htmlFor="title" className="block text-xl font-medium text-gray-700">
+          Project Title <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -639,8 +641,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       </div>
 
       <div>
-        <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
-          Project Category *
+        <label htmlFor="categoryId" className="block text-lg font-medium text-gray-700">
+          Project Category<span className="text-red-500">*</span>
         </label>
         <select
           id="categoryId"
@@ -677,7 +679,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
 
       {form.categoryId && (
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-base font-medium text-gray-700">
             Subcategories
           </label>
           <div className={`mt-2 space-y-2 ${error.validation.subCategoryIds ? 'border border-red-300 p-3 rounded-md' : ''}`}>
@@ -720,8 +722,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       )}
 
       <div>
-        <label htmlFor="shortDescription" className="block text-sm font-medium text-gray-700">
-          Short Description *
+        <label htmlFor="shortDescription" className="block text-lg font-medium text-gray-700">
+          Short Description<span className="text-red-500">*</span>
         </label>
         <textarea
           id="shortDescription"
@@ -744,8 +746,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       </div>
 
       <div>
-        <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-          Project Location *
+        <label htmlFor="location" className="block text-lg font-medium text-gray-700">
+          FPT Campus<span className="text-red-500">*</span>
         </label>
         <select
           id="location"
@@ -767,14 +769,14 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           <p className="mt-1 text-sm text-red-600">{error.validation.location}</p>
         ) : (
           <p className="mt-1 text-sm text-gray-500">
-            Choose the primary location where your project will be based.
+            Choose the primary FPT University Campus where your project are based.
           </p>
         )}
       </div>
 
       <div>
-        <label htmlFor="totalTargetAmount" className="block text-sm font-medium text-gray-700">
-          Total Target Amount (VND) *
+        <label htmlFor="totalTargetAmount" className="block text-lg font-medium text-gray-700">
+          Total Target Amount<span className="text-red-500">*</span>
         </label>
         <div className="mt-1 relative rounded-md shadow-sm">
           <input
@@ -794,37 +796,14 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           <p className="mt-1 text-sm text-red-600">{error.validation.totalTargetAmount}</p>
         ) : (
           <p className="mt-1 text-sm text-gray-500">
-            The total amount you aim to raise for your project. Minimum 1000 VND.
+            The total amount you aim to raise for your project. Minimum 1000$.
           </p>
         )}
       </div>
 
       <div>
-        <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-          Project Status
-        </label>
-        <select
-          id="status"
-          name="status"
-          value={form.status || 'DRAFT'}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-        >
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status.charAt(0) + status.slice(1).toLowerCase()}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-sm text-gray-500">
-          The current status of your project. New projects typically start as drafts.
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor="projectUrl" className="block text-sm font-medium text-gray-700">
-          Project Website URL
+        <label htmlFor="projectUrl" className="block text-lg font-medium text-gray-700">
+          Project Website URL (Optional)
         </label>
         <input
           type="url"
@@ -842,8 +821,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       </div>
 
       <div>
-        <label htmlFor="mainSocialMediaUrl" className="block text-sm font-medium text-gray-700">
-          Main Social Media URL
+        <label htmlFor="mainSocialMediaUrl" className="block text-lg font-medium text-gray-700">
+          Main Social Media URL (Optional)
         </label>
         <input
           type="url"
@@ -861,8 +840,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       </div>
 
       <div>
-        <label htmlFor="projectVideoDemo" className="block text-sm font-medium text-gray-700">
-          Project Video Demo URL
+        <label htmlFor="projectVideoDemo" className="block text-lg font-medium text-gray-700">
+          Project Describes Video (Optional)
         </label>
         <input
           type="url"
@@ -891,12 +870,12 @@ export default function BasicInformation({ formData, updateFormData, editMode })
             className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
           />
         </div>
-        <div className="ml-3 text-sm">
+        <div className="ml-3 text-lg">
           <label htmlFor="isClassPotential" className="font-medium text-gray-700">
             Class Potential Project
           </label>
-          <p className="text-gray-500">
-            Check this box if this project is being created as part of a class or academic program.
+          <p className="text-gray-500 italic">
+            Check this box if this class project has achieved good results, has been evaluated by teachers as exemplary, or is a project for EXE401-Graduation Thesis Startup Project.
           </p>
         </div>
       </div>
@@ -907,28 +886,29 @@ export default function BasicInformation({ formData, updateFormData, editMode })
         onImageUpdate={handleImageUpdate}
       />
 
-      <div className="pt-5">
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={loading.submit}
-            className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${loading.submit ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-          >
-            {loading.submit ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {form.projectId ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              form.projectId ? 'Update Project' : 'Create Project'
-            )}
-          </button>
+        <div className="pt-5">
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={loading.submit}
+              className={`ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${loading.submit ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            >
+              {loading.submit ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {form.projectId ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                form.projectId ? 'Update Project' : 'Create Project'
+              )}
+            </button>
+          </div>
         </div>
-      </div>
     </form>
+    </>
   );
 }
 
