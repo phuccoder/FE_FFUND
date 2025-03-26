@@ -14,7 +14,6 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
       setLoading(true);
       setError(null);
       try {
-        console.log('Fetching project story for projectId:', id);
         const data = await projectService.getProjectStoryByProjectId(id);
         console.log('Received project story data:', data);
 
