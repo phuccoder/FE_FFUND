@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
-import projectService from "../../../services/projectService";
+import { useState, useEffect } from "react";
+import projectService from "../../../services/projectPublicService";
 
 const ProjectDetailsSidebar = ({ project }) => {
-  const [phases, setPhases] = useState([]);  // State to store phase data
-  const [milestones, setMilestones] = useState({}); // State to store milestones for each phase
+  const [phases, setPhases] = useState([]);
+  const [milestones, setMilestones] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [selectedPhaseId, setSelectedPhaseId] = useState(null); // Store the selected phase ID for modal
+  const [isModalOpen, setIsModalOpen] = useState(false); // Track modal open/close state
   const { id } = project;
   
   useEffect(() => {
-    // Fetch phases for guest using projectId from the project prop
     const fetchPhases = async () => {
       setLoading(true);
       setError(null);
@@ -23,7 +23,7 @@ const ProjectDetailsSidebar = ({ project }) => {
           const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
           setMilestones((prevMilestones) => ({
             ...prevMilestones,
-            [phase.id]: fetchedMilestones,  // Store milestones by phaseId
+            [phase.id]: fetchedMilestones,
           }));
         });
       } catch (err) {
@@ -38,7 +38,19 @@ const ProjectDetailsSidebar = ({ project }) => {
       fetchPhases();
     }
   }, [project]);
-  
+
+  // Function to open the modal
+  const openModal = (phaseId) => {
+    setSelectedPhaseId(phaseId);
+    setIsModalOpen(true);
+  };
+
+  // Function to close the modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedPhaseId(null);
+  };
+
   return (
     <div className="project-details-sidebar p-6">
       {loading && <div className="text-center text-lg font-semibold text-gray-700">Loading phases...</div>}
@@ -54,37 +66,53 @@ const ProjectDetailsSidebar = ({ project }) => {
             <p><strong>Start Date:</strong> {`${phase.startDate[1]}/${phase.startDate[0]}`}</p>
             <p><strong>End Date:</strong> {`${phase.endDate[1]}/${phase.endDate[0]}`}</p>
           </div>
-          
-          {/* Display milestones for each phase */}
-          {milestones[phase.id] && milestones[phase.id].length > 0 ? (
-            <div>
-              <h5 className="text-xl font-semibold text-blue-700 mb-4">Milestones:</h5>
-              {milestones[phase.id].map((milestone) => (
-                <div key={milestone.id} className="milestone-item bg-gray-100 p-4 rounded-lg mb-4 shadow-md">
-                  <h6 className="text-lg font-semibold text-blue-500">{milestone.title}</h6>
-                  <p className="text-gray-700 mb-2">{milestone.description}</p>
-                  <p className="text-sm text-gray-600"><strong>Price:</strong> ${milestone.price}</p>
-                  <div className="grid grid-cols-2 gap-6 mt-4">
-                    {milestone.items.map((item) => (
-                      <div key={item.id} className="milestone-item-card p-4 bg-white rounded-lg shadow-sm flex flex-col items-center">
-                        <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover mb-2 rounded-md" />
-                        <p className="text-center text-sm text-gray-800">{item.name}</p>
-                        <span className="text-xs text-gray-500">Quantity: {item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-sm text-gray-600">No milestones for this phase.</div>
-          )}
 
-          <a className="main-btn" href="#">
+          {/* Display button to open modal */}
+          <button 
+            onClick={() => openModal(phase.id)} 
+            className="main-btn w-full mt-4"
+          >
             Continue now
-          </a>
+          </button>
         </div>
       ))}
+
+      {/* Modal for displaying milestones */}
+      {isModalOpen && selectedPhaseId && (
+        <div className="modal-overlay fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="modal-content bg-white rounded-lg p-6 max-w-lg w-full">
+            <div className="modal-header flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-blue-600">Milestones for Phase {selectedPhaseId}</h3>
+              <button onClick={closeModal} className="text-gray-500 text-lg font-bold">X</button>
+            </div>
+            <div className="modal-body mt-4">
+              {milestones[selectedPhaseId] && milestones[selectedPhaseId].length > 0 ? (
+                milestones[selectedPhaseId].map((milestone) => (
+                  <div key={milestone.id} className="milestone-item bg-gray-100 p-4 rounded-lg mb-4 shadow-md">
+                    <h6 className="text-lg font-semibold text-blue-500">{milestone.title}</h6>
+                    <p className="text-gray-700 mb-2">{milestone.description}</p>
+                    <p className="text-sm text-gray-600"><strong>Price:</strong> ${milestone.price}</p>
+                    <div className="grid grid-cols-2 gap-6 mt-4">
+                      {milestone.items.map((item) => (
+                        <div key={item.id} className="milestone-item-card p-4 bg-white rounded-lg shadow-sm flex flex-col items-center">
+                          <img src={item.imageUrl} alt={item.name} className="w-24 h-24 object-cover mb-2 rounded-md" />
+                          <p className="text-center text-sm text-gray-800">{item.name}</p>
+                          <span className="text-xs text-gray-500">Quantity: {item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-sm text-gray-600">No milestones for this phase.</div>
+              )}
+            </div>
+            <div className="modal-footer flex justify-end mt-4">
+              <button onClick={closeModal} className="main-btn text-white">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

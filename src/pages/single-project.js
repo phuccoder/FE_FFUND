@@ -5,7 +5,7 @@ import ProjectDetailsArea from "@/components/ProjectsArea/ProjectDetails/Project
 import ProjectDetailsContent from "@/components/ProjectsArea/ProjectDetails/ProjectDetailsContent";
 import SimilarProjects from "@/components/ProjectsArea/SimilarProjects";
 import PageTitle from "@/components/Reuseable/PageTitle";
-import projectService from "../services/projectService";
+import projectService from "../services/projectPublicService";
 
 const SingleProject = () => {
   const [project, setProject] = useState(null);
