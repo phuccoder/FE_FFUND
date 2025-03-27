@@ -593,16 +593,11 @@ const projectService = {
 
     getProjectStoryByProjectId: async (projectId) => {
         try {
-            const token = await tokenManager.getValidToken();
-            if (!token) {
-                throw new Error("No authentication token available");
-            }
-
+            
             const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
                 }
             });
 
