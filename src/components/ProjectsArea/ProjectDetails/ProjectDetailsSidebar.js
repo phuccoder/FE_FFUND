@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import projectService from "../../../services/projectPublicService";
 import { useRouter } from "next/router";
 
-const ProjectDetailsSidebar = ({ project }) => {
+const ProjectDetailsSidebar = ({ getClassName, project }) => {
   const [phases, setPhases] = useState([]);
   const [milestones, setMilestones] = useState({});
   const [loading, setLoading] = useState(true);
@@ -79,38 +79,40 @@ const ProjectDetailsSidebar = ({ project }) => {
   };
 
   return (
-    <div className="project-details-sidebar p-6">
+    <div className={`${getClassName?.("pills-phase")} p-6 bg-white shadow-md rounded-lg`} id="pills-phase" role="tabpanel">
       {loading && <div className="text-center text-lg font-semibold text-gray-700">Loading phases...</div>}
       {error && <div className="text-center text-lg font-semibold text-red-600">{error}</div>}
 
-      {/* Display fetched phases */}
-      {phases.map((phase) => (
-        <div key={phase.id} className="phase-card bg-white p-4 rounded-lg shadow-md mb-6">
-          <h4 className="text-2xl font-bold text-blue-600 mb-2">Phase {phase.phaseNumber}</h4>
-          <div className="text-lg mb-4">
-            <p><strong>Target:</strong> ${phase.targetAmount.toLocaleString()}</p>
-            <p><strong>Status:</strong> {phase.status}</p>
-            <p><strong>Start Date:</strong> {`${phase.startDate[1]}/${phase.startDate[0]}`}</p>
-            <p><strong>End Date:</strong> {`${phase.endDate[1]}/${phase.endDate[0]}`}</p>
+      {/* Display fetched phases in a grid layout with 3 items per row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {phases.map((phase) => (
+          <div key={phase.id} className="phase-card bg-white p-4 rounded-lg shadow-md mb-6">
+            <h4 className="text-2xl font-bold text-blue-600 mb-2">Phase {phase.phaseNumber}</h4>
+            <div className="text-lg mb-4">
+              <p><strong>Target:</strong> ${phase.targetAmount.toLocaleString()}</p>
+              <p><strong>Status:</strong> {phase.status}</p>
+              <p><strong>Start Date:</strong> {`${phase.startDate[1]}/${phase.startDate[0]}`}</p>
+              <p><strong>End Date:</strong> {`${phase.endDate[1]}/${phase.endDate[0]}`}</p>
+            </div>
+
+            {/* Display button to open modal */}
+            <button 
+              onClick={() => openModal(phase.id)} 
+              className="main-btn w-full mt-4"
+            >
+              View Milestones
+            </button>
+
+            {/* Button to continue to payment page */}
+            <button 
+              onClick={() => handleContinueClick(phase.id)} 
+              className="main-btn w-full mt-4"
+            >
+              Continue now
+            </button>
           </div>
-
-          {/* Display button to open modal */}
-          <button 
-            onClick={() => openModal(phase.id)} 
-            className="main-btn w-full mt-4"
-          >
-            View Milestones
-          </button>
-
-          {/* Button to continue to payment page */}
-          <button 
-            onClick={() => handleContinueClick(phase.id)} 
-            className="main-btn w-full mt-4"
-          >
-            Continue now
-          </button>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {/* Modal for displaying milestones */}
       {isModalOpen && selectedPhaseId && (

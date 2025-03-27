@@ -197,11 +197,15 @@ export const projectDetailsTabBtns = [
   },
   {
     id: "pills-profile",
-    name: "FAQs",
+    name: "Team",
   },
   {
     id: "pills-contact",
     name: "Updates",
+  },
+  {
+    id: "pills-phase",
+    name: "Phase",
   },
   {
     id: "pills-4",
