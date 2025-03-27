@@ -10,7 +10,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   const [storyData, setStoryData] = useState(initialStoryData || { story: '', risks: '' });
   const [storyId, setStoryId] = useState(null);
   const [savingStatus, setSavingStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
-  const [publishStatus, setPublishStatus] = useState('DRAFT'); // 'DRAFT' or 'PUBLISHED'
   const [fetchAttempted, setFetchAttempted] = useState(false); // Track if we've attempted to fetch
   const lastUpdateRef = React.useRef(Date.now());
   const router = useRouter();
@@ -19,14 +18,14 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   useEffect(() => {
     // Skip if we've already fetched or encountered an error
     if (fetchAttempted) return;
-  
+
     if (initialStoryData) {
       console.log('Using provided initialStoryData:', initialStoryData);
       setStoryData({
         story: initialStoryData.story || '',
         risks: initialStoryData.risks || ''
       });
-  
+
       // More comprehensive check for story ID from initialStoryData
       // Check all possible fields where the ID might be stored
       const storyIdFromData =
@@ -37,16 +36,10 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           (initialStoryData.projectStory.id ||
             initialStoryData.projectStory.storyId ||
             initialStoryData.projectStory.projectStoryId));
-  
+
       if (storyIdFromData) {
         console.log('Found story ID in initialStoryData:', storyIdFromData);
         setStoryId(storyIdFromData);
-  
-        // Also set the publish status if available
-        if (initialStoryData.status || (initialStoryData.projectStory && initialStoryData.projectStory.status)) {
-          setPublishStatus(initialStoryData.status || initialStoryData.projectStory.status);
-        }
-  
         setLoading(false);
         setFetchAttempted(true);
         return;
@@ -60,10 +53,10 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         return;
       }
     }
-    
+
     // If we get here, we don't have initialStoryData, so we need to try fetching
     const currentProjectId = propProjectId || (router.isReady && router.query.id);
-    
+
     if (currentProjectId) {
       console.log('No initialStoryData, fetching from API with projectId:', currentProjectId);
       fetchStoryData(currentProjectId);
@@ -75,7 +68,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       setFetchAttempted(true);
     }
   }, [router.isReady, router.query, propProjectId, fetchAttempted, initialStoryData]);
-  
+
   // Add this function to end the loading state if it's been too long
   useEffect(() => {
     // Safety timeout to prevent infinite loading state
@@ -88,7 +81,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         setError(null);
       }
     }, 5000); // 5-second timeout
-    
+
     return () => clearTimeout(timeoutId);
   }, [loading]);
 
@@ -110,11 +103,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     if (newStoryId && newStoryId !== storyId) {
       console.log('Updating storyId from changed initialStoryData:', newStoryId);
       setStoryId(newStoryId);
-
-      // Also update publish status if provided
-      if (initialStoryData.status || (initialStoryData.projectStory && initialStoryData.projectStory.status)) {
-        setPublishStatus(initialStoryData.status || initialStoryData.projectStory.status);
-      }
     }
   }, [initialStoryData, storyId]);
 
@@ -737,13 +725,13 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     return blocks;
   };
 
-  const fetchStoryData = async (projectId) => {
+  const fetchStoryData = async (propProjectId) => {
     try {
       setLoading(true);
-      console.log('Fetching story data for project:', projectId);
+      console.log('Fetching story data for project:', propProjectId);
 
       try {
-        const response = await projectService.getProjectStoryByProjectId(projectId);
+        const response = await projectService.getProjectStoryByProjectId(propProjectId);
         console.log('Raw API response:', response);
 
         // Check if the response is an error object with status 404
@@ -761,7 +749,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         if (storyData && storyData.blocks && Array.isArray(storyData.blocks)) {
           console.log('Story data found:', storyData);
           setStoryId(storyData.projectStoryId);
-          setPublishStatus(storyData.status || 'DRAFT');
 
           // Process the blocks to separate story from risks section
           const blocks = storyData.blocks;
@@ -877,7 +864,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       // Prepare API payload
       const payload = {
         blocks: storyBlocks,
-        status: "DRAFT"
       };
 
       console.log('Creating new story');
@@ -887,7 +873,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       if (result && result.data && result.data.projectStoryId) {
         console.log('New story created with ID:', result.data.projectStoryId);
         setStoryId(result.data.projectStoryId);
-        setPublishStatus(result.data.status || 'DRAFT');
         setSavingStatus('saved');
 
         // Show saved status briefly and then reset
@@ -911,9 +896,8 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   }, [propProjectId, router.query.id]);
 
   // Update an existing story
-  // Update an existing story - Fixed to properly handle all block types correctly
   const updateStory = useCallback(async (htmlContent) => {
-    if (!storyId) {
+    if (!propProjectId) {
       console.error('Cannot update: Missing story ID');
       setSavingStatus('error');
       return false;
@@ -927,7 +911,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
       // First, fetch the existing story to get all blocks including IMAGE and VIDEO blocks
       console.log('Fetching current story data to preserve all blocks');
-      const existingStory = await projectService.getProjectStoryById(storyId);
+      const existingStory = await projectService.getProjectStoryByProjectId(propProjectId);
 
       // Extract existing blocks (handle different response formats)
       const existingBlocks = existingStory?.blocks || (existingStory?.data?.blocks || []);
@@ -1003,7 +987,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       // Prepare API payload
       const payload = {
         blocks: apiReadyBlocks,
-        status: publishStatus // Maintain current publish status
       };
 
       console.log('Updating story with ID:', storyId);
@@ -1046,7 +1029,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       setSavingStatus('error');
       return false;
     }
-  }, [storyId, publishStatus, parseHtmlToBlocks, processYouTubeUrls]);
+  }, [storyId, parseHtmlToBlocks, processYouTubeUrls]);
 
   // Helper function to process YouTube URLs in HTML content
   // Enhanced processYouTubeUrls function
@@ -1175,27 +1158,26 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       if (updateFormData && typeof updateFormData === 'function') {
         const hasContent = Boolean(storyData.story || storyData.risks);
         const now = Date.now();
-  
+
         // Only update if sufficient time has passed since last update (at least 2 seconds)
         if (hasContent && now - lastUpdateRef.current > 2000) {
           lastUpdateRef.current = now;
-  
+
           // Use timeout to further debounce
           const timeoutId = setTimeout(() => {
             updateFormData({
               story: storyData.story || '',
               risks: storyData.risks || '',
-              id: storyId,              
-              projectStoryId: storyId,  
-              status: publishStatus     
+              id: storyId,
+              projectStoryId: storyId,
             });
           }, 500);
-  
+
           return () => clearTimeout(timeoutId);
         }
       }
     }
-  }, [storyId, loading, initialStoryData, storyData, publishStatus, updateFormData]);
+  }, [storyId, loading, initialStoryData, storyData, updateFormData]);
 
   // Handler for story content change
   const handleContentChange = useCallback((data) => {
@@ -1341,9 +1323,8 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         updateFormData({
           story: processedStoryHtml,
           risks: processedRisksHtml,
-          id: storyId,              
-          projectStoryId: storyId,  
-          status: publishStatus
+          id: storyId,
+          projectStoryId: storyId,
         });
       }
 
@@ -1352,7 +1333,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       let existingBlocks = [];
       if (storyId) {
         try {
-          const existingStory = await projectService.getProjectStoryById(storyId);
+          const existingStory = await projectService.getProjectStoryByProjectId(propProjectId);
           existingBlocks = existingStory?.blocks || (existingStory?.data?.blocks || []);
           console.log('Retrieved existing blocks:', existingBlocks.length);
         } catch (err) {
@@ -1482,7 +1463,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       // Prepare payload
       const payload = {
         blocks: apiReadyBlocks,
-        status: storyId ? publishStatus : "DRAFT"
       };
 
       if (storyId) {
@@ -1503,7 +1483,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         if (result?.data?.projectStoryId) {
           console.log(`Story created with ID: ${result.data.projectStoryId}`);
           setStoryId(result.data.projectStoryId);
-          setPublishStatus(result.data.status || 'DRAFT');
         } else {
           console.error('Failed to get story ID from creation operation');
         }
@@ -1525,50 +1504,50 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       setSavingStatus('error');
       return false;
     }
-  }, [storyId, storyData, publishStatus, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData]);
+  }, [storyId, storyData, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData]);
 
-  // Handle publishing the story
-  const handlePublishStory = useCallback(async () => {
-    if (!storyId) {
-      // Create story first if it doesn't exist
-      const created = await createStory(storyData.story);
-      if (!created) return false;
-    }
+  // // Handle publishing the story
+  // const handlePublishStory = useCallback(async () => {
+  //   if (!storyId) {
+  //     // Create story first if it doesn't exist
+  //     const created = await createStory(storyData.story);
+  //     if (!created) return false;
+  //   }
 
-    try {
-      setSavingStatus('saving');
+  //   try {
+  //     setSavingStatus('saving');
 
-      // Convert HTML content to blocks format
-      const storyBlocks = parseHtmlToBlocks(storyData.story);
+  //     // Convert HTML content to blocks format
+  //     const storyBlocks = parseHtmlToBlocks(storyData.story);
 
-      // Prepare API payload with PUBLISHED status
-      const payload = {
-        blocks: storyBlocks,
-        status: "PUBLISHED"
-      };
+  //     // Prepare API payload with PUBLISHED status
+  //     const payload = {
+  //       blocks: storyBlocks,
+  //       status: "PUBLISHED"
+  //     };
 
-      console.log('Publishing story with ID:', storyId);
+  //     console.log('Publishing story with ID:', storyId);
 
-      await projectService.updateProjectStory(storyId, payload);
+  //     await projectService.updateProjectStory(storyId, payload);
 
-      console.log('Story published successfully');
-      setPublishStatus('PUBLISHED');
-      setSavingStatus('saved');
+  //     console.log('Story published successfully');
+  //     setPublishStatus('PUBLISHED');
+  //     setSavingStatus('saved');
 
-      // Show saved status briefly and then reset
-      setTimeout(() => {
-        if (setSavingStatus) { // Check if component is still mounted
-          setSavingStatus('idle');
-        }
-      }, 2000);
+  //     // Show saved status briefly and then reset
+  //     setTimeout(() => {
+  //       if (setSavingStatus) { // Check if component is still mounted
+  //         setSavingStatus('idle');
+  //       }
+  //     }, 2000);
 
-      return true;
-    } catch (error) {
-      console.error('Error publishing story:', error);
-      setSavingStatus('error');
-      return false;
-    }
-  }, [storyId, storyData.story, createStory]);
+  //     return true;
+  //   } catch (error) {
+  //     console.error('Error publishing story:', error);
+  //     setSavingStatus('error');
+  //     return false;
+  //   }
+  // }, [storyId, storyData.story, createStory]);
 
   // Handle auto-save timer
   useEffect(() => {
@@ -1592,213 +1571,414 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   }, [storyData.story, storyId, savingStatus, updateStory]);
 
   // Handle image uploads
-  const handleImageUpload = useCallback(async (file) => {
+  const handleImageUpload = useCallback(async (file, editorState) => {
     try {
       // Use project ID from props or URL
       const currentProjectId = propProjectId || router.query.id;
-
-      if (!storyId) {
-        console.log('No story ID available - creating one before image upload');
-
-        // If no story ID yet, create a story first with default content
-        if (currentProjectId) {
-          try {
-            const defaultBlocks = [
-              {
-                type: "TEXT",
-                content: "Project story",
-                order: 0,
-                metadata: {
-                  additionalProp1: {},
-                  additionalProp2: {},
-                  additionalProp3: {}
-                }
-              }
-            ];
-
-            const defaultPayload = {
-              blocks: defaultBlocks,
-              status: "DRAFT"
-            };
-
-            console.log('Creating default story before image upload');
-            const result = await projectService.createProjectStory(currentProjectId, defaultPayload);
-
-            if (result && result.data && result.data.projectStoryId) {
-              console.log('Successfully created story with ID:', result.data.projectStoryId);
-              const newStoryId = result.data.projectStoryId;
-              setStoryId(newStoryId);
-              setPublishStatus(result.data.status || 'DRAFT');
-
-              // Now upload image to the new story
-              return await uploadImage(file, newStoryId);
-            } else {
-              console.error('Failed to get story ID from create operation');
-              return null;
-            }
-          } catch (createError) {
-            console.error('Error creating story for image upload:', createError);
-            return null;
-          }
-        } else {
-          console.error('No project ID available for story creation');
-          return null;
-        }
+      if (!currentProjectId) {
+        console.error('No project ID available for image upload');
+        return null;
       }
 
-      // We have a story ID, just upload the image
-      return await uploadImage(file, storyId);
+      console.log('Starting image upload process with project ID:', currentProjectId);
+
+      let targetStoryId = storyId;
+
+      // Create the story first if it doesn't exist
+      if (!targetStoryId) {
+        console.log('No story ID available - creating story first before image upload');
+
+        try {
+          // Use existing content from editor if available
+          const currentEditorContent = storyData.story || '<p>Project story</p>';
+          const storyBlocks = parseHtmlToBlocks(currentEditorContent);
+
+          // Add a placeholder image block - this helps us track where to put the image
+          const imageBlock = {
+            type: 'IMAGE',
+            content: 'placeholder-for-uploading-image',
+            order: storyBlocks.length,
+            metadata: {
+              additionalProp1: {
+                width: "100%",
+                class: "story-image",
+                alt: file.name || "Project image"
+              }
+            }
+          };
+
+          storyBlocks.push(imageBlock);
+          const payload = { blocks: storyBlocks };
+
+          console.log('Creating story for image upload with blocks:', storyBlocks.length);
+
+          // Create the project story
+          const result = await projectService.createProjectStory(currentProjectId, payload);
+          console.log('Create story API response:', result);
+
+          // Handle different response formats
+          // Check if we have a result object with data property
+          let newStoryId = null;
+          if (result && result.data && result.data.projectStoryId) {
+            newStoryId = result.data.projectStoryId;
+          }
+          // Check if the result itself is the story object
+          else if (result && result.projectStoryId) {
+            newStoryId = result.projectStoryId;
+          }
+          // Check if result has an id property
+          else if (result && result.id) {
+            newStoryId = result.id;
+          }
+          // Check if the entire result is just the ID
+          else if (result && typeof result === 'number') {
+            newStoryId = result;
+          }
+          // Check if the result is a string ID
+          else if (result && typeof result === 'string' && !isNaN(parseInt(result))) {
+            newStoryId = parseInt(result);
+          }
+
+          // If we still don't have an ID, try to get it from the location header
+          if (!newStoryId && result && result.headers && result.headers.location) {
+            const locationParts = result.headers.location.split('/');
+            const potentialId = locationParts[locationParts.length - 1];
+            if (!isNaN(parseInt(potentialId))) {
+              newStoryId = parseInt(potentialId);
+            }
+          }
+
+          if (!newStoryId) {
+            // As a fallback, try fetching the story by project ID to see if it was created
+            console.log('No story ID found in response, attempting to fetch by project ID');
+            try {
+              const fetchedStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+              if (fetchedStory && fetchedStory.projectStoryId) {
+                newStoryId = fetchedStory.projectStoryId;
+              } else if (fetchedStory && fetchedStory.id) {
+                newStoryId = fetchedStory.id;
+              } else if (fetchedStory && fetchedStory.data && fetchedStory.data.projectStoryId) {
+                newStoryId = fetchedStory.data.projectStoryId;
+              }
+            } catch (fetchError) {
+              console.error('Error fetching story after creation:', fetchError);
+            }
+          }
+
+          if (!newStoryId) {
+            throw new Error('Failed to get story ID from API response');
+          }
+
+          // Store the new story ID
+          targetStoryId = newStoryId;
+          console.log('Successfully got story ID:', targetStoryId);
+          setStoryId(targetStoryId);
+
+          // Proceed with image upload using the new story ID
+          console.log('Now retrieving created story to find image block ID');
+          const retrievedStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+
+          if (!retrievedStory) {
+            throw new Error('Failed to retrieve created story');
+          }
+
+          // Handle different API response formats
+          const retrievedBlocks = retrievedStory.blocks ||
+            (retrievedStory.data && retrievedStory.data.blocks) || [];
+
+          console.log(`Retrieved ${retrievedBlocks.length} blocks from newly created story`);
+
+          // Find the placeholder block we just created
+          const placeholderBlock = retrievedBlocks.find(block =>
+            block.type === 'IMAGE' &&
+            (block.content === 'placeholder-for-uploading-image' || block.content === 'string')
+          );
+
+          if (!placeholderBlock || !placeholderBlock.storyBlockId) {
+            throw new Error('Could not find image placeholder block in story');
+          }
+
+          console.log('Found placeholder block with ID:', placeholderBlock.storyBlockId);
+
+          // Upload image to this specific block
+          const uploadResult = await projectService.uploadStoryImage(placeholderBlock.storyBlockId, file);
+          console.log('Upload result:', uploadResult);
+
+          // Return the image URL from result - handle different response formats
+          if (typeof uploadResult === 'string' && uploadResult.startsWith('http')) {
+            console.log('Returning direct URL from upload:', uploadResult);
+            return uploadResult;
+          }
+
+          // Handle object response with URL property
+          if (uploadResult && typeof uploadResult === 'object') {
+            if (uploadResult.url && typeof uploadResult.url === 'string') {
+              console.log('Returning URL from result object:', uploadResult.url);
+              return uploadResult.url;
+            }
+
+            if (uploadResult.data && uploadResult.data.url) {
+              console.log('Returning URL from result.data:', uploadResult.data.url);
+              return uploadResult.data.url;
+            }
+
+            if (uploadResult.content && typeof uploadResult.content === 'string' &&
+              uploadResult.content.startsWith('http')) {
+              console.log('Returning content URL from result:', uploadResult.content);
+              return uploadResult.content;
+            }
+          }
+
+          // If we still don't have a URL, check the updated story
+          console.log('No URL in response, checking updated story blocks');
+          const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
+
+          const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
+          if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
+            updatedBlock.content.startsWith('http')) {
+            console.log('Found URL in updated block:', updatedBlock.content);
+            return updatedBlock.content;
+          }
+
+          console.error('Failed to get image URL after upload');
+          return null;
+
+        } catch (error) {
+          console.error('Error creating story for image upload:', error);
+          return null;
+        }
+      } else {
+        // We already have a story ID, use this for upload
+        console.log('Using existing story ID for upload:', targetStoryId);
+        const imageResult = await uploadImage(file, targetStoryId);
+
+        // Return just the URL string
+        if (typeof imageResult === 'string' && imageResult.startsWith('http')) {
+          return imageResult;
+        } else if (imageResult && imageResult.url) {
+          return imageResult.url;
+        }
+
+        console.error('Invalid response from uploadImage');
+        return null;
+      }
     } catch (error) {
       console.error('Error in image upload process:', error);
       return null;
     }
-  }, [storyId, router.query.id, propProjectId, publishStatus]);
+  }, [storyId, propProjectId, router.query.id, storyData, uploadImage, parseHtmlToBlocks]);
+
+  // Replace the uploadImage function with this improved version
 
   const uploadImage = async (file, targetStoryId) => {
     try {
-      console.log('Uploading image for story ID:', targetStoryId);
+      console.log('Starting image upload process...');
 
+      // Get current project ID
+      const currentProjectId = propProjectId || router.query.id;
+      if (!currentProjectId) {
+        throw new Error('No project ID available for image upload');
+      }
+
+      // If no story ID is provided, we need to create the story first with current content
       if (!targetStoryId) {
-        throw new Error('No story ID provided for image upload');
-      }
+        console.log('No story ID - creating story first before uploading image');
 
-      // Step 1: Get current story blocks
-      const storyResponse = await projectService.getProjectStoryById(targetStoryId);
-      let currentBlocks = [];
-      if (storyResponse && storyResponse.blocks) {
-        currentBlocks = storyResponse.blocks;
-      } else if (storyResponse && storyResponse.data && storyResponse.data.blocks) {
-        currentBlocks = storyResponse.data.blocks;
-      }
+        try {
+          // Step 1: Create story with current editor content
+          const currentEditorContent = storyData.story || '<h1>Project Story</h1><p>Tell your story here...</p>';
+          const storyBlocks = parseHtmlToBlocks(currentEditorContent);
 
-      // Determine highest order for new block placement
-      const highestOrder = currentBlocks.length > 0 ?
-        Math.max(...currentBlocks.map(block => block.order || 0)) + 1 : 0;
-
-      // Step 2: Create a block with type IMAGE
-      const imageBlock = {
-        type: 'IMAGE',
-        content: 'placeholder-for-uploading-image',
-        order: highestOrder,
-        metadata: {
-          additionalProp1: {
-            width: "100%",
-            class: "story-image",
-            alt: file.name || "Project image"
-          }
-        }
-      };
-
-      // Step 3: Clean the existing blocks for API compatibility
-      const cleanedBlocks = currentBlocks.map(block => {
-        // Remove fields that backend doesn't recognize
-        const { storyBlockId, createdAt, updatedAt, ...essentialBlock } = block;
-
-        // Clean up metadata
-        let cleanMetadata = { additionalProp1: {} };
-
-        if (typeof essentialBlock.metadata === 'string') {
-          try {
-            const parsedMeta = JSON.parse(essentialBlock.metadata);
-            cleanMetadata = {
-              additionalProp1: parsedMeta.additionalProp1 || {},
-            };
-          } catch (e) {
-            console.warn('Failed to parse metadata string:', e);
-          }
-        } else if (essentialBlock.metadata && typeof essentialBlock.metadata === 'object') {
-          cleanMetadata = {
-            additionalProp1: essentialBlock.metadata.additionalProp1 ||
-              essentialBlock.metadata || {},
+          // Add a placeholder image block
+          const imageBlock = {
+            type: 'IMAGE',
+            content: 'placeholder-for-uploading-image',
+            order: storyBlocks.length,
+            metadata: {
+              additionalProp1: {
+                width: "100%",
+                class: "story-image",
+                alt: file.name || "Project image"
+              }
+            }
           };
-        }
 
-        return {
-          type: essentialBlock.type,
-          content: essentialBlock.content,
-          order: essentialBlock.order,
-          metadata: cleanMetadata
-        };
-      });
+          storyBlocks.push(imageBlock);
 
-      // Add our new image block
-      const updatedBlocks = [...cleanedBlocks, imageBlock];
+          // Create story with current content + placeholder
+          console.log('Creating new story with current editor content');
+          const result = await projectService.createProjectStory(currentProjectId, { blocks: storyBlocks });
 
-      // Step 4: Update the story with the new block
-      console.log('Adding new IMAGE block to story');
-      await projectService.updateProjectStory(targetStoryId, {
-        blocks: updatedBlocks,
-        status: publishStatus
-      });
-
-      // Step 5: Fetch the updated story to get the new block ID
-      console.log('Fetching updated story to get block ID');
-      const updatedStoryResponse = await projectService.getProjectStoryById(targetStoryId);
-
-      let updatedBlocks2 = [];
-      if (updatedStoryResponse && updatedStoryResponse.blocks) {
-        updatedBlocks2 = updatedStoryResponse.blocks;
-      } else if (updatedStoryResponse && updatedStoryResponse.data && updatedStoryResponse.data.blocks) {
-        updatedBlocks2 = updatedStoryResponse.data.blocks;
-      }
-
-      // Find the newly created IMAGE block
-      const createdBlock = updatedBlocks2.find(
-        block => block.type === 'IMAGE' &&
-          (block.content === 'placeholder-for-uploading-image' ||
-            block.content === 'string') &&
-          block.order === highestOrder
-      );
-
-      if (!createdBlock || !createdBlock.storyBlockId) {
-        throw new Error('Failed to find the newly created block ID');
-      }
-
-      const createdBlockId = createdBlock.storyBlockId;
-      console.log('Found new block ID:', createdBlockId);
-
-      // Step 6: Upload the image to the specific block
-      console.log('Uploading image to block with ID:', createdBlockId);
-      const imageResult = await projectService.uploadStoryImage(createdBlockId, file);
-      console.log('Image upload result:', imageResult);
-
-      // Step 7: Fetch the story again to get the updated image URL
-      console.log('Fetching updated story to get the image URL');
-      const finalResponse = await projectService.getProjectStoryById(targetStoryId);
-
-      // Find our block with the newly uploaded image URL
-      const blocks = finalResponse.data ? finalResponse.data.blocks : finalResponse.blocks;
-      const updatedImageBlock = blocks.find(block => block.storyBlockId === createdBlockId);
-
-      if (updatedImageBlock && updatedImageBlock.content && updatedImageBlock.content.startsWith('http')) {
-        console.log('Successfully found image URL:', updatedImageBlock.content);
-        return updatedImageBlock.content;
-      }
-
-      // Fallback: try to find any recently created IMAGE block with a URL
-      const fallbackBlock = blocks
-        .filter(block =>
-          block.type === 'IMAGE' &&
-          block.content &&
-          block.content.startsWith('http') &&
-          block.content !== 'placeholder-for-uploading-image'
-        )
-        .sort((a, b) => {
-          // Sort by creation date (most recent first)
-          if (a.createdAt && b.createdAt) {
-            return new Date(b.createdAt) - new Date(a.createdAt);
+          if (!result || !result.data || !result.data.projectStoryId) {
+            throw new Error('Failed to create story - invalid response');
           }
-          // Or by order (higher order = more recent)
-          return b.order - a.order;
-        })[0];
 
-      if (fallbackBlock) {
-        console.log('Found image URL via fallback method:', fallbackBlock.content);
-        return fallbackBlock.content;
+          // Step 2: Set the new story ID in state
+          const newStoryId = result.data.projectStoryId;
+          console.log('Story created successfully with ID:', newStoryId);
+          setStoryId(newStoryId);
+
+          // Step 3: NOW get the story to find the placeholder block ID
+          console.log('Retrieving created story to find image block ID');
+          const retrievedStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+
+          if (!retrievedStory) {
+            throw new Error('Failed to retrieve created story');
+          }
+
+          // Handle different API response formats
+          const retrievedBlocks = retrievedStory.blocks ||
+            (retrievedStory.data && retrievedStory.data.blocks) || [];
+
+          console.log(`Retrieved ${retrievedBlocks.length} blocks from newly created story`);
+
+          // Find the placeholder image block
+          const placeholderBlock = retrievedBlocks.find(block =>
+            block.type === 'IMAGE' &&
+            (block.content === 'placeholder-for-uploading-image' || block.content === 'string')
+          );
+
+          if (!placeholderBlock || !placeholderBlock.storyBlockId) {
+            throw new Error('Could not find placeholder image block in story');
+          }
+
+          console.log('Found placeholder image block with ID:', placeholderBlock.storyBlockId);
+
+          // Step 4: Upload image to the specific block
+          console.log('Uploading image to block ID:', placeholderBlock.storyBlockId);
+          const uploadResult = await projectService.uploadStoryImage(placeholderBlock.storyBlockId, file);
+
+          // Step 5: Return the image URL
+          if (typeof uploadResult === 'string' && uploadResult.startsWith('http')) {
+            console.log('Received URL from upload:', uploadResult);
+            return uploadResult;
+          }
+
+          // Handle object response with URL
+          if (uploadResult && typeof uploadResult === 'object') {
+            // Check common URL patterns
+            if (uploadResult.url && typeof uploadResult.url === 'string') {
+              return uploadResult.url;
+            }
+
+            if (uploadResult.data && uploadResult.data.url) {
+              return uploadResult.data.url;
+            }
+
+            if (uploadResult.content && typeof uploadResult.content === 'string' &&
+              uploadResult.content.startsWith('http')) {
+              return uploadResult.content;
+            }
+          }
+
+          // If still no URL, check the story again
+          console.log('No direct URL in response, checking updated story');
+          const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
+
+          const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
+          if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
+            updatedBlock.content.startsWith('http')) {
+            return updatedBlock.content;
+          }
+
+          throw new Error('Could not find image URL after upload');
+        } catch (error) {
+          console.error('Error in create-then-upload flow:', error);
+          return null;
+        }
+      } else {
+        // We already have a story ID, use the normal upload process for existing story
+        console.log('Using existing story ID for upload:', targetStoryId);
+
+        try {
+          // Step 1: Add a placeholder image block to the existing story
+          const existingStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const existingBlocks = existingStory?.blocks ||
+            (existingStory?.data && existingStory.data.blocks) || [];
+
+          // Determine highest order for new block
+          const highestOrder = existingBlocks.length > 0 ?
+            Math.max(...existingBlocks.map(b => b.order || 0)) + 1 : 0;
+
+          // Create placeholder image block
+          const imageBlock = {
+            type: 'IMAGE',
+            content: 'placeholder-for-uploading-image',
+            order: highestOrder,
+            metadata: {
+              additionalProp1: {
+                width: "100%",
+                class: "story-image",
+                alt: file.name || "Project image"
+              }
+            }
+          };
+
+          // Clean existing blocks for API
+          const cleanBlocks = existingBlocks.map(block => {
+            // Keep only fields the API expects
+            return {
+              type: block.type,
+              content: block.content,
+              order: block.order,
+              metadata: {
+                additionalProp1:
+                  (block.metadata && block.metadata.additionalProp1) ||
+                  (typeof block.metadata === 'object' ? block.metadata : {})
+              }
+            };
+          });
+
+          // Add placeholder and update story
+          const updatedBlocks = [...cleanBlocks, imageBlock];
+          await projectService.updateProjectStory(targetStoryId, { blocks: updatedBlocks });
+
+          // Get updated story with new block ID
+          const updatedStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const updatedBlocks2 = updatedStory?.blocks ||
+            (updatedStory?.data && updatedStory.data.blocks) || [];
+
+          // Find the placeholder block
+          const placeholderBlock = updatedBlocks2.find(block =>
+            block.type === 'IMAGE' &&
+            (block.content === 'placeholder-for-uploading-image' || block.content === 'string') &&
+            block.order === highestOrder
+          );
+
+          if (!placeholderBlock || !placeholderBlock.storyBlockId) {
+            throw new Error('Could not find placeholder block after update');
+          }
+
+          // Upload image to the placeholder block
+          const uploadResult = await projectService.uploadStoryImage(placeholderBlock.storyBlockId, file);
+
+          // Return the URL from result
+          if (typeof uploadResult === 'string' && uploadResult.startsWith('http')) {
+            return uploadResult;
+          }
+
+          if (uploadResult && typeof uploadResult === 'object' && uploadResult.url) {
+            return uploadResult.url;
+          }
+
+          // Check updated story if no direct URL
+          const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
+
+          const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
+          if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
+            updatedBlock.content.startsWith('http')) {
+            return updatedBlock.content;
+          }
+
+          throw new Error('Could not get image URL after upload');
+        } catch (error) {
+          console.error('Error updating existing story with image:', error);
+          return null;
+        }
       }
-
-      console.error('Could not find image URL in the response');
-      return null;
     } catch (error) {
       console.error('Error in image upload process:', error);
       return null;
@@ -1890,15 +2070,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       <div className="flex justify-between items-center bg-white p-3 border border-gray-200 rounded-md shadow-sm">
         <div className="flex items-center space-x-2">
           <StatusBadge />
-          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${publishStatus === 'PUBLISHED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-            }`}>
-            {publishStatus === 'PUBLISHED' ? 'Published' : 'Draft'}
-          </span>
-          {storyId && (
-            <span className="text-xs text-gray-500">
-              ID: {storyId}
-            </span>
-          )}
         </div>
         <div className="flex space-x-2">
           <button
@@ -1907,13 +2078,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
             {storyId ? 'Save Changes' : 'Create Story'}
-          </button>
-          <button
-            onClick={handlePublishStory}
-            disabled={savingStatus === 'saving'}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-          >
-            {publishStatus === 'PUBLISHED' ? 'Update Published Story' : 'Publish Story'}
           </button>
         </div>
       </div>
