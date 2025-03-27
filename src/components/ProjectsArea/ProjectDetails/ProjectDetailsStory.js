@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Col, Row } from "react-bootstrap";
-import projectService from "../../../services/projectService";
+import projectService from "../../../services/projectPublicService";
 
 const ProjectDetailsStory = ({ getClassName, project }) => {
   const [projectStory, setProjectStory] = useState(null);
@@ -14,7 +14,7 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
       setLoading(true);
       setError(null);
       try {
-        const data = await projectService.getProjectStoryByProjectId(id);
+        const data = await projectService.getProjectStoryByProjectIdForGuest(id);
         console.log('Received project story data:', data);
 
         if (data && data.data && Array.isArray(data.data.blocks) && data.data.blocks.length > 0) {
@@ -40,20 +40,20 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
   }, [id]);
 
   if (loading) {
-    return <div>Loading project story...</div>;
+    return <div className="text-center text-gray-500">Loading project story...</div>;
   }
 
   if (error) {
-    return <div>{error}</div>;
+    return <div className="text-center text-red-500">{error}</div>;
   }
 
   if (!projectStory) {
-    return <div>No project story found.</div>;
+    return <div className="text-center text-gray-500">No project story found.</div>;
   }
 
   return (
-    <div className={getClassName?.("pills-home")} id="pills-home" role="tabpanel">
-      <Row>
+    <div className={`${getClassName?.("pills-home")} p-6 bg-white shadow-md rounded-lg`} id="pills-home" role="tabpanel">
+      <Row className="space-y-6">
         {Array.isArray(projectStory.data?.blocks) && projectStory.data.blocks.length > 0 ? (
           projectStory.data.blocks.map((block) => {
             const { storyBlockId, type, content, metadata } = block;
@@ -63,7 +63,7 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
             if (type === "HEADING") {
               return (
                 <Col key={storyBlockId} xs={12}>
-                  <h2>{content}</h2>
+                  <h2 className="text-2xl font-bold text-indigo-600">{content}</h2>
                 </Col>
               );
             }
@@ -71,13 +71,13 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
             if (type === "TEXT") {
               return (
                 <Col key={storyBlockId} xs={12}>
-                  <p dangerouslySetInnerHTML={{ __html: content }} />
+                  <p className="text-lg leading-relaxed text-gray-800" dangerouslySetInnerHTML={{ __html: content }} />
                   {metadata?.additionalProp1?.listType === "bullet" && (
-                    <ul>
+                    <ul className="list-disc pl-5 space-y-2">
                       {content.split("<li>").map((item, index) => {
                         if (item) {
                           return (
-                            <li key={index} dangerouslySetInnerHTML={{ __html: item }} />
+                            <li key={index} className="text-gray-700" dangerouslySetInnerHTML={{ __html: item }} />
                           );
                         }
                         return null;
@@ -85,11 +85,11 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
                     </ul>
                   )}
                   {metadata?.additionalProp1?.listType === "ordered" && (
-                    <ol>
+                    <ol className="list-decimal pl-5 space-y-2">
                       {content.split("<li>").map((item, index) => {
                         if (item) {
                           return (
-                            <li key={index} dangerouslySetInnerHTML={{ __html: item }} />
+                            <li key={index} className="text-gray-700" dangerouslySetInnerHTML={{ __html: item }} />
                           );
                         }
                         return null;
@@ -102,9 +102,9 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
 
             if (type === "IMAGE") {
               return (
-                <Col key={storyBlockId} xs={12} md={6}>
-                  <div className="project-details-thumb">
-                    <img src={content} alt="Project Image" width={400} height={200} />
+                <Col key={storyBlockId} xs={12} md={6} className="flex justify-center">
+                  <div className="project-details-thumb max-w-xs">
+                    <img src={content} alt="Project Image" className="rounded-lg shadow-lg" />
                   </div>
                 </Col>
               );
@@ -112,12 +112,13 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
 
             if (type === "VIDEO") {
               return (
-                <Col key={storyBlockId} xs={12}>
-                  <div className="project-details-thumb">
+                <Col key={storyBlockId} xs={12} className="flex justify-center">
+                  <div className="project-details-thumb max-w-lg">
                     <iframe
                       src={content}
                       width={metadata?.additionalProp1?.width || "560px"}
                       height={metadata?.additionalProp1?.height || "315px"}
+                      className="rounded-lg shadow-xl"
                       frameBorder="0"
                       allowFullScreen
                     ></iframe>
@@ -129,7 +130,7 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
             return null;
           })
         ) : (
-          <div>No blocks found.</div>
+          <div className="text-center text-gray-500">No blocks found.</div>
         )}
       </Row>
     </div>
