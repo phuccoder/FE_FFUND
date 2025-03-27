@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import projectService from "../../../services/projectPublicService";
+import { useRouter } from "next/router";
 
 const ProjectDetailsSidebar = ({ project }) => {
   const [phases, setPhases] = useState([]);
@@ -8,6 +9,8 @@ const ProjectDetailsSidebar = ({ project }) => {
   const [error, setError] = useState(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState(null); // Store the selected phase ID for modal
   const [isModalOpen, setIsModalOpen] = useState(false); // Track modal open/close state
+  const router = useRouter();
+
   const { id } = project;
   
   useEffect(() => {
@@ -19,13 +22,20 @@ const ProjectDetailsSidebar = ({ project }) => {
         setPhases(fetchedPhases);
 
         // For each phase, fetch milestones
-        fetchedPhases.forEach(async (phase) => {
+        const milestonesPromises = fetchedPhases.map(async (phase) => {
           const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
-          setMilestones((prevMilestones) => ({
-            ...prevMilestones,
-            [phase.id]: fetchedMilestones,
-          }));
+          return { phaseId: phase.id, milestones: fetchedMilestones };
         });
+        
+        const milestonesResults = await Promise.all(milestonesPromises);
+        
+        // Convert array of results to object with phaseId as key
+        const milestonesObj = milestonesResults.reduce((acc, { phaseId, milestones }) => {
+          acc[phaseId] = milestones;
+          return acc;
+        }, {});
+        
+        setMilestones(milestonesObj);
       } catch (err) {
         setError("Failed to load funding phases.");
         console.error(err);
@@ -37,6 +47,13 @@ const ProjectDetailsSidebar = ({ project }) => {
     if (id) {
       fetchPhases();
     }
+  }, [id]);
+  
+  const handleContinueClick = (phaseId) => {
+    // Navigate to the payment page with project and phase IDs
+    router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
+  };
+  
   }, [project]);
 
   // Function to open the modal
