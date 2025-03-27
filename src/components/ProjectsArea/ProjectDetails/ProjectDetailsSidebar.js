@@ -12,7 +12,7 @@ const ProjectDetailsSidebar = ({ project }) => {
   const router = useRouter();
 
   const { id } = project;
-  
+
   useEffect(() => {
     const fetchPhases = async () => {
       setLoading(true);
@@ -26,15 +26,15 @@ const ProjectDetailsSidebar = ({ project }) => {
           const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
           return { phaseId: phase.id, milestones: fetchedMilestones };
         });
-        
+
         const milestonesResults = await Promise.all(milestonesPromises);
-        
+
         // Convert array of results to object with phaseId as key
         const milestonesObj = milestonesResults.reduce((acc, { phaseId, milestones }) => {
           acc[phaseId] = milestones;
           return acc;
         }, {});
-        
+
         setMilestones(milestonesObj);
       } catch (err) {
         setError("Failed to load funding phases.");
@@ -48,10 +48,22 @@ const ProjectDetailsSidebar = ({ project }) => {
       fetchPhases();
     }
   }, [id]);
-  
+
   const handleContinueClick = (phaseId) => {
+    // Ensure phaseId is a string for URL parameters
+    const phaseIdParam = String(phaseId);
+    const projectIdParam = String(id);
+
+    console.log(`Redirecting to payment with projectId=${projectIdParam} and phaseId=${phaseIdParam}`);
+
     // Navigate to the payment page with project and phase IDs
-    router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
+    router.push({
+      pathname: '/payment',
+      query: {
+        projectId: projectIdParam,
+        phaseId: phaseIdParam
+      }
+    });
   };
 
   // Function to open the modal
