@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const API_BASE_ADDRESS_URL = 'https://vn-public-apis.fpo.vn';
 const GET_PROVINCES = `${API_BASE_ADDRESS_URL}/provinces/getAll?limit=-1`;
 const GET_DISTRICTS = `${API_BASE_ADDRESS_URL}/districts/getAll?limit=-1`;
