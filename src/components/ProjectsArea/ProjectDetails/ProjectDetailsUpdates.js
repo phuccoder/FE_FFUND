@@ -1,60 +1,90 @@
-import { projectDetailsUpdates } from "@/data/projectsArea";
-import React from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
+import { Col, Row } from "react-bootstrap";
+import projectService from "../../../services/projectPublicService";
 
-const { id, updates } = projectDetailsUpdates;
+const ProjectDetailsUpdates = ({ getClassName, project }) => {
+  const [updates, setUpdates] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const ProjectDetailsUpdate = ({ update = {} }) => {
-  const { title, info, text, text2, image, id } = update;
+  const { id } = project;
+
+  useEffect(() => {
+    const fetchUpdates = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const updatesData = await projectService.getUpdatePostByProjectId(project.id);
+        console.log("Received updates data:", updatesData);
+        setUpdates(updatesData);
+
+      } catch (error) {
+        setError("Failed to fetch updates.");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchUpdates();
+    } else {
+      setError("No valid project ID.");
+      setLoading(false);
+    }
+  }, [id]);
+
+  if (loading) {
+    return <div className="text-center text-gray-500">Loading updates...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
+  }
+
+  if (!updates) {
+    return <div className="text-center text-gray-500">No project update post found.</div>;
+  }
 
   return (
-    <div className="project-details-updates">
-      <div className="project-details-updates-top">
-        <h3 className="title">{title}</h3>
-        <div className="info-updates d-block d-sm-flex justify-content-between align-items-center">
-          <div className="info">
-            <Image
-              src={`/assets/images/${info.image}`}
-              alt={info.name}
-              unoptimized
-              style={{ width: '100%', height: 'auto' }} 
-              />
-            <span>
-              by{" "}
-              <span>
-                {info.name}
-                <span> {info.date}</span>
-              </span>
-            </span>
-          </div>
-          <div className="update">
-            <span>#{id} Update</span>
-          </div>
-        </div>
-      </div>
-      <div className="project-details-updates-content">
-        <p>{text}</p>
-        <p className="text">{text2}</p>
-        <div className="project-updates-thumb mt-50">
-          <Image
-            src={`/assets/images/${image}`}
-            alt={title}
-            fill
-            style={{ objectFit: 'cover' }}
-            unoptimized
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ProjectDetailsUpdates = ({ getClassName }) => {
-  return (
-    <div className={getClassName(id)} id={id}>
-      {updates.map((update) => (
-        <ProjectDetailsUpdate update={update} key={update.id} />
-      ))}
+    <div className={`${getClassName?.("pills-contact")} p-6 bg-white shadow-md rounded-lg`} id="pills-contact" role="tabpanel">
+      <Row className="space-y-6">
+        {updates.length > 0 ? (
+          updates.map((update) => (
+            <Col key={update.projectUpdatePostId} xs={12} className="mb-4">
+              <div className="project-details-updates">
+                <div className="project-details-updates-top">
+                  <h3 className="title">{update.title}</h3>
+                  <div className="info-updates d-flex justify-content-between align-items-center">
+                    <div className="info">
+                      {update.postMedia && (
+                        <img
+                          src={update.postMedia}
+                          alt={update.title}
+                          className="img-fluid rounded-lg shadow-lg"
+                        />
+                      )}
+                      <span>
+                        by <span>{new Date(update.createdAt).toLocaleDateString()}</span>
+                      </span>
+                    </div>
+                    <div className="update">
+                      <span>#{update.projectUpdatePostId} Update</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="project-details-updates-content">
+                  <p>{update.postContent}</p>
+                </div>
+              </div>
+            </Col>
+          ))
+        ) : (
+          <Col xs={12} className="text-center text-gray-500">
+            <p>No updates available</p>
+          </Col>
+        )}
+      </Row>
     </div>
   );
 };
