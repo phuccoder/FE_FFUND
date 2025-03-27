@@ -15,8 +15,6 @@ const ProjectDetailsContent = ({ project }) => {
     const active = current === id;
     return `tab-pane animated${active ? " fadeIn show active" : ""}`;
   };
-
-  console.log("Project Data in ProjectDetailsContent:", project);
   
   return (
     <section className="project-details-content-area pb-110">
