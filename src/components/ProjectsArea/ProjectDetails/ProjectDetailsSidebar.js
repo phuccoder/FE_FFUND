@@ -7,8 +7,8 @@ const ProjectDetailsSidebar = ({ project }) => {
   const [milestones, setMilestones] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPhaseId, setSelectedPhaseId] = useState(null); // Store the selected phase ID for modal
-  const [isModalOpen, setIsModalOpen] = useState(false); // Track modal open/close state
+  const [selectedPhaseId, setSelectedPhaseId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
   const { id } = project;
@@ -53,8 +53,6 @@ const ProjectDetailsSidebar = ({ project }) => {
     // Navigate to the payment page with project and phase IDs
     router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
   };
-  
-  }, [project]);
 
   // Function to open the modal
   const openModal = (phaseId) => {
@@ -86,7 +84,7 @@ const ProjectDetailsSidebar = ({ project }) => {
 
           {/* Display button to open modal */}
           <button 
-            onClick={() => openModal(phase.id)} 
+            onClick={() => openModal(phaseId)} 
             className="main-btn w-full mt-4"
           >
             Continue now
