@@ -10,7 +10,7 @@ import NotificationDropdown from "@/components/Notifications/NotificationDropdow
 const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/request-repost' },
     { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' }
@@ -18,7 +18,7 @@ const MENU_ITEMS = {
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/requests' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Reward', icon: Mail, href: '/reward' }
   ]
 };
