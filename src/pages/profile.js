@@ -3,12 +3,14 @@ import { Container, Row, Col, Nav, Tab } from 'react-bootstrap';
 import Head from 'next/head';
 import BasicProfileInfo from '../components/profile/BasicProfileInfo';
 import ExtendedProfileInfo from '../components/profile/ExtendedProfileInfo';
+import RequestManager from '../components/Request/RequestManager';
+import UserAddressManager from '../components/UserAddress/userAddressManager';
 import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
 import { getUserById } from '../services/userService';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
- function ProfilePage() {
+function ProfilePage() {
     const [key, setKey] = useState('basic');
     const [userRole, setUserRole] = useState(null);
 
@@ -25,6 +27,12 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
         fetchUserRole();
     }, []);
 
+    useEffect(() => {
+        if (key === 'request-report') {
+            console.log('Fetching requests for Request/Report tab...');
+        }
+    }, [key]);
+
     return (
         <>
             <Layout>
@@ -37,14 +45,31 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 
                     <Tab.Container id="profile-tabs" activeKey={key} onSelect={(k) => setKey(k)}>
                         <Row>
-                            <Col sm={12} className="mb-4">
-                                <Nav variant="tabs" className="border-b border-gray-200">
+                            {/* Tabs trên cùng một hàng ngang */}
+                            <Col sm={12}>
+                                <Nav variant="tabs" className="border-b border-gray-200 flex justify-center">
                                     <Nav.Item>
                                         <Nav.Link
                                             eventKey="basic"
                                             className={`px-4 py-2 font-medium ${key === 'basic' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             Basic Information
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                    <Nav.Item>
+                                        <Nav.Link
+                                            eventKey="request-report"
+                                            className={`px-4 py-2 font-medium ${key === 'request-report' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Request/Report
+                                        </Nav.Link>
+                                    </Nav.Item>
+                                    <Nav.Item>
+                                        <Nav.Link
+                                            eventKey="address"
+                                            className={`px-4 py-2 font-medium ${key === 'address' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            Address
                                         </Nav.Link>
                                     </Nav.Item>
                                     {userRole === 'FOUNDER' && (
@@ -67,6 +92,12 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
                                     <Tab.Pane eventKey="basic">
                                         <BasicProfileInfo />
                                     </Tab.Pane>
+                                    <Tab.Pane eventKey="request-report">
+                                        <RequestManager />
+                                    </Tab.Pane>
+                                    <Tab.Pane eventKey="address">
+                                        <UserAddressManager />
+                                    </Tab.Pane>
                                     {userRole === 'FOUNDER' && (
                                         <Tab.Pane eventKey="extended">
                                             <ExtendedProfileInfo />
@@ -82,7 +113,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
     );
 }
 
-export default function Profile(){
+export default function Profile() {
     return (
         <ProtectedRoute requiredRoles={['FOUNDER', 'INVESTOR']}>
             <ProfilePage />
