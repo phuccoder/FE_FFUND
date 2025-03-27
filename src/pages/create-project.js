@@ -15,6 +15,7 @@ import projectService from 'src/services/projectService';
 import { tokenManager } from '@/utils/tokenManager';
 import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import Link from '@/components/Reuseable/Link';
 
 function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
@@ -69,13 +70,14 @@ function CreateProject() {
     paymentInfo: {
       id: null,
       stripeAccountId: null,
-      status: 'NOT_STARTED', 
+      status: 'NOT_STARTED',
     },
   });
   const [authStatus, setAuthStatus] = useState({
     isAuthenticated: false,
     isLoading: true
   });
+  const [isEditAllowed, setIsEditAllowed] = useState(true);
 
   useEffect(() => {
     const savedAgreement = localStorage.getItem('agreedToTerms');
@@ -148,6 +150,11 @@ function CreateProject() {
       if (activeProject && (activeProject.projectId || activeProject.id)) {
         // Get the project ID, accounting for different field names
         const projectId = activeProject.projectId || activeProject.id;
+        const status = activeProject.status || 'DRAFT';
+
+        // Check if editing is allowed based on status
+        const isAllowedStatus = status === 'DRAFT';
+        setIsEditAllowed(isAllowedStatus);
 
         // Store the projectId in localStorage for persistence
         localStorage.setItem('founderProjectId', projectId);
@@ -156,7 +163,7 @@ function CreateProject() {
         setIsEditMode(true);
 
         console.log("Setting project data with ID:", projectId);
-
+        console.log("Project status:", status, "Editing allowed:", isAllowedStatus);
         // Update form data with project details
         setFormData(prevData => ({
           ...prevData,
@@ -179,7 +186,7 @@ function CreateProject() {
             isClassPotential: activeProject.isClassPotential !== undefined
               ? activeProject.isClassPotential
               : false,
-            status: activeProject.status || 'DRAFT'
+            status: status
           },
           projectStory: {
             ...prevData.projectStory,
@@ -196,6 +203,7 @@ function CreateProject() {
       } else {
         // User has no projects, clear any stored projectId
         localStorage.removeItem('founderProjectId');
+        setIsEditAllowed(true);
 
         // Reset form to default state
         setFormData(prevData => ({
@@ -226,7 +234,7 @@ function CreateProject() {
   };
 
   // Update the useEffect to call this function
-  
+
   useEffect(() => {
     if (!authStatus.isLoading) {
       loadProjectData();
@@ -698,82 +706,117 @@ function CreateProject() {
         <div className="min-h-screen bg-gray-50">
           <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Create Your Project</h1>
+            {!isEditAllowed && isEditMode ? (
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Access Restricted</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      This project cannot be edited because it is currently in {formData.basicInfo?.status} status.
+                      Only allow projects with DRAFT status.
+                    </p>
 
-            <div className="mb-8">
-              <ProjectCreationNavigation
-                sections={sections}
-                currentSection={currentSection}
-                onSectionChange={goToSection}
-                formData={formData}  // Pass formData to check completion status
-              />
-            </div>
-
-            <div className="bg-white shadow rounded-lg p-6 mb-8">
-              <h2 className="text-2xl font-semibold mb-4">{sections[currentSection].name}</h2>
-              {sections[currentSection].component}
-
-              {/* Show guidance message when on the first two sections */}
-              {currentSection <= 1 && !isInitialSectionsComplete() && (
-                <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-blue-700">
-                        Complete this section and the {currentSection === 0 ? 'Basic Information' : 'Rules & Terms'} section to unlock the rest of the form.
-                      </p>
+                    <div className="mt-4 flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
+                      <Link href="/" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <span>Return Home</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                      </Link>
+                      <Link href="/edit-project" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <span>Edit Project</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </Link>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-8">
+                  <ProjectCreationNavigation
+                    sections={sections}
+                    currentSection={currentSection}
+                    onSectionChange={goToSection}
+                    formData={formData}
+                  />
+                </div>
 
-            <div className="flex justify-between">
-              {currentSection > 0 && (
-                <button
-                  onClick={goToPrevSection}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg"
-                >
-                  Back
-                </button>
-              )}
-              {currentSection < sections.length - 1 ? (
-                <button
-                  onClick={goToNextSection}
-                  className="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
-                >
-                  Continue
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className={`ml-auto ${isSubmitting
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700"
-                    } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Project"
+                <div className="bg-white shadow rounded-lg p-6 mb-8">
+                  <h2 className="text-2xl font-semibold mb-4">{sections[currentSection].name}</h2>
+                  {sections[currentSection].component}
+
+                  {/* Show guidance message when on the first two sections */}
+                  {currentSection <= 1 && !isInitialSectionsComplete() && (
+                    <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-blue-700">
+                            Complete this section and the {currentSection === 0 ? 'Basic Information' : 'Rules & Terms'} section to unlock the rest of the form.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </button>
-              )}
-            </div>
+                </div>
 
-            <div className="mt-10">
-              <ProjectCreationChecklist formData={formData} sections={sections} />
-            </div>
+                <div className="flex justify-between">
+                  {currentSection > 0 && (
+                    <button
+                      onClick={goToPrevSection}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {currentSection < sections.length - 1 ? (
+                    <button
+                      onClick={goToNextSection}
+                      className="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
+                    >
+                      Continue
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className={`ml-auto ${isSubmitting
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Project"
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-10">
+                  <ProjectCreationChecklist formData={formData} sections={sections} />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </Layout>
