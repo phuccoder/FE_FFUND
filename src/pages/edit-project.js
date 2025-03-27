@@ -1250,6 +1250,17 @@ function EditProjectPage() {
 
   const handleSaveUpdate = async (update) => {
     try {
+      // Check if this is a response from the component's internal API call
+      if (update.success && update.data) {
+        console.log("Update already saved by component, refreshing data");
+
+        // Refresh the list of updates without making another API call
+        await loadProjectUpdates(formData.projectId);
+
+        return true;
+      }
+
+      // Original implementation for when direct data is provided
       if (!formData.projectId) {
         const id = ensureProjectId();
         if (!id) {
@@ -1286,8 +1297,6 @@ function EditProjectPage() {
       // Show success message
       alert("Update posted successfully!");
 
-      // Go back to first section
-      setCurrentSection(0);
 
       return true;
     } catch (error) {
@@ -1435,7 +1444,7 @@ function EditProjectPage() {
     component: (
       <UpdateBlog
         onSave={handleSaveUpdate}
-        onCancel={() => setCurrentSection(0)}
+        onCancel={() => {} }
         existingUpdates={existingUpdates}
         projectId={formData.projectId || formData.basicInfo?.projectId}
       />

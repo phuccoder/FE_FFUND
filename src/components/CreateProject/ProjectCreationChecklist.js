@@ -313,34 +313,57 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       }
 
       case 'founder': {
-        // The data structure from FounderProfile is different than what this function expects
-        // Handle all possible structures the data might come in
-        const bio = formData.bio || (formData.founderProfile && formData.founderProfile.bio) || '';
-        const fullName = formData.fullName || (formData.founderProfile && formData.founderProfile.fullName) || '';
-        const email = formData.email || (formData.founderProfile && formData.founderProfile.email) || '';
-        const team = formData.team || (formData.founderProfile && formData.founderProfile.team) || [];
-        const studentInfo = formData.studentInfo || (formData.founderProfile && formData.founderProfile.studentInfo) || {};
-
-        // Calculate completion score
+        // Extract founder profile data from all possible structures
+        const founderProfile = data.founderProfile || data;
+        
+        // Check for founder data in different locations and formats
+        const userInfo = founderProfile.userInfo || founderProfile.user || founderProfile;
+        
+        // Check for user information in all possible field names
+        const fullName = userInfo.fullName || userInfo.name || '';
+        const email = userInfo.email || '';
+        const phone = userInfo.phone || userInfo.phoneNumber || '';
+        
+        // Get team information
+        const team = founderProfile.team || [];
+        
+        // Check for student info in all possible locations
+        const studentInfo = founderProfile.studentInfo || userInfo.studentInfo || {};
+        
+        // Track if student has any valid info fields
+        const hasStudentInfo = studentInfo && Object.values(studentInfo).some(val => !!val);
+      
+        // Calculate completion score with adjusted required fields
         let completed = 0;
-        const total = 5; // Required fields
-
-        // Primary user info
-        if (bio) completed++;
+        const total = 4; // Required fields (reduced from 5, removing bio requirement)
+      
+        // Check each field and log for debugging
+        console.log("Founder Profile Validation:", {
+          fullName: !!fullName,
+          email: !!email,
+          phone: !!phone,
+          hasStudentInfo: hasStudentInfo,
+          teamMembers: team.length
+        });
+      
         if (fullName) completed++;
         if (email) completed++;
-
-        // Student info is important
-        if (studentInfo && Object.values(studentInfo).some(val => val)) {
+        if (phone) completed++; 
+      
+        if (hasStudentInfo) {
           completed++;
         }
-
-        // Team members
+      
+        let teamBonus = 0;
         if (team && Array.isArray(team) && team.length > 0) {
-          completed++;
+          teamBonus = 0.5; 
         }
-
-        return Math.round((completed / total) * 100);
+      
+        // Calculate percentage with bonus
+        const basePercentage = Math.round(((completed) / total) * 100);
+        const bonusPercentage = Math.min(100, basePercentage + (teamBonus * 20)); // Add up to 20% for team
+        
+        return bonusPercentage;
       }
 
       case 'documents': {
