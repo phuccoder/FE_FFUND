@@ -50,8 +50,20 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
   }, [id]);
 
   const handleContinueClick = (phaseId) => {
+    // Ensure phaseId is a string for URL parameters
+    const phaseIdParam = String(phaseId);
+    const projectIdParam = String(id);
+
+    console.log(`Redirecting to payment with projectId=${projectIdParam} and phaseId=${phaseIdParam}`);
+
     // Navigate to the payment page with project and phase IDs
-    router.push(`/payment?projectId=${id}&phaseId=${phaseId}`);
+    router.push({
+      pathname: '/payment',
+      query: {
+        projectId: projectIdParam,
+        phaseId: phaseIdParam
+      }
+    });
   };
 
   // Function to open the modal
