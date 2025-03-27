@@ -7782,3 +7782,16 @@ p {
     height: 300px;
   }
 }
+
+/*===========================
+    27.User Address css
+===========================*/
+.custom-switch .form-check-input:checked {
+    background-color: green; /* Màu xanh lá khi bật */
+    border-color: green;
+}
+
+.custom-switch .form-check-input {
+    background-color: red; /* Màu đỏ khi tắt */
+    border-color: red;
+}
