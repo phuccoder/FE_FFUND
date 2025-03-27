@@ -84,7 +84,15 @@ const ProjectDetailsSidebar = ({ project }) => {
 
           {/* Display button to open modal */}
           <button 
-            onClick={() => openModal(phaseId)} 
+            onClick={() => openModal(phase.id)} 
+            className="main-btn w-full mt-4"
+          >
+            View Milestones
+          </button>
+
+          {/* Button to continue to payment page */}
+          <button 
+            onClick={() => handleContinueClick(phase.id)} 
             className="main-btn w-full mt-4"
           >
             Continue now
