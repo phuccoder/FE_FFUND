@@ -10,12 +10,16 @@ import { useRouter } from "next/router";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import invitationService from "src/services/invitationService";
+
 
 const InviteTeamMembersPage = () => {
     const router = useRouter();
     const { team, loading, error: teamError, refreshTeam } = useTeam();
     const [newMemberEmail, setNewMemberEmail] = useState("");
     const [inviting, setInviting] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searching, setSearching] = useState(false);
 
     useEffect(() => {
         // If no team is found after loading completes, redirect to team members page
@@ -28,6 +32,60 @@ const InviteTeamMembersPage = () => {
             toast.error(`Error loading team: ${teamError}`);
         }
     }, [team, loading, teamError, router]);
+
+    // Search founders as user types
+    useEffect(() => {
+        const searchFounders = async () => {
+            // Only search if we have at least 1 characters (to avoid too many results)
+            if (newMemberEmail.trim().length >= 1) {
+                try {
+                    setSearching(true);
+                    console.log('Searching for:', newMemberEmail);
+                    const result = await invitationService.searchFounderByEmail(newMemberEmail);
+                    console.log('Search result:', result);
+
+                    if (!result || !result.data) {
+                        console.warn('No search results data found');
+                        setSearchResults([]);
+                        return;
+                    }
+
+                    // Check if team and teamMembers are available
+                    if (team && team.teamMembers) {
+                        // Filter out members who are already in the team
+                        const currentTeamEmails = team.teamMembers.map(member =>
+                            member.memberEmail.toLowerCase()
+                        );
+
+                        const filteredResults = result.data.filter(founder =>
+                            !currentTeamEmails.includes(founder.email.toLowerCase())
+                        );
+
+                        console.log('Filtered results:', filteredResults);
+                        setSearchResults(filteredResults);
+                    } else {
+                        // If team or teamMembers is not available, show all results
+                        setSearchResults(result.data);
+                    }
+                } catch (error) {
+                    console.error("Error searching founders:", error);
+                    setSearchResults([]);
+                } finally {
+                    setSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+                setSearching(false);
+            }
+        };
+
+        // Debounce the search to avoid too many API calls
+        const timeoutId = setTimeout(() => {
+            searchFounders();
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [newMemberEmail, team]);
 
     const handleInviteMember = async (e) => {
         e.preventDefault();
@@ -46,6 +104,7 @@ const InviteTeamMembersPage = () => {
             await inviteMember(newMemberEmail);
             toast.success(`Invitation sent to ${newMemberEmail} successfully!`);
             setNewMemberEmail("");
+            setSearchResults([]);
 
             // Refresh team data to show updated member list
             await refreshTeam();
@@ -55,6 +114,11 @@ const InviteTeamMembersPage = () => {
         } finally {
             setInviting(false);
         }
+    };
+
+    const selectFounder = (founder) => {
+        setNewMemberEmail(founder.email);
+        setSearchResults([]);
     };
 
     if (loading) {
@@ -73,6 +137,7 @@ const InviteTeamMembersPage = () => {
     return (
         <Layout>
             <Header />
+            <PageTitle title="Invite Team Members" parent="Team" />
             <ToastContainer position="top-right" autoClose={5000} />
             <Container className="py-5 mt-12">
                 <Row className="mt-4">
@@ -125,20 +190,78 @@ const InviteTeamMembersPage = () => {
 
                                     <h5 className="mb-3 fw-bold">Invite New Member</h5>
 
-                                    <Form onSubmit={handleInviteMember}>
+                                    <Form onSubmit={handleInviteMember} className="position-relative" style={{ marginBottom: "200px" }}>
                                         <Row className="align-items-end g-3">
                                             <Col md={8}>
                                                 <Form.Group>
-                                                    <Form.Label>Email Address</Form.Label>
-                                                    <Form.Control
-                                                        type="email"
-                                                        placeholder="Enter email address"
-                                                        value={newMemberEmail}
-                                                        onChange={(e) => setNewMemberEmail(e.target.value)}
-                                                        required
-                                                        style={{ borderColor: '#ddd', padding: '0.625rem' }}
-                                                        className="rounded-3"
-                                                    />
+                                                    <div className="position-relative" style={{ minHeight: "60px" }}>
+                                                        <Form.Control
+                                                            type="email"
+                                                            placeholder="Enter email address"
+                                                            value={newMemberEmail}
+                                                            onChange={(e) => setNewMemberEmail(e.target.value)}
+                                                            required
+                                                            style={{ borderColor: '#ddd', padding: '0.625rem' }}
+                                                            className="rounded-3"
+                                                            autoComplete="off"
+                                                        />
+
+                                                        {searching && (
+                                                            <div className="position-absolute" style={{ right: '10px', top: '10px' }}>
+                                                                <Spinner animation="border" size="sm" style={{ color: '#FF8C00' }} />
+                                                            </div>
+                                                        )}
+
+                                                        {searchResults && searchResults.length > 0 && (
+                                                            <div
+                                                                className="position-absolute w-100 shadow-sm bg-white rounded border"
+                                                                style={{
+                                                                    zIndex: 1050,
+                                                                    maxHeight: '300px', // Increased height
+                                                                    overflowY: 'auto', // Enable vertical scrolling
+                                                                    top: 'calc(100% + 5px)',
+                                                                    left: 0,
+                                                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                                                                    position: 'absolute',
+                                                                    borderRadius: '4px',
+                                                                    display: 'block' // Ensure it's displayed as a block
+                                                                }}
+                                                            >
+                                                                {/* Use a plain div structure instead of ListGroup to ensure proper scrolling */}
+                                                                {searchResults.map(founder => (
+                                                                    <div
+                                                                        key={founder.id}
+                                                                        onClick={() => selectFounder(founder)}
+                                                                        className="d-flex align-items-center py-2 px-3 border-bottom"
+                                                                        style={{
+                                                                            cursor: 'pointer',
+                                                                            backgroundColor: 'white',
+                                                                            transition: 'background-color 0.2s',
+                                                                            hover: { backgroundColor: '#f8f9fa' }
+                                                                        }}
+                                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                                                    >
+                                                                        <div
+                                                                            className="rounded-circle text-white d-flex align-items-center justify-content-center me-2"
+                                                                            style={{
+                                                                                width: '30px',
+                                                                                height: '30px',
+                                                                                backgroundColor: '#FF8C00',
+                                                                                flexShrink: 0
+                                                                            }}
+                                                                        >
+                                                                            <span>{founder.fullName ? founder.fullName.charAt(0) : '?'}</span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="fw-bold">{founder.fullName || 'Unknown'}</div>
+                                                                            <div className="small text-muted">{founder.email}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </Form.Group>
                                             </Col>
                                             <Col md={4}>
@@ -161,6 +284,7 @@ const InviteTeamMembersPage = () => {
                                                 </Button>
                                             </Col>
                                         </Row>
+                                        <div style={{ height: "150px" }}></div>
                                     </Form>
                                 </Card.Body>
                             </Card>
@@ -172,11 +296,10 @@ const InviteTeamMembersPage = () => {
     );
 };
 
-export default function InviteTeamMembers(){
+export default function InviteTeamMembers() {
     return (
         <ProtectedRoute requiredRoles={['FOUNDER']}>
             <InviteTeamMembersPage />
         </ProtectedRoute>
-        
     );
-}
+};
