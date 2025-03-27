@@ -5,34 +5,28 @@ export const contactFormArea = {
     {
       id: 1,
       type: "text",
-      placeholder: "First Name",
+      placeholder: "Title",
       name: "fname",
     },
     {
       id: 2,
-      type: "text",
-      placeholder: "Last Name",
-      name: "lname",
-    },
-    {
-      id: 3,
       type: "email",
-      placeholder: "Email Address",
+      placeholder: "Your request",
       name: "email",
     },
     {
-      id: 4,
-      type: "text",
-      placeholder: "Phone Number",
-      name: "number",
-    },
-    {
       id: 5,
-      placeholder: "Write Message",
+      type: "text",
+      placeholder: "Description",
       name: "message",
       cols: 30,
       rows: 10,
     },
+    {
+      id: 4,
+      type: "file",
+      placeholder: "Upload Attachment",
+    }
   ],
 };
 
