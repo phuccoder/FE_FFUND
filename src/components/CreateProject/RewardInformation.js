@@ -241,13 +241,17 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         setError(null);
 
         try {
-            await milestoneService.updateMilestone(milestoneId, updatedData);
+            // Create a copy of updatedData without the phaseId
+            const { phaseId, ...dataToUpdate } = updatedData;
+
+            // Call API with the filtered data
+            await milestoneService.updateMilestone(milestoneId, dataToUpdate);
             setSuccess('Milestone updated successfully!');
 
-            // Update in local state
+            // Update in local state - keep the original phaseId in our local state
             setMilestones(prevMilestones =>
                 prevMilestones.map(m =>
-                    m.id === milestoneId ? { ...m, ...updatedData } : m
+                    m.id === milestoneId ? { ...m, ...dataToUpdate, phaseId: m.phaseId } : m
                 )
             );
         } catch (error) {
@@ -303,29 +307,29 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             setError('Please provide a name for the item and select a milestone.');
             return;
         }
-    
+
         setLoading(true);
         setError(null);
-    
+
         try {
             // Step 1: Create the item first
             const newItemData = {
                 name: currentMilestoneItem.name,
                 quantity: parseInt(currentMilestoneItem.quantity) || 1,
             };
-    
+
             console.log('Creating new milestone item with data:', newItemData);
-    
+
             const itemResponse = await milestoneItemService.createMilestoneItem(
                 selectedMilestone,
                 newItemData
             );
-    
+
             console.log('Item creation response:', itemResponse);
-    
+
             // Step 2: Extract the item ID from the response (based on the actual API response format)
             let itemId = null;
-            
+
             // Check different response formats to find the ID
             if (itemResponse && typeof itemResponse.data === 'number') {
                 itemId = itemResponse.data;
@@ -334,30 +338,30 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             } else if (itemResponse && itemResponse.data && itemResponse.data.id) {
                 itemId = itemResponse.data.id;
             }
-    
+
             console.log('Extracted item ID:', itemId);
-    
+
             if (!itemId) {
                 console.error('Failed to extract item ID from response:', itemResponse);
                 setError('Item created but failed to extract ID for image upload');
             }
-    
+
             // Step 3: Upload the image if available and we have an ID
             if (currentMilestoneItem.image && itemId) {
                 console.log(`Now uploading image for item ${itemId}`);
                 debugImageFile(currentMilestoneItem.image);
-    
+
                 try {
                     // Allow the backend to process the item creation first
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    
+
                     console.time('Image upload');
                     const imageResponse = await milestoneItemService.uploadMilestoneItemImage(
                         itemId,
                         currentMilestoneItem.image
                     );
                     console.timeEnd('Image upload');
-    
+
                     console.log('Image upload response:', imageResponse);
                     setSuccess('Item added with image successfully!');
                 } catch (imageError) {
@@ -372,7 +376,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 console.error('Missing item ID, cannot upload image');
                 setError('Item created but could not get ID for image upload');
             }
-    
+
             // Reset form
             setCurrentMilestoneItem({
                 name: '',
@@ -380,24 +384,24 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 image: null,
                 imagePreview: null
             });
-    
+
             // Close the form
             setShowMilestoneItemForm(false);
-    
+
             // Clear file input
             if (milestoneFileInputRef.current) {
                 milestoneFileInputRef.current.value = '';
             }
-    
+
             // Add a small delay to ensure the API has processed the changes
             await new Promise(resolve => setTimeout(resolve, 800));
-            
+
             // Immediately refresh the milestone to get updated items
             await fetchMilestoneItems(selectedMilestone);
-    
+
             // Also refresh all milestones to ensure parent component has latest data
             await fetchMilestones();
-    
+
         } catch (error) {
             console.error('Error adding item to milestone:', error);
             setError(`Failed to add item: ${error.message || 'Unknown error'}`);
