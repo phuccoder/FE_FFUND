@@ -39,6 +39,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Convert selectedPhaseId to number to ensure proper comparison
   const numericPhaseId = selectedPhaseId ? parseInt(selectedPhaseId) : null;
@@ -54,6 +55,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
   // Tab state
   const [selectedTab, setSelectedTab] = useState(0); // 0 for Milestone, 1 for Reward
+
+  useEffect(() => {
+    setCurrentStep(1);
+  }, []);
 
   useEffect(() => {
     const fetchPhases = async () => {
@@ -77,13 +82,12 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
         setMilestones(milestonesObj);
 
-        // If selectedPhaseId is provided, set it as the selected phase and go to step 2
+        // If selectedPhaseId is provided, set it as the selected phase
         if (numericPhaseId && fetchedPhases.some(phase => phase.id === numericPhaseId)) {
           const phase = fetchedPhases.find(phase => phase.id === numericPhaseId);
           setSelectedPhase(phase);
-          setCurrentStep(2);
         } else if (fetchedPhases.length === 1) {
-          // If there's only one phase, auto-select it but stay on step 1
+          // If there's only one phase, auto-select it
           setSelectedPhase(fetchedPhases[0]);
         }
       } catch (err) {
@@ -99,31 +103,37 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     }
   }, [project, numericPhaseId]);
 
-  // When selected phase changes, reset milestone selection
-  useEffect(() => {
-    if (selectedPhase && milestones[selectedPhase.id]?.length > 0) {
-      setSelectedMilestone(milestones[selectedPhase.id][0]);
+  // Fix the terms agreement handler
+  const handleTermsAgreement = () => {
+    setAgreedToTerms(!agreedToTerms);
+  };
+
+  // Fix the proceed after terms function
+  const handleProceedAfterTerms = () => {
+    if (!agreedToTerms) return;
+
+    // If a phase ID was provided AND phase is already selected, go directly to step 3 (milestone selection)
+    if (numericPhaseId && selectedPhase) {
+      setCurrentStep(3);
     } else {
-      setSelectedMilestone(null);
+      // Otherwise, go to step 2 (phase selection)
+      setCurrentStep(2);
     }
-  }, [selectedPhase, milestones]);
+  };
 
-  useEffect(() => {
-    // If we're on step 2 but no phase ID is selected or in URL, 
-    // redirect back to step 1
-    if (currentStep === 2 && !selectedPhase && !numericPhaseId) {
-      setCurrentStep(1);
-      router.replace(`/payment?projectId=${project.id}`, undefined, { shallow: true });
-    }
-  }, [currentStep, selectedPhase, numericPhaseId, router, project?.id]);
-
-  // Handle phase selection and proceed to step 2
+  // Fix phase selection handler to properly advance to step 3
   const handlePhaseSelect = (phase) => {
     setSelectedPhase(phase);
-    setCurrentStep(2);
+    setCurrentStep(3); // Immediately go to milestone selection after choosing a phase
     // Update URL with phaseId for better navigation
     router.push(`/payment?projectId=${project.id}&phaseId=${phase.id}`, undefined, { shallow: true });
   };
+
+  // Add this useEffect to prevent immediate bounce back to step 1
+  useEffect(() => {
+    // Don't automatically redirect back to step 1 when phase is not selected
+    // Only handle automatic jumps between steps when terms are agreed
+  }, [selectedPhase]);
 
   const handleMilestoneChange = (milestoneId) => {
     const milestone = milestones[selectedPhase.id].find(m => m.id === milestoneId);
@@ -138,10 +148,6 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
       setCustomAmount(value);
       setPaymentType("custom");
     }
-  };
-
-  const handleTabChange = (index) => {
-    setSelectedTab(index);
   };
 
   // Payment processing function for milestones
@@ -243,26 +249,108 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
       {/* Improved Steps Progress Indicator */}
       <div className="mb-10">
         <div className="flex items-center justify-center">
+          {/* Step 1 */}
           <div className={`flex flex-col items-center justify-center ${currentStep === 1 ? 'opacity-100' : 'opacity-60'}`}>
-            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'
-              } font-bold text-lg mb-2`}>
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               1
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-500'}`}>Choose Phase</span>
+            <span className={`text-sm font-medium ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-500'}`}>Read Terms</span>
           </div>
           <div className={`h-1 w-20 ${currentStep >= 2 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
+
+          {/* Step 2 */}
           <div className={`flex flex-col items-center justify-center ${currentStep === 2 ? 'opacity-100' : 'opacity-60'}`}>
-            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'
-              } font-bold text-lg mb-2`}>
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               2
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-500'}`}>Select Payment</span>
+            <span className={`text-sm font-medium ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-500'}`}>Choose Phase</span>
+          </div>
+          <div className={`h-1 w-20 ${currentStep >= 3 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
+
+          {/* Step 3 */}
+          <div className={`flex flex-col items-center justify-center ${currentStep === 3 ? 'opacity-100' : 'opacity-60'}`}>
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
+              3
+            </div>
+            <span className={`text-sm font-medium ${currentStep >= 3 ? 'text-orange-600' : 'text-gray-500'}`}>Select Milestone</span>
+          </div>
+          <div className={`h-1 w-20 ${currentStep >= 4 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
+
+          {/* Step 4 */}
+          <div className={`flex flex-col items-center justify-center ${currentStep === 4 ? 'opacity-100' : 'opacity-60'}`}>
+            <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 4 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
+              4
+            </div>
+            <span className={`text-sm font-medium ${currentStep >= 4 ? 'text-orange-600' : 'text-gray-500'}`}>Confirm Payment</span>
           </div>
         </div>
       </div>
 
-      {/* Step 1: Phase Selection */}
       {currentStep === 1 && (
+        <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-4xl mx-auto">
+          <div className="flex items-center mb-6">
+            <FaInfoCircle className="text-orange-500 text-2xl mr-3" />
+            <h2 className="text-2xl font-bold text-gray-800">Terms of Use and Privacy Policy</h2>
+          </div>
+
+          <div className="mb-6 bg-gray-50 p-6 rounded-lg border border-gray-100">
+            <p className="mb-4">Please read and agree to our Terms of Use and Privacy Policy before proceeding.</p>
+
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg mb-2">Terms of Use</h3>
+              <div className="max-h-40 overflow-y-auto bg-white p-4 rounded border border-gray-200 mb-4">
+                <p className="text-sm text-gray-700">
+                  By using our platform, you agree to abide by our terms and conditions. This includes respecting project creators&apos;
+                  intellectual property, understanding that pledges are not guaranteed investments, and acknowledging that project
+                  delivery timelines may change. You must be at least 18 years old to make financial contributions.
+                  All payments are processed securely through our payment partner. While we strive to verify project authenticity,
+                  we cannot guarantee every aspect of project fulfillment.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="font-semibold text-lg mb-2">Privacy Policy</h3>
+              <div className="max-h-40 overflow-y-auto bg-white p-4 rounded border border-gray-200 mb-4">
+                <p className="text-sm text-gray-700">
+                  We collect personal information necessary for processing your contribution and providing project updates.
+                  This includes your name, email address, billing information, and transaction history. Your information is kept
+                  secure and is only shared with project creators when necessary for reward fulfillment.
+                  We use industry-standard security measures to protect your data. You maintain the right to access and modify
+                  your personal information at any time through your account settings.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center mb-6 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+            <input
+              type="checkbox"
+              id="termsAgreement"
+              checked={agreedToTerms}
+              onChange={handleTermsAgreement}
+              className="w-5 h-5 mr-3 accent-orange-500"
+            />
+            <label htmlFor="termsAgreement" className="text-gray-700">
+              I have read and agree to the Terms of Use and Privacy Policy
+            </label>
+          </div>
+
+          <button
+            onClick={handleProceedAfterTerms}
+            className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center
+  ${agreedToTerms
+                ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow-lg'
+                : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
+            disabled={!agreedToTerms}
+          >
+            {numericPhaseId && selectedPhase ? 'Proceed to Milestone Selection' : 'Proceed to Phase Selection'}
+          </button>
+        </div>
+      )}
+
+      {/* Step 2: Phase Selection */}
+      {currentStep === 2 && (
         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-4xl mx-auto">
           <div className="flex items-center mb-6">
             <FaInfoCircle className="text-orange-500 text-2xl mr-3" />
@@ -309,95 +397,160 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
         </div>
       )}
 
-      {/* Step 2: Payment Selection */}
-      {currentStep === 2 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left Column - Payment Selection - Keep existing content but add a back button */}
-          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <FaMoneyBillWave className="text-orange-500 text-2xl mr-3" />
-                <h2 className="text-2xl font-bold text-gray-800">Choose Your Contribution</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setCurrentStep(1);
-                  // Remove phaseId from URL when going back to phase selection
-                  router.push(`/payment?projectId=${project.id}`, undefined, { shallow: true });
-                }}
-                className="text-sm text-gray-600 hover:text-orange-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
-              >
-                Change Phase
-              </button>
+      {/* Step 2: Milestone Selection with Enhanced Item Details */}
+      {currentStep === 3 && selectedPhase && (
+        <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <FaMoneyBillWave className="text-orange-500 text-2xl mr-3" />
+              <h2 className="text-2xl font-bold text-gray-800">Select Funding Option</h2>
             </div>
+            <button
+              onClick={() => {
+                // Clear the selected phase
+                setSelectedPhase(null);
+                // Go back to phase selection
+                setCurrentStep(2);
+                // Remove phaseId from URL
+                router.push(`/payment?projectId=${project.id}`, undefined, { shallow: true });
+              }}
+              className="text-sm text-gray-600 hover:text-orange-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
+            >
+              Change Phase
+            </button>
+          </div>
 
-            {/* Payment Type Selection */}
-            <div className="mb-8 bg-gray-50 p-6 rounded-lg border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Payment Method</h3>
+          <div className="mb-4 pb-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-700 mb-1">Phase {selectedPhase.phaseNumber}</h3>
+            <p className="text-sm text-gray-500">Target: ${selectedPhase.targetAmount.toLocaleString()} • Timeline: {`${selectedPhase.startDate[1]}/${selectedPhase.startDate[0]}`} - {`${selectedPhase.endDate[1]}/${selectedPhase.endDate[0]}`}</p>
+          </div>
 
-              {/* Milestone Option */}
-              <div className="mb-6">
-                <div className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-colors cursor-pointer">
-                  <input
-                    id="milestone-radio"
-                    type="radio"
-                    name="payment-type"
-                    className="h-5 w-5 text-orange-600 focus:ring-orange-500"
-                    checked={paymentType === "milestone"}
-                    onChange={() => setPaymentType("milestone")}
-                  />
-                  <label htmlFor="milestone-radio" className="ml-3 block text-gray-700 font-medium cursor-pointer w-full">
-                    Select a Milestone
-                  </label>
-                </div>
-
-                {paymentType === "milestone" && selectedPhase && (
-                  <div className="mt-4 ml-6">
-                    {milestones[selectedPhase.id]?.length > 0 ? (
-                      <div className="relative">
-                        <select
-                          className="appearance-none w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent shadow-sm"
-                          value={selectedMilestone?.id || ""}
-                          onChange={(e) => handleMilestoneChange(parseInt(e.target.value))}
-                        >
-                          {milestones[selectedPhase.id].map((milestone) => (
-                            <option key={milestone.id} value={milestone.id}>
-                              {milestone.title} - ${milestone.price}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                          </svg>
-                        </div>
+          <div className="space-y-6">
+            {milestones[selectedPhase.id]?.length > 0 ? (
+              <>
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Available Milestones</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {milestones[selectedPhase.id].map(milestone => (
+                    <div
+                      key={milestone.id}
+                      className={`border rounded-lg transition-all p-5 hover:shadow-md
+                ${selectedMilestone?.id === milestone.id
+                          ? 'border-orange-500 bg-orange-50 shadow-md transform scale-102'
+                          : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'}`}
+                      onClick={() => {
+                        setSelectedMilestone(milestone);
+                        setPaymentType("milestone");
+                      }}
+                    >
+                      <div className="mb-3">
+                        <h3 className="text-lg font-semibold text-gray-800">{milestone.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
                       </div>
-                    ) : (
-                      <p className="text-gray-500 italic">No milestones available for this phase.</p>
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* Custom Amount Option */}
-              <div className="mt-4">
-                <div className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-colors cursor-pointer">
-                  <input
-                    id="custom-radio"
-                    type="radio"
-                    name="payment-type"
-                    className="h-5 w-5 text-orange-600 focus:ring-orange-500"
-                    checked={paymentType === "custom"}
-                    onChange={() => setPaymentType("custom")}
-                  />
-                  <label htmlFor="custom-radio" className="ml-3 block text-gray-700 font-medium cursor-pointer w-full">
-                    Custom Amount
-                  </label>
+                      <div className="bg-orange-50 p-2 rounded-md inline-block mb-3">
+                        <span className="text-orange-700 font-medium">${milestone.price}</span>
+                      </div>
+
+                      {/* Enhanced Milestone Items - Show all items */}
+                      {milestone.items && milestone.items.length > 0 && (
+                        <div className="mt-4 border-t border-gray-100 pt-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">Includes:</h4>
+                          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {milestone.items.map(item => (
+                              <div key={item.id} className="flex items-start w-full bg-gray-50 p-3 rounded-md">
+                                {item.imageUrl && (
+                                  <div className="w-12 h-12 flex-shrink-0 mr-3">
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.name}
+                                      className="w-12 h-12 object-cover rounded-md"
+                                      onError={(e) => {
+                                        e.target.src = "https://via.placeholder.com/40x40?text=No+Image";
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex justify-between items-start">
+                                    <span className="font-medium text-gray-800">{item.name}</span>
+                                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full ml-2">
+                                      x{item.quantity || 1}
+                                    </span>
+                                  </div>
+                                  {item.description && (
+                                    <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Single Pledge Button */}
+                      <button
+                        className="w-full py-3 px-4 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 text-white rounded-lg font-medium transition-all duration-300 hover:shadow flex items-center justify-center"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMilestone(milestone);
+                          setPaymentType("milestone");
+                          setCurrentStep(4);
+                        }}
+                      >
+                        Pledge ${milestone.price}
+                      </button>
+                    </div>
+                  ))}
                 </div>
 
-                {paymentType === "custom" && (
-                  <div className="mt-4 ml-6">
-                    <div className="relative">
+                <div className="mt-10 pt-6 border-t border-gray-200">
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Custom Contribution</h3>
+                    <p className="text-gray-600 mb-6">Want to contribute a different amount to help this project reach its funding goal? Enter your custom contribution below.</p>
+
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                      <div className="relative w-full md:w-2/3">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-700 font-medium">$</span>
+                        <input
+                          type="text"
+                          className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent shadow-sm"
+                          placeholder="Enter amount"
+                          value={customAmount}
+                          onChange={handleCustomAmountChange}
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!customAmount}
+                        onClick={() => {
+                          if (customAmount) {
+                            setPaymentType("custom");
+                            setCurrentStep(4);
+                          }
+                        }}
+                        className={`w-full md:w-1/3 py-3 px-6 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center
+  ${customAmount
+                            ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
+                            : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
+                      >
+                        Contribute Custom Amount
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-10 bg-gray-50 rounded-lg">
+                <FaExclamationTriangle className="mx-auto text-orange-400 text-3xl mb-4" />
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Milestones Available</h3>
+                <p className="text-gray-600 mb-8">This phase doesn&apos;t have any milestones yet, but you can still contribute a custom amount.</p>
+
+                <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+                  <h4 className="text-lg font-medium text-gray-800 mb-4">Make a Custom Contribution</h4>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="relative w-full sm:w-2/3">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-700 font-medium">$</span>
                       <input
                         type="text"
@@ -407,26 +560,110 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         onChange={handleCustomAmountChange}
                       />
                     </div>
+
+                    <button
+                      type="button"
+                      disabled={!customAmount}
+                      onClick={() => {
+                        if (customAmount) {
+                          setPaymentType("custom");
+                          setCurrentStep(4); 
+                        }
+                      }}
+                      className={`w-full sm:w-1/3 py-3 px-4 rounded-lg text-white font-medium transition-all duration-300
+  ${customAmount
+                          ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
+                          : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
+                    >
+                      Continue
+                    </button>
+                  </div>
+
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={() => {
+                        setCurrentStep(1);
+                        router.push(`/payment?projectId=${project.id}`, undefined, { shallow: true });
+                      }}
+                      className="text-orange-600 hover:text-orange-800 font-medium"
+                    >
+                      Select Different Phase
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Payment Confirmation */}
+      {currentStep === 4 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left Column - Payment Confirmation, Warning and FAQs */}
+          <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <FaMoneyBillWave className="text-orange-500 text-2xl mr-3" />
+                <h2 className="text-2xl font-bold text-gray-800">Confirm Your Payment</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setCurrentStep(2);
+                  // Keep the phaseId in URL when going back to milestone selection
+                }}
+                className="text-sm text-gray-600 hover:text-orange-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
+              >
+                Change Selection
+              </button>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="mb-8 bg-gray-50 p-6 rounded-lg border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Payment Summary</h3>
+
+              {/* Show selected option details */}
+              <div className="bg-white p-5 rounded-lg border border-gray-200 mb-4">
+                {paymentType === "milestone" && selectedMilestone ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <FaCheckCircle className="text-green-500 mr-2" />
+                      <h4 className="font-medium text-gray-800">Selected Milestone</h4>
+                    </div>
+                    <div className="pl-6">
+                      <p className="font-medium text-gray-800">{selectedMilestone.title}</p>
+                      <p className="text-sm text-gray-600 mt-1 mb-2">{selectedMilestone.description}</p>
+                      <div className="bg-orange-50 inline-block px-3 py-1 rounded-md">
+                        <span className="font-medium text-orange-700">${selectedMilestone.price}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <FaCheckCircle className="text-blue-500 mr-2" />
+                      <h4 className="font-medium text-gray-800">Custom Contribution</h4>
+                    </div>
+                    <div className="pl-6">
+                      <p className="text-sm text-gray-600 mb-2">Thank you for your support to Phase {selectedPhase.phaseNumber}</p>
+                      <div className="bg-orange-50 inline-block px-3 py-1 rounded-md">
+                        <span className="font-medium text-orange-700">${parseFloat(customAmount).toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Improved Continue Button */}
+            {/* Payment Button */}
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={
-                processingPayment ||
-                (paymentType === "milestone" && !selectedMilestone) ||
-                (paymentType === "custom" && !customAmount)
-              }
+              disabled={processingPayment}
               className={`w-full py-4 px-6 rounded-lg text-white font-bold text-lg shadow-lg transform transition-all duration-300 flex items-center justify-center
-                ${processingPayment
+          ${processingPayment
                   ? 'bg-orange-400 cursor-wait'
-                  : (paymentType === "milestone" && !selectedMilestone) || (paymentType === "custom" && !customAmount)
-                    ? 'bg-gray-400 cursor-not-allowed opacity-70'
-                    : 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:-translate-y-1 hover:shadow-xl'}`}
+                  : 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:-translate-y-1 hover:shadow-xl'}`}
             >
               {processingPayment ? (
                 <>
@@ -434,7 +671,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                   Processing...
                 </>
               ) : (
-                'Continue to Payment'
+                'Complete Payment'
               )}
             </button>
 
@@ -484,7 +721,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             </div>
           </div>
 
-          {/* Right Column - Details - keep this unchanged */}
+          {/* Right Column - Checkout Summary */}
           <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             {/* Checkout */}
             {selectedPhase && (
@@ -569,16 +806,6 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                           </div>
                         ))}
                       </div>
-                      {selectedMilestone.items.length > 4 && (
-                        <div className="pt-2 text-center">
-                          <button
-                            className="text-xs text-orange-600 hover:text-orange-700 font-medium"
-                            onClick={() => setSelectedTab(1)}
-                          >
-                            See all rewards
-                          </button>
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -602,132 +829,6 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Phase information (read-only) */}
-            {selectedPhase && (
-              <div className="mb-6 bg-orange-50 p-5 rounded-lg border border-orange-100">
-                <h3 className="text-xl font-bold text-orange-800 mb-3">Phase {selectedPhase.phaseNumber} Details</h3>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                  <div className="flex justify-between py-2 border-b border-orange-100">
-                    <span className="font-medium text-orange-700">Target Amount:</span>
-                    <span className="font-semibold text-gray-800">${selectedPhase.targetAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-orange-100">
-                    <span className="font-medium text-orange-700">Status:</span>
-                    <span className={`font-semibold px-3 py-1 rounded-full text-xs ${selectedPhase.status === 'ACTIVE'
-                      ? 'bg-green-100 text-green-800'
-                      : selectedPhase.status === 'COMPLETED'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                      }`}>
-                      {selectedPhase.status}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium text-orange-700">Timeline:</span>
-                    <span className="font-semibold text-gray-800">
-                      {`${selectedPhase.startDate[1]}/${selectedPhase.startDate[0]}`} - {`${selectedPhase.endDate[1]}/${selectedPhase.endDate[0]}`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tabs for Milestone/Reward Details */}
-            {selectedMilestone && paymentType === "milestone" && (
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
-                <Tab.Group selectedIndex={selectedTab} onChange={handleTabChange}>
-                  <Tab.List className="flex rounded-t-lg bg-gray-50 border-b border-gray-200">
-                    <Tab
-                      className={({ selected }) =>
-                        `flex-1 py-3 text-sm font-medium leading-5 transition-colors
-                      ${selected
-                          ? 'bg-white text-orange-700 border-t-2 border-orange-500'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`
-                      }
-                    >
-                      Milestone Details
-                    </Tab>
-                    <Tab
-                      className={({ selected }) =>
-                        `flex-1 py-3 text-sm font-medium leading-5 transition-colors
-                      ${selected
-                          ? 'bg-white text-orange-700 border-t-2 border-orange-500'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`
-                      }
-                    >
-                      Rewards
-                    </Tab>
-                  </Tab.List>
-                  <Tab.Panels>
-                    {/* Milestone Details Panel - With scroll for long content */}
-                    <Tab.Panel className="p-5">
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-orange-700">{selectedMilestone.title}</h3>
-                        <div className="max-h-48 overflow-y-auto pr-2 text-gray-700 leading-relaxed">
-                          <p>{selectedMilestone.description}</p>
-                        </div>
-                        <div className="bg-orange-50 p-3 rounded-lg inline-block">
-                          <p className="text-gray-800 font-medium">
-                            <span className="text-orange-600">Price:</span> ${selectedMilestone.price}
-                          </p>
-                        </div>
-                      </div>
-                    </Tab.Panel>
-
-                    {/* Reward Details Panel - With scroll for many items */}
-                    <Tab.Panel className="p-5">
-                      <h3 className="text-lg font-bold text-orange-700 mb-4">Rewards</h3>
-                      {selectedMilestone && paymentType === "milestone" && selectedMilestone.items && selectedMilestone.items.length > 0 && (
-                        <div className="bg-white p-3 rounded-lg shadow-sm">
-                          <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                            <span className="inline-block w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
-                            Rewards Included
-                          </h4>
-                          <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                            {selectedMilestone.items.map((item) => (
-                              <div key={item.id} className="flex items-center py-1.5 border-b border-gray-100 last:border-0">
-                                {item.imageUrl ? (
-                                  <div className="flex-shrink-0 w-8 h-8 mr-3">
-                                    <img
-                                      src={item.imageUrl}
-                                      alt={item.name}
-                                      className="w-8 h-8 object-cover rounded border border-gray-200"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="flex-shrink-0 w-8 h-8 mr-3 bg-gray-100 rounded border border-gray-200 text-xs flex items-center justify-center text-gray-400">
-                                    <span>Item</span>
-                                  </div>
-                                )}
-                                <div className="flex-grow">
-                                  <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
-                                </div>
-                                <div className="flex-shrink-0 ml-2">
-                                  <span className="px-2 py-1 bg-orange-50 text-orange-800 text-xs rounded-full">
-                                    x{item.quantity}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          {selectedMilestone.items.length > 4 && (
-                            <div className="pt-2 text-center">
-                              <button
-                                className="text-xs text-orange-600 hover:text-orange-700 font-medium"
-                                onClick={() => setSelectedTab(1)}
-                              >
-                                See all rewards
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </Tab.Panel>
-                  </Tab.Panels>
-                </Tab.Group>
               </div>
             )}
 
