@@ -6,6 +6,7 @@ import { ChevronDown, LogOut, User, FileText, Users, ClipboardList, Mail, Bell }
 import { authenticate } from "src/services/authenticate";
 import Link from "../Reuseable/Link";
 import NotificationDropdown from "@/components/Notifications/NotificationDropdown";
+import { FaMoneyBill } from "react-icons/fa";
 
 const MENU_ITEMS = {
   FOUNDER: [
@@ -19,7 +20,8 @@ const MENU_ITEMS = {
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
     { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
-    { label: 'Manage Reward', icon: Mail, href: '/reward' }
+    { label: 'Manage Reward', icon: Mail, href: '/reward' },
+    { label: 'Transaction', icon: FaMoneyBill, href: '/transaction' }
   ]
 };
 

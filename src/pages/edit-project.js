@@ -1025,6 +1025,7 @@ function EditProjectPage() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      console.log("Current project status before save:", projectStatus);
 
       // If update is required but not posted, show the update modal
       if (updateRequired && projectStatus === 'FUNDRAISING') {
@@ -1044,36 +1045,15 @@ function EditProjectPage() {
 
       console.log("Saving project with ID:", projectId);
 
-      // If project is in DRAFT or REJECTED status, use submitProject
-      if (projectStatus === 'REJECTED' || projectStatus === 'DRAFT') {
-        const confirmSubmit = confirm(
-          "Once submitted, your project will be reviewed by our team. " +
-          "You won't be able to make changes during the review process. " +
-          "Are you sure you want to submit your project now?"
-        );
+      // Skip the section-by-section save and directly call submitProject
+      console.log("Submitting project for review with ID:", projectId);
+      await projectService.submitProject(projectId);
 
-        if (!confirmSubmit) {
-          setIsSaving(false);
-          return;
-        }
+      // Update status in local state to PENDING_APPROVAL regardless of current status
+      setProjectStatus('PENDING_APPROVAL');
 
-        // First save all sections
-        await saveAllSections(projectId);
-
-        // Then submit the project for review
-        console.log("Submitting project for review");
-        await projectService.submitProject(projectId);
-
-        // Update status in local state
-        setProjectStatus('PENDING_APPROVAL');
-
-        // Show success message
-        alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
-      } else {
-        // For all other statuses, just save without submitting
-        await saveAllSections(projectId);
-        alert("Project updated successfully!");
-      }
+      // Show success message
+      alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
 
       // Reset the update required flag
       setUpdateRequired(false);
@@ -1444,7 +1424,7 @@ function EditProjectPage() {
     component: (
       <UpdateBlog
         onSave={handleSaveUpdate}
-        onCancel={() => {} }
+        onCancel={() => { }}
         existingUpdates={existingUpdates}
         projectId={formData.projectId || formData.basicInfo?.projectId}
       />
