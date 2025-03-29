@@ -15,9 +15,13 @@ const ProjectDetailsContent = ({ project }) => {
     return `tab-pane animated${active ? " fadeIn show active" : ""}`;
   };
 
+  // Determine if the current tab should be full width
+  const isFullWidthTab = current === "pills-home" || current === "pills-phase";
+  
   return (
     <section className="project-details-content-area pb-110">
-      <Container>
+      {/* Navigation tabs - always centered */}
+      <Container className="mb-5">
         <Row className="justify-content-center">
           <Col lg={8}>
             <div className="tab-btns">
@@ -37,12 +41,31 @@ const ProjectDetailsContent = ({ project }) => {
                 ))}
               </ul>
             </div>
+          </Col>
+        </Row>
+      </Container>
+
+      {/* Content container - conditionally fluid */}
+      <Container fluid={isFullWidthTab}>
+        <Row className="justify-content-center">
+          <Col lg={isFullWidthTab ? 12 : 8}>
+            {/* Tab content */}
             <div className="tab-content" id="pills-tabContent">
-              <ProjectDetailsStory getClassName={getClassName} project={project} />
-              <ProjectTeam getClassName={getClassName} project={project} />
-              <ProjectDetailsUpdates getClassName={getClassName} project={project} />
-              <ProjectDetailsComments getClassName={getClassName} project={project} />
-              <ProjectDetailsSidebar getClassName={getClassName} project={project} />
+              <div className={getClassName("pills-home")} id="pills-home">
+                <ProjectDetailsStory getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-profile")} id="pills-profile">
+                <ProjectTeam getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-contact")} id="pills-contact">
+                <ProjectDetailsUpdates getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-4")} id="pills-comments">
+                <ProjectDetailsComments getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-phase")} id="pills-phase">
+                <ProjectDetailsSidebar getClassName={getClassName} project={project} />
+              </div>
             </div>
           </Col>
         </Row>
