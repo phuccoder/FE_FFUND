@@ -1,12 +1,13 @@
 const { tokenManager } = require("@/utils/tokenManager");
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1'; // Replace with your actual API base URL
 const UPDATE_POST_GET_BY_PROJECT = (id) => `${API_BASE_URL}/project-update-post/by-project-id/${id}`;
 const UPDATE_POST_GET_BY_ID = (id) => `${API_BASE_URL}/project-update-post/${id}`;
 const UPDATE_POST_CREATE = (id) => `${API_BASE_URL}/project-update-post/${id}`;
 const UPDATE_POST_UPLOAD_IMAGE = (id) => `${API_BASE_URL}/project-update-post/upload-media/${id}`;
 const UPDATE_POST_UPDATE = (id) => `${API_BASE_URL}/project-update-post/${id}`;
 const UPDATE_POST_DELETE = (id) => `${API_BASE_URL}/project-update-post/${id}`;
+const GET_COUNT_UPDATE_POST = (id) => `${API_BASE_URL}/project-update-post/count/${id}`;
 
 const updatePostService = {
     getUpdatePostByProjectId: async (projectId) => {
@@ -169,6 +170,26 @@ const updatePostService = {
             return data;
         } catch (error) {
             console.error('Error in deleteUpdatePost:', error);
+            throw error;
+        }
+    },
+
+    getCountUpdatePost: async (projectId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(GET_COUNT_UPDATE_POST(projectId), {
+                method: 'GET',
+                headers: {
+                    'accept': '*/*'
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error in getCountUpdatePost:', error);
             throw error;
         }
     }
