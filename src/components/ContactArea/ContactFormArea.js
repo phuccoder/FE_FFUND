@@ -133,7 +133,7 @@ const ContactFormArea = () => {
             <button
               type="submit"
               disabled={loading}
-              className="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition"
+              className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition"
             >
               {loading ? "Submitting..." : "Submit Request"}
             </button>
