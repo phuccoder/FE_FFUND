@@ -593,11 +593,12 @@ const projectService = {
 
     getProjectStoryByProjectId: async (projectId) => {
         try {
-            
+            const token = await tokenManager.getValidToken();
             const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
@@ -680,12 +681,12 @@ const projectService = {
             throw error;
         }
     },
-    // Method to upload an image to a story
+
     uploadStoryImage: async (storyBlockId, file) => {
         try {
             console.log(`Uploading image for story ${storyBlockId}`);
 
-            // Fixed: storyId is undefined error - using storyBlockId instead
+
             if (!storyBlockId) {
                 throw new Error('No story ID provided for image upload');
             }

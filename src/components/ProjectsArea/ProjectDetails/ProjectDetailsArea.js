@@ -143,7 +143,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                 </span>
               </div>
               <div className="project-btn mt-25">
-                <a className="main-btn" href={projectUrl} target="_blank" rel="noopener noreferrer">
+                <a className="main-btn" href={`/payment?projectId=${project.id}`} rel="noopener noreferrer">
                   Back this project
                 </a>
               </div>

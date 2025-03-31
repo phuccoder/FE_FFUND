@@ -105,7 +105,6 @@ const AdvancedSearch = ({ onSearch }) => {
 
     console.log("Search parameters:", searchParams);
     onSearch(searchParams);
-    setIsSearchVisible(false);
   };
 
   const toggleSearch = () => {
