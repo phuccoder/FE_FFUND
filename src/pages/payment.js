@@ -7,6 +7,7 @@ import projectService from "../services/projectService";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/Header/Header";
 import PageTitle from "@/components/Reuseable/PageTitle";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function Payment() {
     const router = useRouter();
@@ -139,10 +140,12 @@ useEffect(() => {
         <Layout>
             <Header />
             <PageTitle title="Payment" />
+            <ProtectedRoute requiredRoles={'INVESTOR'} redirectTo="/unauthorized">
             <ProjectPaymentPage
                 project={project}
                 selectedPhaseId={phaseIdToUse ? parseInt(phaseIdToUse) : null}
             />
+            </ProtectedRoute>
         </Layout>
     );
 }
