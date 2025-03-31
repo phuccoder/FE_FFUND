@@ -17,14 +17,25 @@ export default function Payment() {
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
     // First capture the URL parameters as soon as they are available
-    useEffect(() => {
-        if (router.isReady && projectId) {
-            // Save these parameters to local storage so they're available after auth redirects
-            localStorage.setItem('paymentProjectId', projectId);
-            if (phaseId) localStorage.setItem('paymentPhaseId', phaseId);
-            console.log("Captured URL params: projectId=", projectId, "phaseId=", phaseId);
+useEffect(() => {
+    if (router.isReady) {
+      // Check if we have parameters
+      if (projectId || phaseId) {
+        console.log("Captured URL params: projectId=", projectId, "phaseId=", phaseId);
+        
+        // Save these parameters to local storage so they're available after auth redirects
+        if (projectId) localStorage.setItem('paymentProjectId', projectId);
+        if (phaseId) localStorage.setItem('paymentPhaseId', phaseId);
+      } else {
+        console.log("No URL parameters found, checking localStorage...");
+        const storedProjectId = localStorage.getItem('paymentProjectId');
+        const storedPhaseId = localStorage.getItem('paymentPhaseId');
+        if (storedProjectId) {
+          console.log("Using stored parameters: projectId=", storedProjectId, "phaseId=", storedPhaseId);
         }
-    }, [router.isReady, projectId, phaseId]);
+      }
+    }
+  }, [router.isReady, projectId, phaseId]);
 
     // Then handle authentication
     useEffect(() => {
@@ -78,6 +89,16 @@ export default function Payment() {
         }
     }, [projectId, router.isReady, isAuthenticated, authLoading, user]);
 
+    useEffect(() => {
+        if (router.isReady && projectId && phaseId) {
+          // Store the phaseId in localStorage for persistence if needed
+          localStorage.setItem('paymentPhaseId', phaseId);
+        } else if (router.isReady && projectId && !phaseId) {
+          // If there's no phaseId in the URL, remove it from localStorage to ensure proper flow
+          localStorage.removeItem('paymentPhaseId');
+        }
+      }, [router.isReady, projectId, phaseId]);
+
     // Show loading state during authentication or data fetching
     if (authLoading || (loading && isAuthenticated && user?.role === 'INVESTOR')) {
         return (
@@ -112,7 +133,6 @@ export default function Payment() {
         );
     }
 
-    // Get phaseId from URL or fallback to localStorage
     const phaseIdToUse = phaseId || localStorage.getItem('paymentPhaseId');
 
     return (

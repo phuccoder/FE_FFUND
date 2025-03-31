@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import ProjectDetailsComments from "./ProjectDetailsComments";
-import ProjectDetailsFaq from "./ProjectDetailsFaq";
+import ProjectTeam from "./ProjectTeam";
 import ProjectDetailsSidebar from "./ProjectDetailsSidebar";
 import ProjectDetailsStory from "./ProjectDetailsStory";
 import ProjectDetailsUpdates from "./ProjectDetailsUpdates";
@@ -11,49 +11,19 @@ import updatePostService  from "../../../services/updatePostService";
 
 const ProjectDetailsContent = ({ project }) => {
   const [current, setCurrent] = useState("pills-home");
-  const [commentCount, setCommentCount] = useState(0); // State để lưu số lượng comment
-  const [updatePostCount, setUpdatePostCount] = useState(0); // State để lưu số lượng update post
-
-  // Gọi API để lấy commentCount và updatePostCount
-  useEffect(() => {
-    const fetchCommentCount = async () => {
-      if (project) {
-        try {
-          const response = await likeCommentProjectService.getCountLikesComments(project.id);
-          if (response.status === 200) {
-            setCommentCount(response.data.commentCount); // Lưu commentCount từ API
-          }
-        } catch (error) {
-          console.error("Error fetching comment count:", error);
-        }
-      }
-    };
-
-    const fetchUpdatePostCount = async () => {
-      if (project) {
-        try {
-          const response = await updatePostService.getCountUpdatePost(project.id);
-          if (response.status === 200) {
-            setUpdatePostCount(response.data); // Lưu updatePostCount từ API
-          }
-        } catch (error) {
-          console.error("Error fetching update post count:", error);
-        }
-      }
-    };
-
-    fetchCommentCount();
-    fetchUpdatePostCount();
-  }, [project]);
 
   const getClassName = (id = "") => {
     const active = current === id;
     return `tab-pane animated${active ? " fadeIn show active" : ""}`;
   };
 
+  // Determine if the current tab should be full width
+  const isFullWidthTab = current === "pills-home" || current === "pills-phase";
+  
   return (
     <section className="project-details-content-area pb-110">
-      <Container>
+      {/* Navigation tabs - always centered */}
+      <Container className="mb-5">
         <Row className="justify-content-center">
           <Col lg={8}>
             <div className="tab-btns">
@@ -83,15 +53,32 @@ const ProjectDetailsContent = ({ project }) => {
                 ))}
               </ul>
             </div>
-            <div className="tab-content" id="pills-tabContent">
-              <ProjectDetailsStory getClassName={getClassName} project={project} />
-              <ProjectDetailsFaq getClassName={getClassName} project={project} />
-              <ProjectDetailsUpdates getClassName={getClassName} project={project} />
-              <ProjectDetailsComments getClassName={getClassName} project={project} />
-            </div>
           </Col>
-          <Col lg={4} md={7} sm={9}>
-            <ProjectDetailsSidebar project={project} />
+        </Row>
+      </Container>
+
+      {/* Content container - conditionally fluid */}
+      <Container fluid={isFullWidthTab}>
+        <Row className="justify-content-center">
+          <Col lg={isFullWidthTab ? 12 : 8}>
+            {/* Tab content */}
+            <div className="tab-content" id="pills-tabContent">
+              <div className={getClassName("pills-home")} id="pills-home">
+                <ProjectDetailsStory getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-profile")} id="pills-profile">
+                <ProjectTeam getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-contact")} id="pills-contact">
+                <ProjectDetailsUpdates getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-4")} id="pills-comments">
+                <ProjectDetailsComments getClassName={getClassName} project={project} />
+              </div>
+              <div className={getClassName("pills-phase")} id="pills-phase">
+                <ProjectDetailsSidebar getClassName={getClassName} project={project} />
+              </div>
+            </div>
           </Col>
         </Row>
       </Container>
