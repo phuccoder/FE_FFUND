@@ -2,7 +2,7 @@ import { tokenManager } from "@/utils/tokenManager";
 import { get } from "http";
 
 // API endpoints
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const SEND_REQUEST_ENDPOINT = `${API_BASE_URL}/request`;
 const UPLOAD_ATTACHMENT_ENDPOINT = `${API_BASE_URL}/request/upload-attachment/{requestId}`;
 const GET_REQUESTS_BY_REQUEST_ID_ENDPOINT = `${API_BASE_URL}/request/{requestId}`;
