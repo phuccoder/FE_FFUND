@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from "react";
 import { requestService } from "../../services/RequestService";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { motion } from "framer-motion";
+import { message, Modal } from "antd";
 import {
-    ArrowUpIcon,
-    ArrowDownIcon,
-    InformationCircleIcon
-} from "@heroicons/react/24/outline";
+    ArrowUpOutlined,
+    ArrowDownOutlined,
+    InfoCircleOutlined,
+    EyeOutlined,
+    CloseOutlined,
+    FileTextOutlined
+} from '@ant-design/icons';
+import Header from '@/components/Header/Header';
+import Layout from '@/components/Layout/Layout';
+import Head from 'next/head';
+import { format } from 'date-fns';
+
+const { confirm } = Modal;
 
 const RequestManager = () => {
     const [requests, setRequests] = useState([]);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+    const [loading, setLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         const fetchRequests = async () => {
+            setLoading(true);
             try {
                 const response = await requestService.getRequestByUser();
                 setRequests(response.data || []);
             } catch (error) {
-                console.error("Error fetching requests:", error);
-                toast.error("Failed to fetch requests.");
+                message.error("Failed to fetch requests.");
+            } finally {
+                setLoading(false);
             }
         };
         fetchRequests();
@@ -31,14 +42,14 @@ const RequestManager = () => {
         try {
             const response = await requestService.getRequestByRequestId(requestId);
             setSelectedRequest(response.data);
+            setModalVisible(true);
         } catch (error) {
-            console.error("Error fetching request details:", error);
-            toast.error("Failed to fetch request details.");
+            message.error("Failed to fetch request details.");
         }
     };
 
     const handleCloseDetails = () => {
-        setSelectedRequest(null);
+        setModalVisible(false);
     };
 
     const handleSort = (key) => {
@@ -56,93 +67,134 @@ const RequestManager = () => {
         setRequests(sortedData);
     };
 
-    // Tooltip component for sort explanation
-    const SortTooltip = ({ text }) => (
-        <div className="group relative inline-block">
-            <InformationCircleIcon className="w-4 h-4 text-gray-400 ml-1 inline-block" />
-            <span className="
-                invisible group-hover:visible 
-                absolute z-10 p-2 
-                bg-black text-white text-xs 
-                rounded shadow-lg 
-                -top-10 left-1/2 transform -translate-x-1/2
-            ">
-                {text}
+    const getStatusTag = (status) => {
+        let color = '';
+        switch (status.toLowerCase()) {
+            case 'pending': color = 'orange'; break;
+            case 'approved': color = 'green'; break;
+            case 'rejected': color = 'red'; break;
+            default: color = 'blue';
+        }
+        return (
+            <span style={{
+                color: color,
+                backgroundColor: `${color}10`,
+                padding: '2px 8px',
+                borderRadius: '10px',
+                border: `1px solid ${color}`,
+                fontSize: '12px'
+            }}>
+                {status}
             </span>
-        </div>
-    );
+        );
+    };
 
-    // Sortable header component
-    const SortableHeader = ({ children, sortKey, tooltipText }) => (
-        <th className="px-6 py-3 cursor-pointer">
-            <div
-                className="flex items-center gap-2"
-                onClick={() => handleSort(sortKey)}
-            >
-                {children}
-                {sortConfig.key === sortKey && (
-                    sortConfig.direction === "asc"
-                        ? <ArrowUpIcon className="w-4 h-4" />
-                        : <ArrowDownIcon className="w-4 h-4" />
-                )}
-            </div>
-            {tooltipText && (
-                <SortTooltip text={tooltipText} />
-            )}
-        </th>
-    );
+    const SortIndicator = ({ sortKey }) => {
+        if (sortConfig.key !== sortKey) return null;
+        return sortConfig.direction === 'asc'
+            ? <ArrowUpOutlined style={{ fontSize: 12, marginLeft: 4 }} />
+            : <ArrowDownOutlined style={{ fontSize: 12, marginLeft: 4 }} />;
+    };
 
     return (
-        <div className="p-6 bg-gray-100 min-h-screen">
-            <ToastContainer />
-            <h1 className="text-2xl font-bold mb-6">Request/Report Management</h1>
 
-            {/* Table with sortable headers */}
-            <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-                <table className="min-w-full text-sm text-left text-gray-500">
-                    <thead className="bg-gray-50 text-gray-700 uppercase text-xs">
-                        <tr>
-                            <th className="px-6 py-3">STT</th>
-                            <SortableHeader
-                                sortKey="title"
-                                tooltipText="Sort by title alphabetically"
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+            <h1 style={{
+                fontSize: 24,
+                fontWeight: 600,
+                marginBottom: 24,
+                color: '#333'
+            }}>
+                Request/Report Management
+            </h1>
+
+            <div style={{
+                backgroundColor: '#fff',
+                borderRadius: 8,
+                boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)'
+            }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#fafafa' }}>
+                            <th style={{
+                                padding: '12px 16px',
+                                textAlign: 'left',
+                                fontWeight: 500,
+                                width: 50
+                            }}>No.</th>
+                            <th
+                                style={{
+                                    padding: '12px 16px',
+                                    textAlign: 'left',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                                onClick={() => handleSort('title')}
                             >
-                                Title
-                            </SortableHeader>
-                            <th className="px-6 py-3">Type</th>
-                            <th className="px-6 py-3">Description</th>
-                            <SortableHeader
-                                sortKey="createdAt"
-                                tooltipText="Sort by creation date"
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    Title
+                                    <SortIndicator sortKey="title" />
+                                </div>
+                            </th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>Type</th>
+                            <th
+                                style={{
+                                    padding: '12px 16px',
+                                    textAlign: 'left',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                                onClick={() => handleSort('createdAt')}
                             >
-                                Created At
-                            </SortableHeader>
-                            <SortableHeader
-                                sortKey="status"
-                                tooltipText="Sort by request status"
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    Created At
+                                    <SortIndicator sortKey="createdAt" />
+                                </div>
+                            </th>
+                            <th
+                                style={{
+                                    padding: '12px 16px',
+                                    textAlign: 'left',
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
+                                onClick={() => handleSort('status')}
                             >
-                                Status
-                            </SortableHeader>
-                            <th className="px-6 py-3">Response</th>
-                            <th className="px-6 py-3">Actions</th>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    Status
+                                    <SortIndicator sortKey="status" />
+                                </div>
+                            </th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {requests.map((request, index) => (
-                            <tr key={request.id} className="border-b hover:bg-gray-50">
-                                <td className="px-6 py-4">{index + 1}</td>
-                                <td className="px-6 py-4">{request.title}</td>
-                                <td className="px-6 py-4">{request.type}</td>
-                                <td className="px-6 py-4 truncate max-w-xs">{request.description}</td>
-                                <td className="px-6 py-4">{request.createdAt}</td>
-                                <td className="px-6 py-4">{request.status}</td>
-                                <td className="px-6 py-4">{request.response || "No response"}</td>
-                                <td className="px-6 py-4">
+                            <tr key={request.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <td style={{ padding: '12px 16px' }}>{index + 1}</td>
+                                <td style={{ padding: '12px 16px' }}>{request.title}</td>
+                                <td style={{ padding: '12px 16px' }}>{request.type}</td>
+                                <td style={{ padding: '12px 16px' }}>
+                                    {format(new Date(request.createdAt), 'dd MMM yyyy HH:mm')}
+                                </td>
+                                <td style={{ padding: '12px 16px' }}>
+                                    {getStatusTag(request.status)}
+                                </td>
+                                <td style={{ padding: '12px 16px' }}>
                                     <button
                                         onClick={() => handleViewDetails(request.id)}
-                                        className="text-blue-500 hover:underline"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '4px 8px',
+                                            backgroundColor: 'transparent',
+                                            border: '1px solid #d9d9d9',
+                                            borderRadius: 4,
+                                            cursor: 'pointer'
+                                        }}
                                     >
-                                        View Details
+                                        <EyeOutlined style={{ marginRight: 4 }} />
+                                        View
                                     </button>
                                 </td>
                             </tr>
@@ -151,67 +203,107 @@ const RequestManager = () => {
                 </table>
             </div>
 
-            {/* Improved Request Details Modal */}
-            {selectedRequest && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="bg-white rounded-lg shadow-lg p-8 w-full max-w-2xl relative"
+            <Modal
+                title="Request Details"
+                visible={modalVisible}
+                onCancel={handleCloseDetails}
+                footer={[
+                    <button
+                        key="close"
+                        onClick={handleCloseDetails}
+                        style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#f5f5f5',
+                            border: '1px solid #d9d9d9',
+                            borderRadius: 4,
+                            cursor: 'pointer'
+                        }}
                     >
-                        <button
-                            onClick={handleCloseDetails}
-                            className="absolute top-4 right-4 text-gray-600 hover:text-red-500 text-2xl"
-                        >
-                            ✖
-                        </button>
-                        <h2 className="text-2xl font-bold mb-6 text-center border-b pb-4">Request Details</h2>
-
-                        <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">Request Information</h3>
-                                <p className="mb-2"><strong>Title:</strong> {selectedRequest.title}</p>
-                                <p className="mb-2"><strong>Type:</strong> {selectedRequest.type}</p>
-                                <p className="mb-2"><strong>Status:</strong> {selectedRequest.status}</p>
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">Timing</h3>
-                                <p className="mb-2"><strong>Created At:</strong> {selectedRequest.createdAt}</p>
-                                <p className="mb-2"><strong>Updated At:</strong> {selectedRequest.updatedAt || "N/A"}</p>
-                            </div>
-
-                            <div className="col-span-2">
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">Description</h3>
-                                <p className="bg-gray-50 p-4 rounded">{selectedRequest.description}</p>
-                            </div>
-
-                            <div className="col-span-2">
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">Response</h3>
-                                <p className="bg-gray-50 p-4 rounded">
-                                    {selectedRequest.response || "No response yet"}
-                                </p>
-                            </div>
-
-                            {selectedRequest.attachmentUrl && (
-                                <div className="col-span-2">
-                                    <h3 className="font-semibold text-lg mb-2 text-gray-700">Attachment</h3>
-                                    <a
-                                        href={selectedRequest.attachmentUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-500 hover:underline bg-blue-50 px-4 py-2 rounded inline-block"
-                                    >
-                                        View Attachment
-                                    </a>
+                        Close
+                    </button>
+                ]}
+                width={800}
+            >
+                {selectedRequest && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                        <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Request Information</h3>
+                            <div style={{ display: 'grid', gap: 8 }}>
+                                <div>
+                                    <strong>Title:</strong> {selectedRequest.title}
                                 </div>
-                            )}
+                                <div>
+                                    <strong>Type:</strong> {selectedRequest.type}
+                                </div>
+                                <div>
+                                    <strong>Status:</strong> {getStatusTag(selectedRequest.status)}
+                                </div>
+                            </div>
                         </div>
-                    </motion.div>
-                </div>
-            )}
+
+                        <div>
+                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Timing</h3>
+                            <div style={{ display: 'grid', gap: 8 }}>
+                                <div>
+                                    <strong>Created At:</strong>{' '}
+                                    {format(new Date(selectedRequest.createdAt), 'dd MMM yyyy HH:mm')}
+                                </div>
+                                <div>
+                                    <strong>Updated At:</strong>{' '}
+                                    {selectedRequest.updatedAt
+                                        ? format(new Date(selectedRequest.updatedAt), 'dd MMM yyyy HH:mm')
+                                        : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Description</h3>
+                            <div style={{
+                                backgroundColor: '#fafafa',
+                                padding: 12,
+                                borderRadius: 4,
+                                border: '1px solid #f0f0f0'
+                            }}>
+                                {selectedRequest.description}
+                            </div>
+                        </div>
+
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Response</h3>
+                            <div style={{
+                                backgroundColor: '#fafafa',
+                                padding: 12,
+                                borderRadius: 4,
+                                border: '1px solid #f0f0f0'
+                            }}>
+                                {selectedRequest.response || "No response yet"}
+                            </div>
+                        </div>
+
+                        {selectedRequest.attachmentUrl && (
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Attachment</h3>
+                                <button
+                                    onClick={() => window.open(selectedRequest.attachmentUrl, '_blank')}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '6px 12px',
+                                        backgroundColor: 'transparent',
+                                        border: '1px solid #d9d9d9',
+                                        borderRadius: 4,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <FileTextOutlined style={{ marginRight: 4 }} />
+                                    View Attachment
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
