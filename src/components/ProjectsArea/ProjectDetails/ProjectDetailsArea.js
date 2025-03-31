@@ -1,7 +1,62 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Col, Container, Row } from "react-bootstrap";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { likeCommentProjectService } from "../../../services/likeCommentProjectService";
+import { toast } from "react-toastify";
 
-const ProjectDetailsArea = ({ project }) => {
+const ProjectDetailsArea = ({ project, isAuthenticated }) => {
+  // Đặt các Hooks ở đầu, trước bất kỳ điều kiện nào
+  const [likeCount, setLikeCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    if (project) {
+      const fetchLikeCommentData = async () => {
+        try {
+          // Lấy số lượng like và comment
+          const likeCommentResponse = await likeCommentProjectService.getCountLikesComments(project.id);
+          if (likeCommentResponse.status === 200) {
+            setLikeCount(likeCommentResponse.data.likeCount);
+            setCommentCount(likeCommentResponse.data.commentCount);
+          }
+
+          // Kiểm tra xem người dùng đã like hay chưa
+          const isLikedResponse = await likeCommentProjectService.getIsLiked(project.id);
+          if (isLikedResponse.status === 200) {
+            setIsLiked(isLikedResponse.data); // `data` là true/false
+          }
+        } catch (error) {
+          console.error("Error fetching like/comment data:", error);
+        }
+      };
+
+      fetchLikeCommentData();
+    }
+  }, [project]);
+
+  // Xử lý Like / Unlike
+  const handleLikeToggle = async () => {
+    if (!isAuthenticated) {
+      // Hiển thị thông báo nếu người dùng chưa đăng nhập
+      toast.warning("You must log in to like this project.");
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await likeCommentProjectService.unlikeProject(project.id);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+      } else {
+        await likeCommentProjectService.likeProject(project.id);
+        setLikeCount((prev) => prev + 1);
+      }
+      setIsLiked(!isLiked);
+    } catch (error) {
+      console.error("Error liking/unliking project:", error);
+    }
+  };
+  // Nếu project chưa được truyền vào, hiển thị loading
   if (!project) {
     return <div>Loading project data...</div>;
   }
@@ -36,9 +91,6 @@ const ProjectDetailsArea = ({ project }) => {
                   style={{ maxWidth: "100%", height: "auto" }}
                 />
               </div>
-              <div className="icon">
-                <i className="fa fa-heart"></i>
-              </div>
             </div>
           </Col>
           <Col lg={5}>
@@ -49,7 +101,18 @@ const ProjectDetailsArea = ({ project }) => {
                   <p>{categoryName}</p>
                 </div>
               </div>
-              <h3 className="title">{title}</h3>
+              {/* Title và Icon Like */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3 className="title" style={{ marginTop: '20px', fontSize: '30px' }}>{title}</h3>
+                <div
+                  className="icon"
+                  style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+                  onClick={handleLikeToggle}
+                >
+                  {isLiked ? <FaHeart size={24} color="red" /> : <FaRegHeart size={24} color="gray" />}
+                  <span style={{ marginLeft: 5, fontSize: "16px" }}>{likeCount}</span>
+                </div>
+              </div>
               {description && <p className="description">{description}</p>}
               <div className="project-details-item">
                 <div className="item text-center">
@@ -93,6 +156,10 @@ const ProjectDetailsArea = ({ project }) => {
                     </a>
                   </li>
                 </ul>
+              </div>
+              {/* Hiển thị số lượng comment */}
+              <div className="project-comments">
+                <span>{commentCount} Comments</span>
               </div>
             </div>
           </Col>

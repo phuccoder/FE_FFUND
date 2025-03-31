@@ -9,6 +9,7 @@ import {
     deleteUserAddress,
     updateUserAddress
 } from "../../services/userAddress";
+import { FaEdit, FaTrash } from "react-icons/fa";
 import { Card, Button, Modal, Form } from "react-bootstrap";
 
 const UserAddressManager = () => {
@@ -229,8 +230,29 @@ const UserAddressManager = () => {
             <div className="mb-4">
                 {addresses.map((address, index) => (
                     <Card key={address.id} className="mb-3">
-                        <Card.Header>
-                            Address {index + 1} {address.isDefault && <span className="text-success">(Default)</span>}
+                        <Card.Header className="d-flex justify-content-between align-items-center">
+                            <span>
+                                Address {index + 1} {address.isDefault && <span className="text-success">(Default)</span>}
+                            </span>
+                            <div className="d-flex gap-2">
+                                <Button
+                                    variant="warning"
+                                    className="p-1"
+                                    onClick={() => handleEditAddress(address)}
+                                >
+                                    <FaEdit size={18} />
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    className="p-1"
+                                    onClick={() => confirmDeleteAddress(address.id, address.isDefault)}
+                                    disabled={address.isDefault}
+                                    style={address.isDefault ? { cursor: "not-allowed", opacity: 0.6 } : {}}
+                                    title={address.isDefault ? "Cannot delete default address" : ""}
+                                >
+                                    <FaTrash size={18} />
+                                </Button>
+                            </div>
                         </Card.Header>
                         <Card.Body>
                             <p><strong>Address:</strong> {address.address}</p>
@@ -238,22 +260,6 @@ const UserAddressManager = () => {
                             <p><strong>District:</strong> {address.district}</p>
                             <p><strong>Ward:</strong> {address.ward}</p>
                             <p><strong>Note:</strong> {address.note || "None"}</p>
-                            <Button
-                                variant="warning"
-                                className="me-2"
-                                onClick={() => handleEditAddress(address)}
-                            >
-                                Edit
-                            </Button>
-                            <Button
-                                variant="danger"
-                                onClick={() => confirmDeleteAddress(address.id, address.isDefault)}
-                                disabled={address.isDefault}
-                                style={address.isDefault ? { cursor: "not-allowed" } : {}}
-                                title={address.isDefault ? "Cannot delete default address" : ""}
-                            >
-                                Delete
-                            </Button>
                         </Card.Body>
                     </Card>
                 ))}
