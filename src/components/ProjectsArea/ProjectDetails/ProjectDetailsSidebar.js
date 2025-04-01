@@ -147,7 +147,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                       </span>
                     </div>
                     <div className="mt-2 text-sm">
-                      <p className="text-gray-700"><span className="font-medium">Target:</span> ${phase.targetAmount.toLocaleString()}</p>
+                      <p className="text-gray-700"><span className="font-medium">Target:</span> ${phase.targetAmount ? Number(phase.targetAmount).toLocaleString() : "0"} </p>
                       <p className="text-gray-700">
                         <span className="font-medium">Timeline:</span> {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
                       </p>
@@ -204,7 +204,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                       <h5 className="font-semibold text-yellow-700-700 mb-1">{milestone.title}</h5>
                       <p className="text-sm text-gray-600 line-clamp-2 mb-2">{milestone.description}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-green-700">${milestone.price}</span>
+                        <span className="text-sm font-medium text-green-700">${milestone.price ? Number(milestone.price).toLocaleString() : "0"}</span>
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
                           {milestone.items?.length || 0} items
                         </span>
@@ -236,7 +236,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                   <h5 className="font-medium text-yellow-700 mb-1">{selectedMilestone.title}</h5>
                   <p className="text-sm text-gray-700 mb-2">{selectedMilestone.description}</p>
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-green-700">${selectedMilestone.price}</span>
+                    <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>
                     <button
                       onClick={() => handleContinueClick(selectedPhaseId)}
                       className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors"

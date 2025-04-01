@@ -140,7 +140,7 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
                 {category?.name || "Uncategorized"}
               </span>
               <span className="bg-gray-100 text-gray-800 py-1 px-3 text-xs font-medium rounded-full">
-                {location?.replace("_", " ") || "Unknown Location"}
+                {location?.replace(/_/g, " ") || "Unknown Location"}
               </span>
             </div>
           </div>
