@@ -26,8 +26,9 @@ const PROJECT_UPLOAD_DOCUMENT_FILE_ENDPOINT = (id) => `${API_BASE_URL}/project-d
 const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/project-document/get-by-project-id/${id}`;
 const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
 const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-image/${id}`;
-//Milestone
+//Guest
 const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
+const PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
 /**
  * Project related API service methods
  */
@@ -863,6 +864,36 @@ const projectService = {
             return result;
         } catch (error) {
             console.error(`Error uploading project image for project ${projectId}:`, error);
+            throw error;
+        }
+    },
+
+    getMilestoneByPhaseIdForGuest: async (phaseId) => {
+        try{
+            const response = await fetch(PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT(phaseId), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // Check if the response is OK
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+            
+            // Ensure the data has the correct structure
+            if (responseData && responseData.data && Array.isArray(responseData.data)) {
+                return responseData.data;
+            }
+
+            // Handle unexpected response format
+            console.warn("Unexpected response format from API:", responseData);
+            return [];
+        } catch (error) {
+            console.error('Error fetching milestones for phase:', error);
             throw error;
         }
     },

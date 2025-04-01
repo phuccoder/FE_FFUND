@@ -71,7 +71,7 @@ const PaymentCancelPage = () => {
                             Retry Payment
                         </Link>
                         <Link
-                            href="/projects"
+                            href="/projects-1"
                             className="w-full flex items-center justify-center px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors"
                         >
                             <ArrowLeft className="mr-2 w-5 h-5" />

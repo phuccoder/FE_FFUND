@@ -4,6 +4,7 @@ import projectService from "src/services/projectService";
 import paymentService from "src/services/paymentService";
 import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaMoneyBillWave, FaSpinner, FaChevronUp, FaChevronDown, FaQuestionCircle, FaArrowRight } from "react-icons/fa";
 import { useRouter } from "next/router";
+import { useAuth } from "@/context/AuthContext";
 
 const Accordion = ({ title, children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,6 +35,7 @@ const Accordion = ({ title, children }) => {
 
 const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [phases, setPhases] = useState([]);
   const [milestones, setMilestones] = useState({});
   const [loading, setLoading] = useState(true);
@@ -53,8 +55,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   const [customAmount, setCustomAmount] = useState("");
   const [paymentType, setPaymentType] = useState("milestone"); // "milestone" or "custom"
 
-  // Tab state
-  const [selectedTab, setSelectedTab] = useState(0); // 0 for Milestone, 1 for Reward
+  const [showAuthWarning, setShowAuthWarning] = useState(false);
 
   useEffect(() => {
     setCurrentStep(1);
@@ -68,10 +69,16 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
         const fetchedPhases = await projectService.getPhasesForGuest(project.id);
         setPhases(fetchedPhases);
 
-        // For each phase, fetch milestones
+        // For each phase, fetch milestones using the guest endpoint
         const milestonesPromises = fetchedPhases.map(async (phase) => {
-          const fetchedMilestones = await projectService.getMilestoneByPhaseId(phase.id);
-          return { phaseId: phase.id, milestones: fetchedMilestones };
+          try {
+            // Use getMilestoneByPhaseIdForGuest instead of getMilestoneByPhaseId
+            const fetchedMilestones = await projectService.getMilestoneByPhaseIdForGuest(phase.id);
+            return { phaseId: phase.id, milestones: fetchedMilestones };
+          } catch (err) {
+            console.error(`Error fetching milestones for phase: ${err}`);
+            return { phaseId: phase.id, milestones: [] }; // Return empty array on error
+          }
         });
 
         const milestonesResults = await Promise.all(milestonesPromises);
@@ -129,16 +136,17 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     router.push(`/payment?projectId=${project.id}&phaseId=${phase.id}`, undefined, { shallow: true });
   };
 
-  // Add this useEffect to prevent immediate bounce back to step 1
+
   useEffect(() => {
-    // Don't automatically redirect back to step 1 when phase is not selected
-    // Only handle automatic jumps between steps when terms are agreed
   }, [selectedPhase]);
 
-  const handleMilestoneChange = (milestoneId) => {
-    const milestone = milestones[selectedPhase.id].find(m => m.id === milestoneId);
-    setSelectedMilestone(milestone);
-    setPaymentType("milestone");
+  const handleMoveToStep4 = () => {
+    if (!isAuthenticated) {
+      setShowAuthWarning(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setCurrentStep(4);
   };
 
   const handleCustomAmountChange = (e) => {
@@ -198,6 +206,13 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     e.preventDefault();
 
     if (processingPayment) return; // Prevent multiple submissions
+
+    if (!isAuthenticated) {
+      setShowAuthWarning(true);
+      // Scroll to auth warning
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     try {
       if (paymentType === "milestone" && selectedMilestone) {
@@ -358,46 +373,85 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {phases.map((phase) => (
-              <div
-                key={phase.id}
-                className={`border p-5 rounded-lg cursor-pointer transition-all ${selectedPhase?.id === phase.id
-                  ? 'border-orange-500 bg-orange-50 shadow-md transform scale-102'
-                  : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:shadow'
-                  }`}
-                onClick={() => handlePhaseSelect(phase)}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-lg font-semibold">Phase {phase.phaseNumber}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${phase.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                    {phase.status}
-                  </span>
+            {phases
+              .filter(phase => phase.status === 'PROCESS') // Only show phases with status PROCESS
+              .map((phase) => (
+                <div
+                  key={phase.id}
+                  className={`border p-5 rounded-lg cursor-pointer transition-all ${selectedPhase?.id === phase.id
+                    ? 'border-orange-500 bg-orange-50 shadow-md transform scale-102'
+                    : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:shadow'
+                    }`}
+                  onClick={() => handlePhaseSelect(phase)}
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-semibold">Phase {phase.phaseNumber}</h3>
+                    <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                      {phase.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    Target: ${phase.targetAmount.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Timeline: {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
+                  </div>
+                  <div className="mt-4 text-right">
+                    <button
+                      className="px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 text-white rounded-lg font-medium flex items-center ml-auto transition-all duration-300 hover:shadow"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePhaseSelect(phase);
+                      }}
+                    >
+                      Select <FaArrowRight className="ml-1" />
+                    </button>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  Target: ${phase.targetAmount.toLocaleString()}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Timeline: {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
-                </div>
-                <div className="mt-4 text-right">
+              ))}
+          </div>
+
+          {phases.filter(phase => phase.status === 'PROCESS').length === 0 && (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <FaExclamationTriangle className="mx-auto text-orange-400 text-3xl mb-4" />
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Active Funding Phases</h3>
+              <p className="text-gray-600">This project doesn&apos;t have any phases open for funding at the moment.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {currentStep === 3 && showAuthWarning && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <FaExclamationTriangle className="h-5 w-5 text-red-500" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Authentication Required</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>You need to be logged in to complete your payment. Please sign in or create an account to continue.</p>
+                <div className="mt-3">
                   <button
-                    className="px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 text-white rounded-lg font-medium flex items-center ml-auto transition-all duration-300 hover:shadow"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePhaseSelect(phase);
-                    }}
+                    onClick={() => router.push(`/login-register`)}
+                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 mr-2"
                   >
-                    Select <FaArrowRight className="ml-1" />
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setShowAuthWarning(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                  >
+                    Dismiss
                   </button>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Step 2: Milestone Selection with Enhanced Item Details */}
+      {/* Step 3: Milestone Selection with Enhanced Item Details */}
       {currentStep === 3 && selectedPhase && (
         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
@@ -494,7 +548,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                           e.stopPropagation();
                           setSelectedMilestone(milestone);
                           setPaymentType("milestone");
-                          setCurrentStep(4);
+                          handleMoveToStep4();
                         }}
                       >
                         Pledge ${milestone.price}
@@ -526,7 +580,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         onClick={() => {
                           if (customAmount) {
                             setPaymentType("custom");
-                            setCurrentStep(4);
+                            handleMoveToStep4();
                           }
                         }}
                         className={`w-full md:w-1/3 py-3 px-6 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center
@@ -567,13 +621,12 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                       onClick={() => {
                         if (customAmount) {
                           setPaymentType("custom");
-                          setCurrentStep(4); 
+                          setCurrentStep(4);
                         }
                       }}
-                      className={`w-full sm:w-1/3 py-3 px-4 rounded-lg text-white font-medium transition-all duration-300
-  ${customAmount
-                          ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
-                          : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
+                      className={`w-full sm:w-1/3 py-3 px-4 rounded-lg text-white font-medium transition-all duration-300 ${customAmount
+                        ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
+                        : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
                     >
                       Continue
                     </button>
@@ -597,7 +650,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
         </div>
       )}
 
-      {/* Step 3: Payment Confirmation */}
+      {/* Step 4: Payment Confirmation */}
       {currentStep === 4 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left Column - Payment Confirmation, Warning and FAQs */}
