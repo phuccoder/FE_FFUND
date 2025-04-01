@@ -13,53 +13,62 @@ const ExploreArea = ({ searchParams }) => {
 
     useEffect(() => {
         let isMounted = true; // Flag to avoid state updates if component unmounts
-        
+
         const fetchProjects = async () => {
             if (!isMounted) return;
-            
+
             setLoading(true);
             setError(null);
 
             try {
                 console.log("Fetching projects with search params:", searchParams);
-                
+
                 let response;
-                
+
                 // Only use search if we have valid search parameters
                 if (searchParams && searchParams.query) {
                     setIsSearching(true);
                     response = await projectService.searchProjects(page, size, searchParams);
-                    console.log('Search response:', response);
+                    console.log("Search response:", response);
                 } else {
                     setIsSearching(false);
                     response = await projectService.getAllProjects(page, size);
-                    console.log('All projects response:', response);
+                    console.log("All projects response:", response);
                 }
 
                 if (isMounted) {
-                    // First, extract the projects based on the API response structure
                     let extractedProjects = [];
 
+                    // Extract projects based on API response structure
                     if (response && response.data && response.data.data && Array.isArray(response.data.data)) {
-                        // Handle nested data.data structure (matches your API response)
                         extractedProjects = response.data.data;
-                        console.log('Extracted projects from nested data:', extractedProjects);
                     } else if (response && response.data && Array.isArray(response.data)) {
-                        // Handle data array structure
                         extractedProjects = response.data;
-                        console.log('Extracted projects from data array:', extractedProjects);
                     } else if (response && response.content && Array.isArray(response.content)) {
-                        // Handle paginated content structure
                         extractedProjects = response.content;
-                        console.log('Extracted projects from content:', extractedProjects);
                     } else if (Array.isArray(response)) {
-                        // Handle direct array response
                         extractedProjects = response;
-                        console.log('Projects from direct array:', extractedProjects);
                     }
 
                     if (extractedProjects.length > 0) {
-                        setProjects(extractedProjects);
+                        // Fetch phases for each project
+                        const projectsWithPhases = await Promise.all(
+                            extractedProjects.map(async (project) => {
+                                try {
+                                    const phases = await projectService.getPhasesForGuest(project.id);
+                                    const processPhase = phases.find((phase) => phase.status === "PROCESS");
+                                    return {
+                                        ...project,
+                                        processPhase: processPhase || null, // Add process phase to project
+                                    };
+                                } catch (error) {
+                                    console.error(`Error fetching phases for project ${project.id}:`, error);
+                                    return { ...project, processPhase: null }; // Handle error gracefully
+                                }
+                            })
+                        );
+
+                        setProjects(projectsWithPhases);
                     } else {
                         setProjects([]);
                         setError(isSearching ? "No projects match your search criteria." : "No projects found.");
@@ -101,14 +110,14 @@ const ExploreArea = ({ searchParams }) => {
                         {projects.length > 0 ? (
                             projects.map((project) => (
                                 <Col lg={4} md={6} sm={7} key={project.id || project._id}>
-                                    <SingleProject project={project} />
+                                    <SingleProject project={project} processPhase={project.processPhase} />
                                 </Col>
                             ))
                         ) : (
                             <div className="text-center py-8">
                                 <p>No projects to display.</p>
                                 {isSearching && (
-                                    <button 
+                                    <button
                                         className="btn btn-outline-primary mt-3"
                                         onClick={() => setSearchParams(null)}
                                     >
@@ -118,6 +127,7 @@ const ExploreArea = ({ searchParams }) => {
                             </div>
                         )}
                     </Row>
+
                 )}
             </Container>
         </section>
