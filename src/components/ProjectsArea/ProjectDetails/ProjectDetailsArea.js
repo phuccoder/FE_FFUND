@@ -7,7 +7,6 @@ import { toast } from "react-toastify";
 const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   // Đặt các Hooks ở đầu, trước bất kỳ điều kiện nào
   const [likeCount, setLikeCount] = useState(0);
-  const [commentCount, setCommentCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
@@ -18,13 +17,12 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
           const likeCommentResponse = await likeCommentProjectService.getCountLikesComments(project.id);
           if (likeCommentResponse.status === 200) {
             setLikeCount(likeCommentResponse.data.likeCount);
-            setCommentCount(likeCommentResponse.data.commentCount);
           }
 
           // Kiểm tra xem người dùng đã like hay chưa
           const isLikedResponse = await likeCommentProjectService.getIsLiked(project.id);
           if (isLikedResponse.status === 200) {
-            setIsLiked(isLikedResponse.data); // `data` là true/false
+            setIsLiked(isLikedResponse.data); 
           }
         } catch (error) {
           console.error("Error fetching like/comment data:", error);
@@ -139,7 +137,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
               </div>
               <div className="projects-goal">
                 <span>
-                  Goal: <span>{totalTargetAmount} USD</span>
+                  Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
                 </span>
               </div>
               <div className="project-btn mt-25">
@@ -156,10 +154,6 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                     </a>
                   </li>
                 </ul>
-              </div>
-              {/* Hiển thị số lượng comment */}
-              <div className="project-comments">
-                <span>{commentCount} Comments</span>
               </div>
             </div>
           </Col>
