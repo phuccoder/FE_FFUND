@@ -82,7 +82,7 @@ const PaymentSuccessPage = () => {
 
           <div className="flex flex-col space-y-3 pt-2">
             <Link
-              href="/transactions/manage"
+              href="/transaction"
               className="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
             >
               <CreditCard className="mr-2 w-5 h-5" />
