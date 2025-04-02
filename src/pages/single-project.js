@@ -7,6 +7,7 @@ import SimilarProjects from "@/components/ProjectsArea/SimilarProjects";
 import PageTitle from "@/components/Reuseable/PageTitle";
 import projectService from "../services/projectPublicService";
 
+
 const SingleProject = () => {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
