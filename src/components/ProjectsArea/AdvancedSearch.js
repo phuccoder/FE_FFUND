@@ -2,7 +2,7 @@ import projectService from "../../services/projectPublicService";
 import React, { useState, useEffect } from "react";
 import { FaSearch, FaTimes } from "react-icons/fa";
 
-const AdvancedSearch = ({ onSearch }) => {
+const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory = "" }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState([]);
   const [sortOption, setSortOption] = useState("+createdAt");
@@ -17,6 +17,7 @@ const AdvancedSearch = ({ onSearch }) => {
   const [selectedFundingStatus, setSelectedFundingStatus] = useState("");
   const [activeFilters, setActiveFilters] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -25,6 +26,22 @@ const AdvancedSearch = ({ onSearch }) => {
         if (data && data.length > 0) {
           setCategories(data);
           console.log("Fetched categories:", data);
+
+          // Áp dụng defaultCategory và defaultSubCategory sau khi đã tải categories
+          if (defaultCategory && defaultCategory !== "All") {
+            setSelectedMainCategory(defaultCategory);
+
+            const selectedCat = data.find(cat => cat.name === defaultCategory);
+            if (selectedCat) {
+              setSubCategories(selectedCat.subCategories);
+
+              if (defaultSubCategory) {
+                setSelectedSubCategories([defaultSubCategory]);
+              }
+            }
+          }
+
+          setInitialLoadComplete(true);
         } else {
           console.error("No categories found.");
         }
@@ -34,7 +51,9 @@ const AdvancedSearch = ({ onSearch }) => {
     };
 
     fetchCategories();
-  }, []);
+  }, [defaultCategory, defaultSubCategory]);
+
+  
 
   useEffect(() => {
     const filters = [];
@@ -59,9 +78,45 @@ const AdvancedSearch = ({ onSearch }) => {
   }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus]);
 
   useEffect(() => {
-    handleSearch();
+    if (initialLoadComplete) {
+      handleSearch();
+    }
   }, [searchTerm, sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus]);
 
+  useEffect(() => {
+    const handleExternalFilters = (event) => {
+      const { category, subCategory } = event.detail;
+
+      if (category && category !== "All") {
+        setSelectedMainCategory(category);
+
+        // Tìm category trong danh sách để lấy subcategories
+        const selectedCat = categories.find(cat => cat.name === category);
+        if (selectedCat) {
+          setSubCategories(selectedCat.subCategories);
+
+          // Nếu có subCategory, thêm vào danh sách đã chọn
+          if (subCategory) {
+            setSelectedSubCategories([subCategory]);
+          }
+        }
+      }
+
+      setIsSearchVisible(true);
+
+      setTimeout(() => {
+        setIsSearchVisible(false);
+      }, 0);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('applySearchFilters', handleExternalFilters);
+
+      return () => {
+        window.removeEventListener('applySearchFilters', handleExternalFilters);
+      };
+    }
+  }, [categories]);
 
   const handleCategoryChange = (event) => {
     const category = event.target.value;
@@ -357,15 +412,6 @@ const AdvancedSearch = ({ onSearch }) => {
               {errorMessage}
             </div>
           )}
-
-          {/* <div className="flex justify-end mt-4">
-            <button
-              onClick={handleSearch}
-              className="px-6 py-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200"
-            >
-              Apply Filters
-            </button>
-          </div> */}
         </div>
       )}
     </div>
