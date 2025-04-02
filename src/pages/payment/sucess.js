@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, CardTitle } from 'react-bootstrap';
-import { CheckCircle2, CreditCard, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, CreditCard, AlertTriangle, ArrowLeft, Gift, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from '@/components/Reuseable/Link';
 import Layout from '@/components/Layout/Layout';
@@ -70,6 +70,17 @@ const PaymentSuccessPage = () => {
             </div>
           </div>
 
+          {/* Milestone shipping information note */}
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+            <div className="flex">
+              <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0" />
+              <p className="text-sm text-blue-800 ml-3">
+                <span className="font-medium">Important:</span> If you invested in a milestone with physical rewards, 
+                please visit the Rewards page to add your shipping address for delivery.
+              </p>
+            </div>
+          </div>
+
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
             <div className="flex">
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
@@ -81,8 +92,17 @@ const PaymentSuccessPage = () => {
           </div>
 
           <div className="flex flex-col space-y-3 pt-2">
+            {/* Rewards button */}
             <Link
-              href="/transactions/manage"
+              href="/reward"
+              className="w-full bg-purple-600 text-white font-medium py-2 px-4 rounded-md hover:bg-purple-700 transition-colors flex items-center justify-center"
+            >
+              <Gift className="mr-2 w-5 h-5" />
+              Manage Rewards & Shipping
+            </Link>
+            
+            <Link
+              href="/transaction"
               className="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
             >
               <CreditCard className="mr-2 w-5 h-5" />

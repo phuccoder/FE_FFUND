@@ -6,24 +6,7 @@ export const navItems = [
   {
     id: 1,
     name: "Home",
-    href: "",
-    subNavItems: [
-      {
-        id: 1,
-        name: "Home 1",
-        href: "/",
-      },
-      {
-        id: 2,
-        name: "Home 2",
-        href: "/index-2",
-      },
-      {
-        id: 3,
-        name: "Home 3",
-        href: "/index-3",
-      },
-    ],
+    href: "/",
   },
   {
     id: 2,
@@ -32,32 +15,13 @@ export const navItems = [
   },
   {
     id: 3,
-    name: "Explore",
-    href: "",
-    subNavItems: [
-      { id: 1, name: "Project 1", href: "/projects-1" },
-      { id: 2, name: "Project 2", href: "/projects-2" },
-      { id: 3, name: "Single Project", href: "/single-project" },
-    ],
+    name: "Projects",
+    href: "/projects-1",
   },
   {
     id: 4,
-    name: "Pages",
-    href: "",
-    subNavItems: [
-      { id: 1, name: "FAQ", href: "/faq" },
-      { id: 2, name: "Gallery", href: "/gallery" },
-      { id: 3, name: "Team Members", href: "/team-members" },
-    ],
-  },
-  {
-    id: 5,
-    name: "News",
-    href: "",
-    subNavItems: [
-      { id: 1, name: "News", href: "/news" },
-      { id: 2, name: "Single News", href: "/single-news" },
-    ],
+    name: "FAQ",
+    href: "/faq",
   },
   {
     id: 6,
