@@ -17,6 +17,8 @@ import UpdateBlog from '@/components/UpdateBlog/UpdateBlog';
 import { milestoneService } from 'src/services/milestoneService';
 import { milestoneItemService } from 'src/services/milestoneItemService';
 import updatePostService from 'src/services/updatePostService';
+import Header from '@/components/Header/Header';
+import PageTitle from '@/components/Reuseable/PageTitle';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -1466,6 +1468,8 @@ function EditProjectPage() {
   return (
     <>
       <Layout>
+        <Header/>
+        <PageTitle title="Edit Project" />
         {authStatus.isLoading && (
           <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white p-5 rounded-lg shadow-lg flex items-center space-x-4">
@@ -1480,7 +1484,6 @@ function EditProjectPage() {
         <div className="min-h-screen bg-gray-50">
           <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-3xl font-bold text-gray-900">Edit Project</h1>
               <div className={`px-4 py-2 rounded-full ${statusDisplay.color}`}>
                 {statusDisplay.label}
               </div>

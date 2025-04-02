@@ -174,7 +174,41 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
       }
     } catch (err) {
       console.error("Payment processing error:", err);
-      setError(`Payment processing failed: ${err.message || "Unknown error"}`);
+
+      const responseData = err.response?.data;
+      console.log("Full error response:", responseData);
+
+      let errorData;
+      try {
+        errorData = typeof responseData === 'string' ? JSON.parse(responseData) : responseData;
+      } catch (e) {
+        errorData = responseData;
+      }
+
+      // Check different possible structures for the error message
+      if (errorData) {
+        // Check for the specific duplicate purchase error message
+        if (errorData.error && errorData.error.includes("You can only purchase each milestone once")) {
+          setError("You have already invested in this milestone. Please select a different milestone.");
+          return;
+        }
+
+        // Check for specific status code
+        if (errorData.status === 400) {
+          setError(errorData.error || errorData.message || "Payment validation failed. Please try again.");
+          return;
+        }
+
+        // For other structured errors
+        setError(
+          errorData.error ||
+          errorData.message ||
+          (typeof errorData === 'string' ? errorData : "Payment processing failed. Please try again.")
+        );
+      } else {
+        // Fallback for when response data is not accessible
+        setError(`Payment processing failed: ${err.message || "Unknown error"}`);
+      }
     } finally {
       setProcessingPayment(false);
     }
