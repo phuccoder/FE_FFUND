@@ -45,8 +45,10 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
 
   const handleClick = () => {
     localStorage.setItem("selectedProjectId", id);
-    router.push("/single-project");
+    router.replace("/single-project");
+    window.dispatchEvent(new Event("storage"));
   };
+
 
   return (
     <div

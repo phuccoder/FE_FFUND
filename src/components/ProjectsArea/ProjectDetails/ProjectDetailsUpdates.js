@@ -159,7 +159,7 @@ const ProjectDetailsUpdates = ({ getClassName, project }) => {
                         {isLatest && (
                           <>
                             <span className="absolute inline-flex h-6 w-6 rounded-full bg-yellow-400 opacity-75 animate-ping"></span>
-                            <span className="relative">🔥#{index + 1}</span>
+                            <span className="relative">🔥</span>
                           </>
                         )}
                       </span>
@@ -181,11 +181,10 @@ const ProjectDetailsUpdates = ({ getClassName, project }) => {
                 <div className="flex justify-between items-center">
                   <h2 className="text-3xl font-bold text-gray-800">{activeUpdateData.title}</h2>
                   {isLatestUpdate(activeUpdateData.projectUpdatePostId) && (
-                    <div className="relative flex items-center">
-                      <span className="absolute inline-flex h-8 w-8 rounded-full bg-yellow-300 opacity-50 animate-ping"></span>
-                      <span className="relative flex items-center gap-2 text-yellow-600 font-bold uppercase">
-                        🔥 <span className="text-base">Newest Update</span>
-                      </span>
+                    <div className="flex items-center">
+                      <div className="flex items-center gap-1 bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full font-semibold text-sm">
+                        <span>🔸</span> Newest Update
+                      </div>
                     </div>
                   )}
                 </div>

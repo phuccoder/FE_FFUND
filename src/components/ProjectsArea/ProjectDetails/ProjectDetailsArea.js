@@ -3,11 +3,15 @@ import { Col, Container, Row } from "react-bootstrap";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { likeCommentProjectService } from "../../../services/likeCommentProjectService";
 import { toast } from "react-toastify";
+import SimilarProjects from "../SimilarProjects";
 
 const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   // Đặt các Hooks ở đầu, trước bất kỳ điều kiện nào
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [isVideoVisible, setIsVideoVisible] = useState(!!projectVideoDemo);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -33,10 +37,26 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
     }
   }, [project]);
 
-  // Xử lý Like / Unlike
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isPaused) {
+        setIsVideoVisible((prev) => !prev);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const handleToggleMedia = () => {
+    setIsTransitioning(true); 
+    setTimeout(() => {
+      setIsVideoVisible((prev) => !prev); 
+      setIsTransitioning(false); 
+    }, 300);
+  };
+
   const handleLikeToggle = async () => {
     if (!isAuthenticated) {
-      // Hiển thị thông báo nếu người dùng chưa đăng nhập
       toast.warning("You must log in to like this project.");
       return;
     }
@@ -59,7 +79,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
     return <div>Loading project data...</div>;
   }
 
-  const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description } = project;
+  const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description, projectVideoDemo, subCategories } = project;
 
   const raised = 5000;
   const backers = 150;
@@ -74,31 +94,153 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
     borderRadius: "5px",
   };
 
+  // Category style
+  const categoryStyle = {
+    display: "flex",
+    alignItems: "center",
+    marginTop: "15px",
+    marginBottom: "10px",
+  };
+
+  // Main category badge style
+  const mainCategoryBadgeStyle = {
+    backgroundColor: "#4e7ae7",
+    color: "white",
+    padding: "8px 16px",
+    borderRadius: "20px",
+    fontWeight: "500",
+    fontSize: "14px",
+    display: "inline-flex",
+    alignItems: "center",
+    marginRight: "10px",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+  };
+
+  // Sub-category badge style
+  const subCategoryBadgeStyle = {
+    backgroundColor: "#f8f9fa",
+    color: "#495057",
+    border: "1px solid #dee2e6",
+    padding: "6px 12px",
+    borderRadius: "15px",
+    fontWeight: "400",
+    fontSize: "13px",
+    marginRight: "8px",
+    marginBottom: "8px",
+    transition: "all 0.2s ease",
+    cursor: "pointer",
+  };
+
+  // Hover effect for subcategories
+  const subCategoryHoverStyle = {
+    ...subCategoryBadgeStyle,
+    backgroundColor: "#e9ecef",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  };
+
   return (
     <section className="project-details-area pt-120 pb-190">
       <Container>
         <Row>
           <Col lg={7}>
             <div className="project-details-thumb">
-              <div className="image-container" style={{ textAlign: "center" }}>
-                <img
-                  src={projectImage}
-                  alt={title}
-                  width={600}
-                  height={600}
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
+              <div
+                className={`image-container ${isTransitioning ? "fade" : ""}`}
+                style={{ textAlign: "center", position: "relative" }}
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+              >
+                {isVideoVisible && projectVideoDemo ? (
+                  <iframe
+                    src={`${projectVideoDemo}?autoplay=1&mute=1`}
+                    title="Project Video"
+                    className="project-video"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    onPlay={() => setIsPaused(true)} 
+                    onPause={() => setIsPaused(false)} 
+                  ></iframe>
+                ) : (
+                  <img
+                    src={projectImage}
+                    alt={title}
+                    width={600}
+                    height={600}
+                    style={{ maxWidth: "100%", height: "auto" }}
+                  />
+                )}
+
+                {/* Nút chuyển đổi */}
+                <button
+                  onClick={handleToggleMedia}
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "10px",
+                    transform: "translateY(-50%)",
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: "40px",
+                    height: "40px",
+                    cursor: "pointer",
+                  }}
+                >
+                  &lt;
+                </button>
+                <button
+                  onClick={handleToggleMedia}
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: "10px",
+                    transform: "translateY(-50%)",
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: "40px",
+                    height: "40px",
+                    cursor: "pointer",
+                  }}
+                >
+                  &gt;
+                </button>
               </div>
             </div>
           </Col>
           <Col lg={5}>
             <div className="project-details-content">
-              <div className="details-btn">
+              <div className="details-btn d-flex align-items-center" style={{ display: "flex", justifyContent: "space-between", gap: "15px" }}>
+                {category && (
+                  <div style={mainCategoryBadgeStyle}>
+                    <i className="fa fa-tag" style={{ marginRight: "8px", paddingLeft: "10px" }}></i>
+                    {category.name}
+                  </div>
+                )}
                 <span style={statusStyle}>{status}</span>
-                <div className="flag">
-                  <p>{categoryName}</p>
-                </div>
               </div>
+
+              {subCategories && subCategories.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "15px", paddingTop: "10px" }}>
+                  {subCategories.map((subCat) => (
+                    <div
+                      key={subCat.id}
+                      style={subCategoryBadgeStyle}
+                      onMouseOver={(e) => {
+                        Object.assign(e.target.style, subCategoryHoverStyle);
+                      }}
+                      onMouseOut={(e) => {
+                        Object.assign(e.target.style, subCategoryBadgeStyle);
+                      }}
+                    >
+                      {subCat.name}
+                    </div>
+                  ))}
+                </div>
+              )}
               {/* Title và Icon Like */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h3 className="title" style={{ marginTop: '20px', fontSize: '30px' }}>{title}</h3>
