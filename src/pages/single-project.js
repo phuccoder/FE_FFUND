@@ -13,15 +13,14 @@ const SingleProject = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const projectId = localStorage.getItem("selectedProjectId");
+    const loadProject = async () => {
+      const projectId = localStorage.getItem("selectedProjectId");
+      if (!projectId) {
+        setError("No project selected.");
+        setLoading(false);
+        return;
+      }
 
-    if (!projectId) {
-      setError("No project selected.");
-      setLoading(false);
-      return;
-    }
-
-    const fetchProjectDetails = async () => {
       setLoading(true);
       setError(null);
 
@@ -36,8 +35,19 @@ const SingleProject = () => {
       }
     };
 
-    fetchProjectDetails();
+    loadProject();
+
+    const handleStorageChange = () => {
+      loadProject();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
+
 
   if (loading) {
     return <div>Loading project details...</div>;
@@ -57,7 +67,7 @@ const SingleProject = () => {
       <PageTitle title="Single Project" page="Explore" />
       <ProjectDetailsArea project={project} />
       <ProjectDetailsContent project={project} />
-      <SimilarProjects projectId={project.projectId} />
+      <SimilarProjects project={project} />
     </Layout>
   );
 };
