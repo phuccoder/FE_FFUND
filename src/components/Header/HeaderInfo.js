@@ -14,7 +14,8 @@ const MENU_ITEMS = {
     { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
-    { label: 'Manage Invitation', icon: Mail, href: '/invitation' }
+    { label: 'Manage Invitation', icon: Mail, href: '/invitation' },
+    { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' }
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
@@ -103,18 +104,8 @@ const HeaderInfo = ({ socials, searchColor }) => {
   return (
     <div className="header-info d-flex align-items-center">
       {socials && <Social socials={socials} />}
-      
-      <div className="search d-none d-lg-block">
-        <button 
-          className="cursor-pointer bg-transparent border-0" 
-          onClick={toggleSearch}
-          aria-label="Search"
-        >
-          <SearchIcon color={searchColor} />
-        </button>
-      </div>
 
-      {isLoggedIn && (
+      {isLoggedIn ? (
         <>
           {/* Notification Dropdown */}
           <div className="notification-dropdown d-none d-sm-block ml-15">
@@ -163,6 +154,13 @@ const HeaderInfo = ({ socials, searchColor }) => {
             )}
           </div>
         </>
+      ) : (
+        // Login/Register button when user is not logged in
+        <div className="d-none d-sm-block ml-15">
+          <Link href="/login-register">
+            <button className="main-btn main-btn-2">Login/Register</button>
+          </Link>
+        </div>
       )}
 
       <button
