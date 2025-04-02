@@ -3,15 +3,15 @@ import { Col, Container, Row } from "react-bootstrap";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { likeCommentProjectService } from "../../../services/likeCommentProjectService";
 import { toast } from "react-toastify";
-import SimilarProjects from "../SimilarProjects";
+import projectService from "../../../services/projectPublicService";
 
 const ProjectDetailsArea = ({ project, isAuthenticated }) => {
-  // Đặt các Hooks ở đầu, trước bất kỳ điều kiện nào
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [isVideoVisible, setIsVideoVisible] = useState(!!projectVideoDemo);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [processPhase, setProcessPhase] = useState(null);
 
   useEffect(() => {
     if (project) {
@@ -35,6 +35,23 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
 
       fetchLikeCommentData();
     }
+  }, [project]);
+
+  useEffect(() => {
+    const fetchProcessPhase = async () => {
+      try {
+        if (project?.id) {
+          const phases = await projectService.getPhasesForGuest(project.id); 
+          const processPhase = phases.find((phase) => phase.status === "PROCESS"); 
+          setProcessPhase(processPhase);
+          console.log("Process phase:", processPhase);
+        }
+      } catch (error) {
+        console.error("Error fetching process phase:", error);
+      }
+    };
+
+    fetchProcessPhase();
   }, [project]);
 
   useEffect(() => {
@@ -81,11 +98,21 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
 
   const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description, projectVideoDemo, subCategories } = project;
 
-  const raised = 5000;
+  const raised = processPhase?.raiseAmount || 0;
   const backers = 150;
-  const daysLeft = 10;
+  const calculateDaysLeft = () => {
+    if (!processPhase?.endDate) return 0;
+
+    const today = new Date();
+    const endDate = new Date(processPhase.endDate);
+    const timeLeft = endDate - today;
+    return Math.max(0, Math.ceil(timeLeft / (1000 * 60 * 60 * 24)));
+  };
+
+  const daysLeft = calculateDaysLeft();
   const categoryName = category ? category.name : "Uncategorized";
-  const raisedPercentage = (raised / totalTargetAmount) * 100 || 0;
+  const targetAmount = processPhase?.targetAmount || 0;
+  const raisedPercentage = targetAmount > 0 ? (processPhase?.raiseAmount / targetAmount) * 100 : 0;
 
   const statusStyle = {
     backgroundColor: "green",
@@ -254,7 +281,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                 </div>
               </div>
               {description && <p className="description">{description}</p>}
-              <div className="project-details-item">
+              <div className="project-details-item mt-3">
                 <div className="item text-center">
                   <h5 className="title">${raised}</h5>
                   <span>Pledged</span>
@@ -268,14 +295,19 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                   <span>Days Left</span>
                 </div>
               </div>
-              <div className="projects-range">
-                <div className="projects-range-content">
-                  <ul>
-                    <li>Raised:</li>
-                    <li>{raisedPercentage}%</li>
-                  </ul>
-                  <div className="range"></div>
-                </div>
+              <div className="w-full h-2 bg-gray-200 rounded-full mt-3">
+                <div
+                  className={`h-full rounded-full ${raisedPercentage >= 100 ? 'bg-yellow-500' : 'bg-green-600'}`}
+                  style={{
+                    width: `${Math.min(raisedPercentage, 100)}%`,
+                    transition: "width 0.5s ease-in-out",
+                  }}
+                ></div>
+              </div>
+
+              <div className="flex justify-between text-sm text-gray-700 mt-2">
+                <span className="font-bold">{Math.round(raisedPercentage)}% funded</span>
+                <span>{daysLeft} days left</span>
               </div>
               <div className="projects-goal">
                 <span>

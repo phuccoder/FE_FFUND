@@ -36,7 +36,11 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
 
   // Calculate funding percentage
   const calculatePercentage = () => {
-    return Math.min(30 * 100, 100).toFixed(0);
+    if (!processPhase?.targetAmount || !processPhase?.raiseAmount) {
+      return 0; 
+    }
+    const percentage = (processPhase.raiseAmount / processPhase.targetAmount) * 100;
+    return Math.round(percentage); 
   };
 
   const fundingPercentage = calculatePercentage();
@@ -122,8 +126,8 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
         <div className="mb-4">
           <div className="w-full h-2 bg-gray-200 rounded-full">
             <div
-              className={`h-full rounded-full ${fundingPercentage >= 100 ? 'bg-green-500' : 'bg-green-600'}`}
-              style={{ width: `${fundingPercentage}%` }}
+              className={`h-full rounded-full ${fundingPercentage >= 100 ? 'bg-yellow-500' : 'bg-green-600'}`}
+              style={{ width: `${Math.min(fundingPercentage, 100)}%` }}
             ></div>
           </div>
 
