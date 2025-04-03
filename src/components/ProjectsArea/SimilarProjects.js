@@ -5,7 +5,6 @@ import SingleProject from "./SingleProject";
 import projectService from "../../services/projectPublicService";
 import SwiperCore, { Autoplay, Pagination } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
-import Link from "next/link";
 import { useRouter } from "next/router";
 
 SwiperCore.use([Autoplay, Pagination]);
@@ -21,7 +20,7 @@ const options = {
     clickable: true,
   },
   breakpoints: {
-    992: { 
+    992: {
       slidesPerView: 3,
       spaceBetween: 30,
     },
@@ -62,21 +61,8 @@ const SimilarProjects = ({ project }) => {
         // Loại bỏ project hiện tại khỏi danh sách
         projects = projects.filter((proj) => proj.id !== project.id);
 
-        // Fetch phases cho từng project
-        const projectsWithPhases = await Promise.all(
-          projects.map(async (proj) => {
-            try {
-              const phases = await projectService.getPhasesForGuest(proj.id);
-              const processPhase = phases.find((phase) => phase.status === "PROCESS");
-              return { ...proj, processPhase: processPhase || null };
-            } catch (error) {
-              console.error(`Error fetching phases for project ${proj.id}:`, error);
-              return { ...proj, processPhase: null };
-            }
-          })
-        );
-
-        setSimilarProjects(projectsWithPhases);
+        // Không cần fetch phases, sử dụng currentPhase trực tiếp
+        setSimilarProjects(projects);
       } catch (error) {
         console.error("Error fetching similar projects:", error);
         setSimilarProjects([]);
@@ -95,14 +81,13 @@ const SimilarProjects = ({ project }) => {
         query: {
           category: project.category.name,
           subCategory: project.subCategories[0].name,
-          autoSearch: true
-        }
+          autoSearch: true,
+        },
       });
     } else {
       router.push("/projects-1");
     }
   };
-  
 
   return (
     <section className="explore-projects-area explore-projects-page-area">
@@ -119,13 +104,13 @@ const SimilarProjects = ({ project }) => {
             <Swiper {...options}>
               {similarProjects.map((proj) => (
                 <SwiperSlide key={proj.id}>
-                  <SingleProject project={proj} processPhase={proj.processPhase} />
+                  <SingleProject project={proj} />
                 </SwiperSlide>
               ))}
             </Swiper>
           ) : similarProjects.length === 1 ? (
             <Col md={6}>
-              <SingleProject project={similarProjects[0]} processPhase={similarProjects[0].processPhase} />
+              <SingleProject project={similarProjects[0]} />
             </Col>
           ) : (
             <p>No similar projects found.</p>
@@ -134,7 +119,7 @@ const SimilarProjects = ({ project }) => {
             <span
               onClick={handleSeeMore}
               className="cursor-pointer text-green-500 hover:text-green-700 text-sm font-medium"
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: "pointer" }}
             >
               see more
             </span>
