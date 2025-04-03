@@ -3,7 +3,6 @@ import { Col, Container, Row } from "react-bootstrap";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { likeCommentProjectService } from "../../../services/likeCommentProjectService";
 import { toast } from "react-toastify";
-import projectService from "../../../services/projectPublicService";
 
 const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   const [likeCount, setLikeCount] = useState(0);
@@ -11,7 +10,6 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   const [isVideoVisible, setIsVideoVisible] = useState(!!projectVideoDemo);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [processPhase, setProcessPhase] = useState(null);
 
   useEffect(() => {
     if (project) {
@@ -35,23 +33,6 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
 
       fetchLikeCommentData();
     }
-  }, [project]);
-
-  useEffect(() => {
-    const fetchProcessPhase = async () => {
-      try {
-        if (project?.id) {
-          const phases = await projectService.getPhasesForGuest(project.id); 
-          const processPhase = phases.find((phase) => phase.status === "PROCESS"); 
-          setProcessPhase(processPhase);
-          console.log("Process phase:", processPhase);
-        }
-      } catch (error) {
-        console.error("Error fetching process phase:", error);
-      }
-    };
-
-    fetchProcessPhase();
   }, [project]);
 
   useEffect(() => {
@@ -91,28 +72,28 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
       console.error("Error liking/unliking project:", error);
     }
   };
-  // Nếu project chưa được truyền vào, hiển thị loading
+
   if (!project) {
     return <div>Loading project data...</div>;
   }
 
-  const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description, projectVideoDemo, subCategories } = project;
+  const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description, projectVideoDemo, subCategories, currentPhase } = project;
 
-  const raised = processPhase?.raiseAmount || 0;
+  const raised = currentPhase?.raiseAmount || 0;
   const backers = 150;
   const calculateDaysLeft = () => {
-    if (!processPhase?.endDate) return 0;
+    if (!currentPhase?.endDate) return 0;
 
     const today = new Date();
-    const endDate = new Date(processPhase.endDate);
+    const endDate = new Date(currentPhase.endDate);
     const timeLeft = endDate - today;
     return Math.max(0, Math.ceil(timeLeft / (1000 * 60 * 60 * 24)));
   };
 
   const daysLeft = calculateDaysLeft();
   const categoryName = category ? category.name : "Uncategorized";
-  const targetAmount = processPhase?.targetAmount || 0;
-  const raisedPercentage = targetAmount > 0 ? (processPhase?.raiseAmount / targetAmount) * 100 : 0;
+  const targetAmount = currentPhase?.targetAmount || 0;
+  const raisedPercentage = targetAmount > 0 ? (currentPhase?.raiseAmount / targetAmount) * 100 : 0;
 
   const statusStyle = {
     backgroundColor: "green",
