@@ -13,7 +13,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [showPhaseForm, setShowPhaseForm] = useState(false);
   const [currentPhase, setCurrentPhase] = useState({
     fundingGoal: '',
-    duration: 30,
+    duration: 14,
     startDate: '',
     endDate: '',
   });
@@ -39,7 +39,19 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   }, [projectId]);
 
-  // New dedicated method to fetch only funding phases
+  //check if the phases match the project target amount before rendering UI
+  useEffect(() => {
+    if (form.phases && form.phases.length > 0 && formData?.totalTargetAmount) {
+      const validation = validatePhaseTotals(form.phases, formData.totalTargetAmount);
+      if (!validation.isValid) {
+        setError(validation.message);
+      } else if (error && error.includes('Total of all phases')) {
+        // Clear the error if it was a phase total error
+        setError(null);
+      }
+    }
+  }, [form.phases, formData?.totalTargetAmount]);
+
   const fetchProjectPhases = async () => {
     if (!projectId) return;
 
@@ -119,7 +131,6 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         end = new Date(endDate);
       }
 
-      // Check if dates are valid
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         console.warn("Invalid date format:", { startDate, endDate });
         return 30;
@@ -133,20 +144,63 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]: value
-    });
-  };
+  const calculateMinStartDate = () => {
+    if (!form.phases || form.phases.length === 0) {
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() + 7);
+      return minDate.toISOString().split('T')[0];
+    }
 
-  const handleBlur = () => {
-    updateFormData(form);
+    // Find the phase with the latest end date
+    let latestEndDate = null;
+
+    form.phases.forEach(phase => {
+      if (!phase.endDate) return;
+
+      let endDate;
+      try {
+        // Handle different possible date formats
+        if (Array.isArray(phase.endDate)) {
+          endDate = new Date(phase.endDate[0], phase.endDate[1] - 1, phase.endDate[2]);
+        } else {
+          endDate = new Date(phase.endDate);
+        }
+
+        if (isNaN(endDate.getTime())) {
+          console.warn("Invalid end date format:", phase.endDate);
+          return;
+        }
+
+        if (!latestEndDate || endDate > latestEndDate) {
+          latestEndDate = endDate;
+        }
+      } catch (error) {
+        console.error("Error parsing end date:", error);
+      }
+    });
+
+    // If we found a valid latest end date, add 7 days to it
+    if (latestEndDate) {
+      const minStartDate = new Date(latestEndDate);
+      minStartDate.setDate(minStartDate.getDate() + 7);
+      return minStartDate.toISOString().split('T')[0];
+    }
+
+    // Fallback to 7 days from today if no valid end dates were found
+    const fallbackDate = new Date();
+    fallbackDate.setDate(fallbackDate.getDate() + 7);
+    return fallbackDate.toISOString().split('T')[0];
   };
 
   const handlePhaseChange = (e) => {
     const { name, value } = e.target;
+
+    // Validate minimum duration
+    if (name === 'duration' && parseInt(value) < 14) {
+      setError('Phase duration must be at least 14 days');
+      return;
+    }
+
     setCurrentPhase(prevPhase => ({
       ...prevPhase,
       [name]: value
@@ -157,6 +211,21 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       if (currentPhase.startDate || (name === 'startDate' && value)) {
         const startDate = new Date(name === 'startDate' ? value : currentPhase.startDate);
         const durationDays = parseInt(name === 'duration' ? value : currentPhase.duration);
+
+        // Calculate minimum start date based on existing phases
+        const minStartDate = new Date(calculateMinStartDate());
+
+        if (startDate < minStartDate && name === 'startDate') {
+          // Create a formatted date string for the error message
+          const formattedDate = minStartDate.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+
+          setError(`Start date must be at least ${formattedDate} (7 days after the previous phase ends)`);
+          return;
+        }
 
         if (!isNaN(startDate.getTime()) && !isNaN(durationDays)) {
           const endDate = new Date(startDate);
@@ -171,12 +240,153 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
+  const validatePhaseTotals = (phases, totalTargetAmount) => {
+    if (!phases || phases.length === 0) return { isValid: false, message: 'At least one funding phase is required' };
+
+    let targetAmount = parseFloat(totalTargetAmount || 0);
+
+    if (isNaN(targetAmount) || targetAmount <= 0) {
+      console.log("Invalid totalTargetAmount from formData, attempting to fetch from server");
+    }
+
+    // Rest of the function remains the same
+    const totalPhaseAmount = phases.reduce((total, phase) => {
+      const phaseAmount = parseFloat(phase.fundingGoal || 0);
+      return total + (isNaN(phaseAmount) ? 0 : phaseAmount);
+    }, 0);
+
+    // Round to 2 decimal places to avoid floating point comparison issues
+    const formattedTargetAmount = targetAmount.toFixed(2);
+    const formattedPhasesTotal = totalPhaseAmount.toFixed(2);
+
+    console.log("Validating phases total:", {
+      totalPhaseAmount: formattedPhasesTotal,
+      targetAmount: formattedTargetAmount,
+      rawTargetAmount: totalTargetAmount
+    });
+
+    const difference = Math.abs(totalPhaseAmount - targetAmount);
+    const tolerance = 0.01;
+
+    if (difference > tolerance) {
+      return {
+        isValid: false,
+        message: `Total of all phases (${formatCurrency(formattedPhasesTotal)}) must equal the project target amount (${formatCurrency(formattedTargetAmount)})`
+      };
+    }
+
+    return { isValid: true };
+  };
+
+  const fetchProjectData = async () => {
+    if (!projectId) return null;
+
+    try {
+      const projectData = await projectService.getProjectsByFounder();
+      console.log("Project data retrieved:", projectData);
+
+      if (projectData && projectData.totalTargetAmount) {
+        return {
+          totalTargetAmount: parseFloat(projectData.totalTargetAmount)
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching project data:", err);
+      return null;
+    }
+  };
+
   const addPhase = async () => {
-    console.log("addPhase function called", { currentPhase, projectId });
+    console.log("addPhase function called", {
+      currentPhase,
+      projectId,
+      formDataTargetAmount: formData?.totalTargetAmount,
+      projectTotalTargetAmount: formData?.basicInfo?.totalTargetAmount
+    });
 
     if (!currentPhase.fundingGoal || !currentPhase.startDate) {
       setError('Please fill in all required fields');
       return;
+    }
+
+    // Validate minimum duration
+    if (parseInt(currentPhase.duration) < 14) {
+      setError('Phase duration must be at least 14 days');
+      return;
+    }
+
+    const startDate = new Date(currentPhase.startDate);
+
+    // Calculate minimum start date based on existing phases
+    const minStartDate = new Date(calculateMinStartDate());
+
+    if (startDate < minStartDate) {
+      const formattedDate = minStartDate.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      setError(`Start date must be at least ${formattedDate} (7 days after the previous phase ends)`);
+      return;
+    }
+
+    let targetAmount = parseFloat(
+      formData?.totalTargetAmount ||
+      formData?.basicInfo?.totalTargetAmount ||
+      0
+    );
+
+    if ((isNaN(targetAmount) || targetAmount <= 0) && projectId) {
+      setLoading(true);
+      try {
+        const projectData = await fetchProjectData();
+        if (projectData && projectData.totalTargetAmount) {
+          targetAmount = parseFloat(projectData.totalTargetAmount);
+          console.log("Retrieved target amount from server:", targetAmount);
+        } else {
+          setError('Could not retrieve project target amount from server.');
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error fetching project target amount:', err);
+        setError('Failed to retrieve project target amount. Please try again.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (isNaN(targetAmount) || targetAmount <= 0) {
+      setError('Invalid project target amount. Please ensure you have set a valid target amount in Basic Information.');
+      return;
+    }
+
+    console.log("Using target amount:", targetAmount);
+
+    // Get the current total of existing phases
+    const existingPhasesTotal = form.phases.reduce((total, phase) => {
+      return total + parseFloat(phase.fundingGoal || 0);
+    }, 0);
+
+    // Add the new phase's goal
+    const newPhaseAmount = parseFloat(currentPhase.fundingGoal || 0);
+    const newTotal = existingPhasesTotal + newPhaseAmount;
+
+    // Check if the new total exceeds the project target
+    if (newTotal > targetAmount) {
+      setError(`Adding this phase would exceed the project's target amount of ${formatCurrency(targetAmount.toFixed(2))}`);
+      return;
+    }
+
+    // Check if the new total would match the target amount exactly if this is the last phase
+    const isLastPhase = newTotal === targetAmount;
+    if (!isLastPhase && form.phases.length === 0) {
+      // If this is the first phase but won't meet the total, warn the user
+      if (!confirm(`This phase only accounts for ${formatCurrency(newTotal)} of your ${formatCurrency(targetAmount)} target. You'll need to add more phases to reach your goal. Continue?`)) {
+        return;
+      }
     }
 
     try {
@@ -244,10 +454,29 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       setError(null);
       setSuccess(null);
 
-      // Find the phase to see if it's saved to the server
+      // Find the phase to remove
       const phaseToRemove = form.phases.find(phase => phase.id === phaseId);
+      if (!phaseToRemove) {
+        setError('Phase not found');
+        setLoading(false);
+        return;
+      }
 
-      // If phase exists on server and we have a projectId, delete from API
+      // Calculate what the total will be after removal
+      const remainingPhases = form.phases.filter(phase => phase.id !== phaseId);
+      const remainingTotal = remainingPhases.reduce((total, phase) => {
+        return total + parseFloat(phase.fundingGoal || 0);
+      }, 0);
+
+      // Warn if removing this phase will make it impossible to reach the target
+      if (remainingPhases.length > 0 && parseFloat(formData?.totalTargetAmount || 0) - remainingTotal > 0) {
+        if (!confirm(`After removing this phase, your phases will total ${formatCurrency(remainingTotal)}, which is less than your target of ${formatCurrency(formData?.totalTargetAmount || 0)}. Continue?`)) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Your existing code for removing a phase
       if (projectId && phaseToRemove?.savedToServer) {
         console.log("Attempting to delete phase with ID:", phaseId);
 
@@ -259,10 +488,9 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         await fetchProjectPhases();
       } else {
         // Only use local state if no projectId or phase isn't saved to server
-        const updatedPhases = (form.phases || []).filter(phase => phase.id !== phaseId);
         const updatedForm = {
           ...form,
-          phases: updatedPhases
+          phases: remainingPhases
         };
 
         setForm(updatedForm);
@@ -499,14 +727,17 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     onChange={handlePhaseChange}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
-                    min="1"
+                    min="14"
                     max="90"
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Phase duration must be at least 14 days
+                  </p>
                 </div>
 
                 <div>
                   <label htmlFor="phaseStartDate" className="block text-sm font-medium text-gray-700">
-                    Phase Start Date *
+                    Phase Start Date * <span className="text-xs text-gray-500">(Must be at least 7 days in the future)</span>
                   </label>
                   <input
                     type="date"
@@ -516,8 +747,13 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     onChange={handlePhaseChange}
                     className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
-                    min={new Date().toISOString().split('T')[0]}
+                    min={calculateMinStartDate()}
                   />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {form.phases && form.phases.length > 0
+                      ? "Start date must be at least 7 days after the previous phase ends"
+                      : "Start date must be at least 7 days from today"}
+                  </p>
                 </div>
               </div>
 

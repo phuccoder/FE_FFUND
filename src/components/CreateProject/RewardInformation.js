@@ -48,7 +48,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     const [showForm, setShowForm] = useState(false);
     const [currentItem, setCurrentItem] = useState({ name: '', image: null, imagePreview: null });
     const [showPhaseFilter, setShowPhaseFilter] = useState(false);
-    const [selectedPhase, setSelectedPhase] = useState('all');
+    const [selectedPhase, setSelectedPhase] = useState(phases?.length > 0 ? phases[0].id : null);
     const fileInputRef = useRef(null);
     const milestoneFileInputRef = useRef(null);
 
@@ -58,20 +58,24 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             try {
                 // Try to get phases from projectData
                 if (projectData && Array.isArray(projectData.phases) && projectData.phases.length > 0) {
-                    // Map phases from the project data
+                    // Map phases from the project data, handling both object formats
                     const mappedPhases = projectData.phases.map(phase => ({
                         id: phase.id || `phase-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                        name: phase.name || `Phase ${phase.phaseNumber || 'Unknown'}`
+                        name: phase.name || `Phase ${phase.phaseNumber || 'Unknown'}`,
+                        fundingGoal: phase.targetAmount || phase.fundingGoal || 0,
+                        phaseNumber: phase.phaseNumber || 1
                     }));
+
+                    console.log("Mapped phases:", mappedPhases);
                     setPhasesState(mappedPhases);
                     return;
                 }
 
                 // Fallback to sample phases if no project phases available
                 const samplePhases = [
-                    { id: 'phase1', name: 'Initial Development' },
-                    { id: 'phase2', name: 'Beta Testing' },
-                    { id: 'phase3', name: 'Full Launch' }
+                    { id: 'phase1', name: 'Initial Development', fundingGoal: 1000 },
+                    { id: 'phase2', name: 'Beta Testing', fundingGoal: 2000 },
+                    { id: 'phase3', name: 'Full Launch', fundingGoal: 3000 }
                 ];
                 setPhasesState(samplePhases);
             } catch (error) {
@@ -84,12 +88,70 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         getPhases();
     }, [projectData]);
 
-    // Fetch milestones whenever phases change or auth status changes
     useEffect(() => {
-        if (phases.length > 0 && isAuthenticated) {
+        if (phases.length > 0) {
             fetchMilestones();
         }
-    }, [phases, isAuthenticated]);
+    }, [phases]);
+
+    useEffect(() => {
+        if (selectedPhase && phases.length > 0) {
+            console.log(`Selected phase changed to: ${selectedPhase}`);
+
+            // If you need to fetch milestone items for this specific phase:
+            const phaseMilestones = milestones.filter(m => m.phaseId === selectedPhase);
+            phaseMilestones.forEach(milestone => {
+                if (milestone.id) {
+                    fetchMilestoneItems(milestone.id);
+                }
+            });
+        }
+    }, [selectedPhase]);
+
+    useEffect(() => {
+        if (!phases || phases.length === 0 || !milestones || milestones.length === 0) return;
+
+        // Group milestones by phase
+        const milestonesByPhase = {};
+        milestones.forEach(milestone => {
+            if (!milestonesByPhase[milestone.phaseId]) {
+                milestonesByPhase[milestone.phaseId] = [];
+            }
+            milestonesByPhase[milestone.phaseId].push(milestone);
+        });
+
+        // Validate each phase's milestones
+        for (const phaseId in milestonesByPhase) {
+            const phaseMilestones = milestonesByPhase[phaseId];
+            const validation = validateMilestoneTotals(phaseMilestones, phaseId, phases);
+
+            if (!validation.isValid) {
+                setError(validation.message);
+                return;
+            }
+        }
+
+        // Clear the error if all phases are valid
+        if (error && error.includes('Total of all milestones')) {
+            setError(null);
+        }
+    }, [milestones, phases]);
+
+    useEffect(() => {
+        if (currentMilestone.phaseId && showMilestoneForm) {
+            // Force a re-render to update the helper text with the latest data
+            const phaseId = currentMilestone.phaseId;
+            const phase = phases.find(p => p.id === phaseId || p.id === parseInt(phaseId));
+            if (phase) {
+                const phaseMilestones = milestones.filter(m => m.phaseId === phaseId);
+                const totalAllocated = phaseMilestones.reduce(
+                    (sum, m) => sum + parseFloat(m.price || 0), 0
+                );
+                // This is just to force a re-render with updated calculations
+                console.log(`Phase ${phaseId} has ${phaseMilestones.length} milestones totaling ${totalAllocated}`);
+            }
+        }
+    }, [currentMilestone.phaseId, milestones, showMilestoneForm]);
 
     // Fetch milestones for all phases
     const fetchMilestones = async () => {
@@ -193,10 +255,101 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         }
     };
 
+    const validateMilestoneTotals = (milestones, phaseId, phases) => {
+        if (!milestones || milestones.length === 0) return { isValid: true }; // No milestones is valid initially
+
+        // Find the target phase
+        const phase = phases.find(p => p.id === phaseId);
+        if (!phase) return { isValid: true }; // Can't validate if phase not found
+
+        // Get phase funding goal
+        const phaseFundingGoal = parseFloat(phase.fundingGoal || 0);
+
+        // Calculate total milestone amounts for this phase
+        const phaseMilestones = milestones.filter(m => m.phaseId === phaseId);
+        const totalMilestoneAmount = phaseMilestones.reduce((total, milestone) => {
+            return total + parseFloat(milestone.price || 0);
+        }, 0);
+
+        // Round to 2 decimal places to avoid floating point comparison issues
+        const phaseGoal = phaseFundingGoal.toFixed(2);
+        const milestonesTotal = totalMilestoneAmount.toFixed(2);
+
+        if (milestonesTotal !== phaseGoal) {
+            return {
+                isValid: false,
+                message: `Total of all milestones (${formatCurrency(milestonesTotal)}) 
+                      must equal the phase funding goal (${formatCurrency(phaseGoal)})`
+            };
+        }
+
+        return { isValid: true };
+    };
+
+    const isMilestoneEditable = (milestone) => {
+        if (!milestone || !milestone.phaseId) return false;
+
+        // Find the phase this milestone belongs to
+        const phase = projectData.phases.find(p =>
+            p.id === milestone.phaseId ||
+            p.id === parseInt(milestone.phaseId)
+        );
+
+        // Only allow editing if the phase status is PLAN
+        return phase && phase.status === 'PLAN';
+    };
+
+    const isPhaseEditable = (phaseId) => {
+        if (!phaseId) return false;
+        
+        const phase = projectData.phases.find(p => 
+            p.id === phaseId || 
+            p.id === parseInt(phaseId)
+        );
+        
+        return phase && phase.status === 'PLAN';
+    };
+
     // Add a new milestone
     const addMilestone = async () => {
         if (!currentMilestone.title || !currentMilestone.phaseId) {
             setError('Please provide at least a title and select a phase.');
+            return;
+        }
+
+        // Get existing milestones for this phase
+        const phaseMilestones = milestones.filter(m => m.phaseId === currentMilestone.phaseId);
+
+        // Calculate total of existing milestones
+        const existingMilestonesTotal = phaseMilestones.reduce((total, m) => {
+            return total + parseFloat(m.price || 0);
+        }, 0);
+
+        // Find the target phase
+        const targetPhase = projectData.phases.find(p =>
+            p.id === currentMilestone.phaseId ||
+            p.id === parseInt(currentMilestone.phaseId)
+        );
+
+        if (!targetPhase) {
+            console.error('Unable to find phase with ID:', currentMilestone.phaseId);
+            console.log('Available phases:', projectData.phases);
+            setError('Selected phase not found. Please try selecting the phase again.');
+            return;
+        }
+        const phaseGoal = parseFloat(targetPhase.fundingGoal || targetPhase.targetAmount || 0);
+        const newMilestonePrice = parseFloat(currentMilestone.price || 0);
+        const newTotal = existingMilestonesTotal + newMilestonePrice;
+
+        // Check if adding this milestone would exceed the phase goal
+        if (newTotal > phaseGoal) {
+            setError(`Adding this milestone would exceed the phase's funding goal of ${formatCurrency(phaseGoal)}`);
+            return;
+        }
+
+        // Check if adding this milestone would complete the phase goal
+        const remaining = phaseGoal - newTotal;
+        if (Math.abs(remaining) > 0.01 && !confirm(`After adding this milestone, you will still need to allocate ${formatCurrency(remaining)} to meet this phase's funding goal. Continue?`)) {
             return;
         }
 
@@ -213,10 +366,18 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 }
             );
 
-            setSuccess('Milestone created successfully!');
+            const newMilestone = {
+                id: response?.data?.id || response?.id || Date.now().toString(),
+                title: currentMilestone.title,
+                description: currentMilestone.description,
+                price: currentMilestone.price,
+                phaseId: currentMilestone.phaseId,
+                phaseName: phases.find(p => p.id === currentMilestone.phaseId)?.name || '',
+                items: []
+            };
 
-            // Refresh milestones
-            fetchMilestones();
+            setMilestones(prev => [...prev, newMilestone]);
+            setSuccess('Milestone created successfully!');
 
             // Reset form
             setCurrentMilestone({
@@ -227,6 +388,9 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             });
 
             setShowMilestoneForm(false);
+
+            // Also refresh from server to ensure everything is in sync
+            await fetchMilestones();
         } catch (error) {
             console.error('Error creating milestone:', error);
             setError('Failed to create milestone. Please try again.');
@@ -241,8 +405,60 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         setError(null);
 
         try {
+            // Find the current milestone to get its phase ID and current price
+            const currentMilestone = milestones.find(m => m.id === milestoneId);
+            if (!currentMilestone) {
+                setError('Milestone not found');
+                setLoading(false);
+                return;
+            }
+
+            const { phaseId } = currentMilestone;
+            const currentPrice = parseFloat(currentMilestone.price || 0);
+
+            // Calculate the total of other milestones in this phase
+            const otherMilestones = milestones.filter(m => m.phaseId === phaseId && m.id !== milestoneId);
+            const otherMilestonesTotal = otherMilestones.reduce((total, m) =>
+                total + parseFloat(m.price || 0), 0);
+
+            // Find the target phase
+            const targetPhase = projectData.phases.find(p =>
+                p.id === phaseId ||
+                p.id === parseInt(phaseId)
+            );
+
+            if (!targetPhase) {
+                console.error('Phase not found with ID:', phaseId);
+                console.log('Available phases:', projectData.phases);
+                setError('Phase not found. The phase structure may have changed.');
+                setLoading(false);
+                return;
+            }
+
+            // Get the new price from updated data
+            const newPrice = parseFloat(updatedData.price || 0);
+
+            // Calculate new total
+            const newTotal = otherMilestonesTotal + newPrice;
+            const phaseGoal = parseFloat(targetPhase.fundingGoal || targetPhase.targetAmount || 0);
+
+            // Validate if the new total would exceed phase goal
+            if (newTotal > phaseGoal) {
+                setError(`Updating this milestone would exceed the phase's funding goal of ${formatCurrency(phaseGoal)}`);
+                setLoading(false);
+                return;
+            }
+
+            // Check if updating this milestone would leave a gap in funding
+            const remaining = phaseGoal - newTotal;
+            if (Math.abs(remaining) > 0.01 && !confirm(`After updating this milestone, you will still need to allocate ${formatCurrency(remaining)} to meet this phase's funding goal. Continue?`)) {
+                setLoading(false);
+                return;
+            }
+
             // Create a copy of updatedData without the phaseId
-            const { phaseId, ...dataToUpdate } = updatedData;
+            const dataToUpdate = { ...updatedData };
+            delete dataToUpdate.phaseId;
 
             // Call API with the filtered data
             await milestoneService.updateMilestone(milestoneId, dataToUpdate);
@@ -254,6 +470,19 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                     m.id === milestoneId ? { ...m, ...dataToUpdate, phaseId: m.phaseId } : m
                 )
             );
+
+            // After update, validate the current state of milestones for this phase
+            setTimeout(() => {
+                const updatedPhaseMilestones = milestones
+                    .filter(m => m.phaseId === phaseId)
+                    .map(m => m.id === milestoneId ? { ...m, price: newPrice } : m);
+
+                const validation = validateMilestoneTotals(updatedPhaseMilestones, phaseId, [targetPhase]);
+                if (!validation.isValid) {
+                    setSuccess(null);
+                    setError(validation.message);
+                }
+            }, 100);
         } catch (error) {
             console.error('Error updating milestone:', error);
             setError('Failed to update milestone. Please try again.');
@@ -268,6 +497,30 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             return;
         }
 
+        // Find the milestone to be deleted
+        const milestoneToDelete = milestones.find(m => m.id === milestoneId);
+        if (!milestoneToDelete) {
+            setError('Milestone not found');
+            return;
+        }
+
+        // Find all milestones for the same phase
+        const phaseId = milestoneToDelete.phaseId;
+        const phaseMilestones = milestones.filter(m => m.phaseId === phaseId);
+
+        // Calculate what the total would be after deletion
+        const milestonePrice = parseFloat(milestoneToDelete.price || 0);
+        const totalAfterDeletion = phaseMilestones.reduce((total, m) =>
+            total + parseFloat(m.price || 0), 0) - milestonePrice;
+
+        // Find the phase
+        const targetPhase = projectData.phases.find(p => p.id === phaseId);
+
+        if (!targetPhase) {
+            setError('Phase not found for this milestone.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -275,7 +528,6 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             await milestoneService.deleteMilestone(milestoneId);
             setSuccess('Milestone deleted successfully!');
 
-            // Remove from local state
             setMilestones(prevMilestones =>
                 prevMilestones.filter(m => m.id !== milestoneId)
             );
@@ -301,10 +553,77 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         console.groupEnd();
     };
 
+    const formatHelperText = (phaseId) => {
+        const phase = phases.find(p => p.id === phaseId || p.id === parseInt(phaseId));
+        if (!phase) return '';
+
+        // Get all existing milestones for this phase
+        const phaseMilestones = milestones.filter(m => m.phaseId === phaseId);
+
+        // Calculate total allocated from existing milestones
+        const totalAllocated = phaseMilestones.reduce(
+            (sum, m) => sum + parseFloat(m.price || 0),
+            0
+        );
+
+        const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
+
+        // Calculate remaining budget
+        const remaining = phaseGoal - totalAllocated;
+
+        // Consider the current milestone's price being entered/edited if it's for this phase
+        const isCurrentMilestoneForThisPhase = currentMilestone.phaseId === phaseId &&
+            currentMilestone.price;
+
+        // Adjust remaining amount when entering price in new milestone form
+        let adjustedRemaining = remaining;
+        if (isCurrentMilestoneForThisPhase && !currentMilestone.id) {
+            // Only subtract for new milestones (not for editing)
+            const currentPrice = parseFloat(currentMilestone.price) || 0;
+            adjustedRemaining = remaining - currentPrice;
+        }
+
+        if (Math.abs(adjustedRemaining) < 0.01) {
+            return `This phase's budget of ${formatCurrency(phaseGoal)} is fully allocated.`;
+        } else if (adjustedRemaining < 0) {
+            return `Warning: You're exceeding the phase budget by ${formatCurrency(Math.abs(adjustedRemaining))}`;
+        } else {
+            // When editing a milestone, show the phase total and already allocated
+            if (isCurrentMilestoneForThisPhase && currentMilestone.id) {
+                // Find the current milestone's price
+                const editingMilestone = phaseMilestones.find(m => m.id === currentMilestone.id);
+                const editingMilestonePrice = editingMilestone ? parseFloat(editingMilestone.price || 0) : 0;
+
+                // Calculate other milestones' total (excluding the one being edited)
+                const otherMilestonesTotal = totalAllocated - editingMilestonePrice;
+
+                // Calculate what's available for this milestone
+                const availableForThisMilestone = phaseGoal - otherMilestonesTotal;
+
+                return `Available for this milestone: ${formatCurrency(availableForThisMilestone)} of ${formatCurrency(phaseGoal)}`;
+            } else {
+                // For new milestone or when not editing
+                return `Remaining budget to allocate for this phase: ${formatCurrency(adjustedRemaining)} of ${formatCurrency(phaseGoal)}`;
+            }
+        }
+    };
+
     // Add an item to a milestone
     const addMilestoneItem = async () => {
         if (!currentMilestoneItem.name || !selectedMilestone) {
             setError('Please provide a name for the item and select a milestone.');
+            return;
+        }
+
+        if (!currentMilestoneItem.name || !selectedMilestone) {
+            setError('Please provide a name for the item and select a milestone.');
+            return;
+        }
+
+        // Find the milestone this item will be added to
+        const milestone = milestones.find(m => m.id === selectedMilestone);
+        if (!milestone) {
+            setError('Selected milestone not found.');
             return;
         }
 
@@ -417,6 +736,12 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             return;
         }
 
+        const milestone = milestones.find(m => m.id === selectedMilestone);
+        if (!milestone) {
+            setError('Selected milestone not found.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -489,6 +814,11 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         if (!confirm('Are you sure you want to delete this item?')) {
             return;
         }
+        const milestone = milestones.find(m => m.id === selectedMilestone);
+        if (!milestone) {
+            setError('Selected milestone not found.');
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -517,12 +847,35 @@ export default function RewardInformation({ formData, updateFormData, projectDat
 
     // Handle milestone form changes
     const handleMilestoneChange = (e) => {
-        const { name, value } = e.target;
-        setCurrentMilestone(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
+    const { name, value } = e.target;
+
+    setCurrentMilestone(prev => ({
+        ...prev,
+        [name]: value
+    }));
+
+    // Check if selecting a phase that's not in PLAN status
+    if (name === 'phaseId' && value) {
+        const selectedPhase = projectData.phases.find(p => 
+            p.id === value || p.id === parseInt(value)
+        );
+        
+        if (selectedPhase && selectedPhase.status !== 'PLAN') {
+            setError('You can only add or edit milestones for phases with PLAN status.');
+        } else {
+            // Clear any existing phase selection errors
+            if (error && error.includes('phases with PLAN status')) {
+                setError(null);
+            }
+        }
+    }
+
+    if (name === 'price' || name === 'phaseId') {
+        setTimeout(() => {
+            setShowMilestoneForm(show => show ? true : true);
+        }, 0);
+    }
+};
 
     // Handle milestone item form changes
     const handleMilestoneItemChange = (e) => {
@@ -616,9 +969,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         };
     }, [showPhaseFilter]);
 
-    const filteredMilestones = selectedPhase === 'all'
-        ? milestones
-        : milestones.filter(milestone => milestone.phaseId === selectedPhase);
+    const filteredMilestones = milestones.filter(milestone => milestone.phaseId === selectedPhase);
 
     // Format currency for display
     const formatCurrency = (amount) => {
@@ -643,6 +994,34 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         } catch (error) {
             return dateString;
         }
+    };
+
+    const areAllPhasesFunded = (selectedPhaseId = 'all') => {
+        // If no phase is selected or no milestones, don't hide the button
+        if (!phases || phases.length === 0) return false;
+
+        // Check all phases or just the selected one
+        const phasesToCheck = selectedPhaseId === 'all'
+            ? phases
+            : phases.filter(p => p.id === selectedPhaseId);
+
+        // For each phase, check if milestone totals equal the funding goal
+        for (const phase of phasesToCheck) {
+            const phaseMilestones = milestones.filter(m => m.phaseId === phase.id);
+            const totalMilestoneAmount = phaseMilestones.reduce((total, milestone) => {
+                return total + parseFloat(milestone.price || 0);
+            }, 0);
+
+            const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
+
+            // If there's a difference greater than 1 cent, the phase is not fully funded
+            if (Math.abs(totalMilestoneAmount - phaseGoal) > 0.01) {
+                return false;
+            }
+        }
+
+        // All phases (or selected phase) are fully funded
+        return true;
     };
 
     return (
@@ -677,28 +1056,21 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                             <svg className="mr-2 -ml-0.5 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
                             </svg>
-                            {selectedPhase === 'all' ? 'All Phases' : phases.find(p => p.id === selectedPhase)?.name || 'Filter by Phase'}
+                            {phases.find(p => p.id === selectedPhase)?.name || 'Select Phase'}
                         </button>
 
                         {showPhaseFilter && (
                             <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                                 <div className="py-1">
-                                    <button
-                                        className={`block px-4 py-2 text-sm w-full text-left ${selectedPhase === 'all' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                                        onClick={() => {
-                                            setSelectedPhase('all');
-                                            setShowPhaseFilter(false);
-                                        }}
-                                    >
-                                        All Phases
-                                    </button>
                                     {phases.map(phase => (
                                         <button
                                             key={phase.id}
                                             className={`block px-4 py-2 text-sm w-full text-left ${selectedPhase === phase.id ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                                             onClick={() => {
-                                                setSelectedPhase(phase.id);
-                                                setShowPhaseFilter(false);
+                                                if (selectedPhase !== phase.id) {
+                                                    setSelectedPhase(phase.id);
+                                                    setShowPhaseFilter(false);
+                                                }
                                             }}
                                         >
                                             {phase.name}
@@ -797,170 +1169,222 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                     ) : (
                         <>
                             <div className="mb-4 text-right">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setCurrentMilestone({
-                                            title: '',
-                                            description: '',
-                                            price: '',
-                                            phaseId: '',
-                                        });
-                                        // Then show the form
-                                        setShowMilestoneForm(true);
-                                    }}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                >
-                                    <svg className="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                    </svg>
-                                    Add New Milestone
-                                </button>
+                                {!areAllPhasesFunded(selectedPhase) && isPhaseEditable(selectedPhase) ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setCurrentMilestone({
+                                                title: '',
+                                                description: '',
+                                                price: '',
+                                                phaseId: selectedPhase,
+                                            });
+                                            setShowMilestoneForm(true);
+                                        }}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        <svg className="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                        </svg>
+                                        Add New Milestone
+                                    </button>
+                                ) : !isPhaseEditable(selectedPhase) ? (
+                                    <div className="text-sm text-amber-600 font-medium">
+                                        <span className="inline-flex items-center">
+                                            <svg className="mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            This phase is not in PLAN status and cannot be modified
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-green-600 font-medium">
+                                        <span className="inline-flex items-center">
+                                            <svg className="mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                            This phase is fully funded
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-4">
-                                {filteredMilestones.map(milestone => (
-                                    <div
-                                        key={milestone.id}
-                                        className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
-                                    >
-                                        <div className="p-4">
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <h3 className="text-lg font-medium text-gray-900">{milestone.title}</h3>
-                                                    {milestone.phaseName && (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                            {milestone.phaseName}
-                                                        </span>
+                                {filteredMilestones.map(milestone => {
+                                    const isEditable = isMilestoneEditable(milestone);
+                                    return (
+                                        <div
+                                            key={milestone.id}
+                                            className={`bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden ${!isEditable ? 'opacity-80' : ''}`}
+                                        >
+                                            <div className="p-4">
+                                                <div className="flex items-start justify-between">
+                                                    <div>
+                                                        <h3 className="text-lg font-medium text-gray-900">{milestone.title}</h3>
+                                                        {milestone.phaseName && (
+                                                            <div className="flex items-center space-x-2 mt-1">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                                    {milestone.phaseName}
+                                                                </span>
+                                                                {!isEditable && (
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                                        Not Editable
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex space-x-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setCurrentMilestone({
+                                                                    id: milestone.id,
+                                                                    title: milestone.title,
+                                                                    description: milestone.description || '',
+                                                                    price: milestone.price || '',
+                                                                    phaseId: milestone.phaseId,
+                                                                });
+                                                                setShowMilestoneForm(true);
+                                                            }}
+                                                            disabled={!isEditable}
+                                                            className={`text-indigo-600 hover:text-indigo-900 ${!isEditable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            title={!isEditable ? "This milestone cannot be edited because its phase is not in PLAN status" : "Edit milestone"}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => deleteMilestone(milestone.id)}
+                                                            disabled={!isEditable}
+                                                            className={`text-red-600 hover:text-red-900 ${!isEditable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            title={!isEditable ? "This milestone cannot be deleted because its phase is not in PLAN status" : "Delete milestone"}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {milestone.description && (
+                                                    <p className="mt-2 text-sm text-gray-600">{milestone.description}</p>
+                                                )}
+
+                                                <div className="mt-4 border-t border-gray-200 pt-4">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <h4 className="text-sm font-medium text-gray-700">Milestone Items</h4>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedMilestone(milestone.id);
+                                                                setCurrentMilestoneItem({
+                                                                    name: '',
+                                                                    quantity: 1,
+                                                                    image: null,
+                                                                    imagePreview: null
+                                                                });
+                                                                setShowMilestoneItemForm(true);
+                                                            }}
+                                                            disabled={!isEditable}
+                                                            className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md ${isEditable
+                                                                ? "text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+                                                                : "text-gray-500 bg-gray-100 cursor-not-allowed"
+                                                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+                                                            title={!isEditable ? "Cannot add items because this milestone's phase is not in PLAN status" : "Add item"}
+                                                        >
+                                                            <svg className="-ml-0.5 mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                                            </svg>
+                                                            Add Item
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Items list with edit permissions */}
+                                                    {milestone.items && milestone.items.length > 0 ? (
+                                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            {milestone.items.map((item, index) => (
+                                                                <li key={item.id || index} className="bg-gray-50 rounded-md p-2 flex items-center justify-between">
+                                                                    <div className="flex items-center">
+                                                                        {item.imageUrl ? (
+                                                                            <div className="h-10 w-10 mr-2 relative rounded overflow-hidden bg-gray-100">
+                                                                                <img
+                                                                                    src={`${item.imageUrl}?t=${Date.now()}`}
+                                                                                    alt={item.name}
+                                                                                    width={40}
+                                                                                    height={40}
+                                                                                    className="h-full w-full object-cover"
+                                                                                    onError={(e) => {
+                                                                                        console.error(`Failed to load image for item ${item.id}`);
+                                                                                        e.target.src = "https://via.placeholder.com/40x40?text=No+Image";
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="h-10 w-10 mr-2 bg-gray-100 rounded flex items-center justify-center">
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                                </svg>
+                                                                            </div>
+                                                                        )}
+                                                                        <span className="text-sm text-gray-700">{item.name}</span>
+                                                                    </div>
+                                                                    <div className="flex space-x-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedMilestone(milestone.id);
+                                                                                setCurrentMilestoneItem({
+                                                                                    id: item.id,
+                                                                                    name: item.name,
+                                                                                    quantity: item.quantity || 1,
+                                                                                    image: null,
+                                                                                    imagePreview: item.imageUrl
+                                                                                });
+                                                                                setShowMilestoneItemForm(true);
+                                                                            }}
+                                                                            disabled={!isEditable}
+                                                                            className={`text-indigo-600 hover:text-indigo-900 p-1 ${!isEditable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                            title={!isEditable ? "Cannot edit item because this milestone's phase is not in PLAN status" : "Edit item"}
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                                                            </svg>
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => deleteMilestoneItem(item.id)}
+                                                                            disabled={!isEditable}
+                                                                            className={`text-red-600 hover:text-red-900 p-1 ${!isEditable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                            title={!isEditable ? "Cannot delete item because this milestone's phase is not in PLAN status" : "Delete item"}
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-500 italic">No items added to this milestone yet</p>
                                                     )}
                                                 </div>
 
-                                                <div className="flex space-x-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setCurrentMilestone({
-                                                                id: milestone.id,
-                                                                title: milestone.title,
-                                                                description: milestone.description || '',
-                                                                price: milestone.price || '',
-                                                                phaseId: milestone.phaseId,
-                                                            });
-                                                            setShowMilestoneForm(true);
-                                                        }}
-                                                        className="text-indigo-600 hover:text-indigo-900"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deleteMilestone(milestone.id)}
-                                                        className="text-red-600 hover:text-red-900"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {milestone.description && (
-                                                <p className="mt-2 text-sm text-gray-600">{milestone.description}</p>
-                                            )}
-
-                                            <div className="mt-4 border-t border-gray-200 pt-4">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <h4 className="text-sm font-medium text-gray-700">Milestone Items</h4>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedMilestone(milestone.id);
-                                                            setCurrentMilestoneItem({
-                                                                name: '',
-                                                                quantity: 1,  // Changed from description to quantity
-                                                                image: null,
-                                                                imagePreview: null
-                                                            });
-                                                            setShowMilestoneItemForm(true);
-                                                        }}
-                                                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                                    >
-                                                        <svg className="-ml-0.5 mr-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                                                        </svg>
-                                                        Add Item
-                                                    </button>
-                                                </div>
-
-                                                {milestone.items && milestone.items.length > 0 ? (
-                                                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                        {milestone.items.map((item, index) => (
-                                                            <li key={item.id || index} className="bg-gray-50 rounded-md p-2 flex items-center justify-between">
-                                                                <div className="flex items-center">
-                                                                    {item.imageUrl ? (
-                                                                        <div className="h-10 w-10 mr-2 relative rounded overflow-hidden bg-gray-100">
-                                                                            <img
-                                                                                src={`${item.imageUrl}?t=${Date.now()}`} // Add cache-busting timestamp
-                                                                                alt={item.name}
-                                                                                width={40}
-                                                                                height={40}
-                                                                                className="h-full w-full object-cover"
-                                                                                onError={(e) => {
-                                                                                    console.error(`Failed to load image for item ${item.id}`);
-                                                                                    e.target.src = "https://via.placeholder.com/40x40?text=No+Image";
-                                                                                }}
-                                                                            />
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="h-10 w-10 mr-2 bg-gray-100 rounded flex items-center justify-center">
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                                            </svg>
-                                                                        </div>
-                                                                    )}
-                                                                    <span className="text-sm text-gray-700">{item.name}</span>
-                                                                </div>
-                                                                <div className="flex space-x-1">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setSelectedMilestone(milestone.id);
-                                                                            setCurrentMilestoneItem({
-                                                                                id: item.id,
-                                                                                name: item.name,
-                                                                                quantity: item.quantity || 1,  // Changed from description to quantity
-                                                                                image: null,
-                                                                                imagePreview: item.imageUrl
-                                                                            });
-                                                                            setShowMilestoneItemForm(true);
-                                                                        }}
-                                                                        className="text-indigo-600 hover:text-indigo-900 p-1"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                                        </svg>
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => deleteMilestoneItem(item.id)}
-                                                                        className="text-red-600 hover:text-red-900 p-1"
-                                                                    >
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                                        </svg>
-                                                                    </button>
-                                                                </div>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : (
-                                                    <p className="text-sm text-gray-500 italic">No items added to this milestone yet</p>
+                                                {/* Phase status information */}
+                                                {!isEditable && (
+                                                    <div className="mt-4 px-3 py-2 bg-amber-50 rounded-md border border-amber-200">
+                                                        <p className="text-sm text-amber-700">
+                                                            This milestone belongs to a phase that is not in PLAN status and cannot be edited.
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </>
                     )}
@@ -1026,6 +1450,11 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                             <option key={phase.id} value={phase.id}>{phase.name}</option>
                                         ))}
                                     </select>
+                                    {currentMilestone.phaseId && (
+                                        <p className="mt-1 text-xs text-blue-600">
+                                            {formatHelperText(currentMilestone.phaseId)}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>

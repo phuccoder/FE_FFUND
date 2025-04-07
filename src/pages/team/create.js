@@ -121,8 +121,7 @@ const CreateTeamPage = () => {
   return (
     <Layout>
       <Header />
-      {/* Add ToastContainer to handle notifications */}
-      <ToastContainer position="top-right" autoClose={5000} />
+      <PageTitle title="Create Team" />
       <Container className="py-5">
         <Row>
           <Col lg={8} className="mx-auto">
