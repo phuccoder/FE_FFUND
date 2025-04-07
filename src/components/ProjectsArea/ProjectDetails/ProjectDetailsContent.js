@@ -55,7 +55,7 @@ const ProjectDetailsContent = ({ project }) => {
   const isFullWidthTab = current === "pills-home" || current === "pills-phase";
   
   return (
-    <section className="project-details-content-area pb-110">
+    <section className="project-details-content-area pb-5">
       {/* Navigation tabs - always centered */}
       <Container className="mb-5">
         <Row className="justify-content-center">
