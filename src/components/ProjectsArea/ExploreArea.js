@@ -50,29 +50,7 @@ const ExploreArea = ({ searchParams }) => {
                         extractedProjects = response;
                     }
 
-                    if (extractedProjects.length > 0) {
-                        // Fetch phases for each project
-                        const projectsWithPhases = await Promise.all(
-                            extractedProjects.map(async (project) => {
-                                try {
-                                    const phases = await projectService.getPhasesForGuest(project.id);
-                                    const processPhase = phases.find((phase) => phase.status === "PROCESS");
-                                    return {
-                                        ...project,
-                                        processPhase: processPhase || null, // Add process phase to project
-                                    };
-                                } catch (error) {
-                                    console.error(`Error fetching phases for project ${project.id}:`, error);
-                                    return { ...project, processPhase: null }; // Handle error gracefully
-                                }
-                            })
-                        );
-
-                        setProjects(projectsWithPhases);
-                    } else {
-                        setProjects([]);
-                        setError(isSearching ? "No projects match your search criteria." : "No projects found.");
-                    }
+                    setProjects(extractedProjects);
                 }
             } catch (error) {
                 if (isMounted) {
@@ -110,7 +88,7 @@ const ExploreArea = ({ searchParams }) => {
                         {projects.length > 0 ? (
                             projects.map((project) => (
                                 <Col lg={4} md={6} sm={7} key={project.id || project._id}>
-                                    <SingleProject project={project} processPhase={project.processPhase} />
+                                    <SingleProject project={project} />
                                 </Col>
                             ))
                         ) : (
@@ -127,7 +105,6 @@ const ExploreArea = ({ searchParams }) => {
                             </div>
                         )}
                     </Row>
-
                 )}
             </Container>
         </section>
