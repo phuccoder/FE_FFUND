@@ -78,6 +78,7 @@ function CreateProject() {
     isLoading: true
   });
   const [isEditAllowed, setIsEditAllowed] = useState(true);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     const savedAgreement = localStorage.getItem('agreedToTerms');
@@ -242,6 +243,13 @@ function CreateProject() {
   }, [authStatus.isAuthenticated, authStatus.isLoading]);
 
   useEffect(() => {
+    const teamRole = localStorage.getItem('teamRole');
+    console.log("User teamRole:", teamRole);
+    setUserRole(teamRole);
+
+  }, [authStatus.isAuthenticated, authStatus.isLoading]);
+
+  useEffect(() => {
     console.log("Terms complete:", Boolean(formData.termsAgreed));
 
     const basicInfo = formData.basicInfo || {};
@@ -259,8 +267,6 @@ function CreateProject() {
 
     console.log("Can access later sections:", isInitialSectionsComplete());
   }, [formData]);
-
-  // Add this function right before the return statement in your CreateProject component
 
   // Update milestone data to match the expected rewardInfo format
   useEffect(() => {
@@ -621,6 +627,12 @@ function CreateProject() {
   };
 
   const handleSubmit = async () => {
+    // Check user role first
+    if (userRole !== 'LEADER') {
+      alert("Only users with the Leader role can submit projects.");
+      return;
+    }
+
     // Validate that all required sections are complete
     if (!validateForm()) {
       alert("Please complete all required sections before submitting.");
@@ -791,11 +803,12 @@ function CreateProject() {
                   ) : (
                     <button
                       onClick={handleSubmit}
-                      disabled={isSubmitting}
-                      className={`ml-auto ${isSubmitting
+                      disabled={isSubmitting || userRole !== 'LEADER'}
+                      className={`ml-auto ${isSubmitting || userRole !== 'LEADER'
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-green-600 hover:bg-green-700"
-                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
+                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center relative`}
+                      title={userRole !== 'LEADER' ? "Only team leaders can submit projects" : ""}
                     >
                       {isSubmitting ? (
                         <>
@@ -807,6 +820,11 @@ function CreateProject() {
                         </>
                       ) : (
                         "Submit Project"
+                      )}
+                      {userRole !== 'LEADER' && (
+                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap">
+                          Only team leaders can submit
+                        </span>
                       )}
                     </button>
                   )}

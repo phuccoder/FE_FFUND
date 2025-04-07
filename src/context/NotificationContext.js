@@ -6,23 +6,39 @@ import { useAuth } from './AuthContext';
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [wsClient, setWsClient] = useState(null);
 
   useEffect(() => {
-
+    // Early return if not authenticated
     if (!isAuthenticated) {
-      console.log('🔌 Not authenticated or user not ready — disconnecting WebSocket');
-      wsClient?.disconnect();
-      setWsClient(null);
+      console.log('🔌 Not authenticated — disconnecting WebSocket');
+      if (wsClient) {
+        wsClient.disconnect();
+        setWsClient(null);
+      }
+      return;
+    }
+
+    // Get userId from localStorage
+    const userId = localStorage.getItem('userId');
+    
+    // Early return if userId is not available
+    if (!userId) {
+      console.log('⚠️ User ID not available - cannot establish WebSocket connection');
       return;
     }
 
     // Already connected — don't reconnect
-    if (wsClient) return;
+    if (wsClient) {
+      console.log('🔄 WebSocket already connected');
+      return;
+    }
+
+    console.log('🔄 Setting up new WebSocket connection for user:', userId);
 
     const client = new WebSocketClient({
       serverUrl: 'https://quanbeo.duckdns.org/ws',
@@ -30,7 +46,8 @@ export const NotificationProvider = ({ children }) => {
       onConnect: () => {
         console.log('✅ WebSocket connected');
         setConnectionStatus('connected');
-        var userId= localStorage.getItem('userId')
+        
+        // Create destination path with userId
         const destination = `/user/${userId}/notification`;
         client.subscribe(destination);
         console.log('📩 Subscribed to:', destination);
@@ -45,6 +62,7 @@ export const NotificationProvider = ({ children }) => {
     setWsClient(client);
 
     return () => {
+      console.log('🧹 Cleaning up WebSocket connection');
       client.disconnect();
       setWsClient(null);
     };
