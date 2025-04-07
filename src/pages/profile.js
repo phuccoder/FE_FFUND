@@ -5,7 +5,6 @@ import BasicProfileInfo from '../components/profile/BasicProfileInfo';
 import ExtendedProfileInfo from '../components/profile/ExtendedProfileInfo';
 import RequestManager from '../components/Request/RequestManager';
 import UserAddressManager from '../components/UserAddress/userAddressManager';
-import WebSocketTest from '../components/WebSocketTest'; // Import the WebSocketTest component
 import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
 import { getUserById } from '../services/userService';
@@ -44,8 +43,6 @@ function ProfilePage() {
                 <Container className="py-5">
                     <h1 className="text-3xl font-bold mb-5">User Profile</h1>
 
-                    {/* WebSocket Test Component */}
-                    <WebSocketTest />
 
                     <Tab.Container id="profile-tabs" activeKey={key} onSelect={(k) => setKey(k)}>
                         <Row>
@@ -76,14 +73,6 @@ function ProfilePage() {
                                             Address
                                         </Nav.Link>
                                     </Nav.Item>
-                                    <Nav.Item>
-                                        <Nav.Link
-                                            eventKey="websocket"
-                                            className={`px-4 py-2 font-medium ${key === 'websocket' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            WebSocket Test
-                                        </Nav.Link>
-                                    </Nav.Item>
                                     {userRole === 'FOUNDER' && (
                                         <Nav.Item>
                                             <Nav.Link
@@ -109,9 +98,6 @@ function ProfilePage() {
                                     </Tab.Pane>
                                     <Tab.Pane eventKey="address">
                                         <UserAddressManager />
-                                    </Tab.Pane>
-                                    <Tab.Pane eventKey="websocket">
-                                        <WebSocketTest />
                                     </Tab.Pane>
                                     {userRole === 'FOUNDER' && (
                                         <Tab.Pane eventKey="extended">
