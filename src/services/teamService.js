@@ -4,6 +4,37 @@ import { tokenManager } from '../utils/tokenManager';
 import { getUserExtendedInfo } from './userService';
 
 /**
+ * Get team member details by memberId
+ * @param {number} memberId - The ID of the team member
+ * @returns {Promise<Object>} - Team member details
+ */
+export const getTeamMemberDetail = async (memberId) => {
+  try {
+    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/member/detail/${memberId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result.status === 200 && result.data) {
+      return result.data;
+    } else {
+      throw new Error(result.message || 'Failed to fetch team member details');
+    }
+  } catch (error) {
+    console.error('Error in getTeamMemberDetail:', error);
+    throw error;
+  }
+};
+
+/**
  * Get team by ID
  * @param {number} teamId - The ID of the team
  * @returns {Promise<Object>} - Team data
