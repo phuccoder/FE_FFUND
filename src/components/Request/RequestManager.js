@@ -1,70 +1,75 @@
 import React, { useState, useEffect } from "react";
 import { requestService } from "../../services/RequestService";
-import { message, Modal } from "antd";
+import { reportService } from "src/services/reportService";
+import { message, Modal, Tabs } from "antd";
 import {
     ArrowUpOutlined,
     ArrowDownOutlined,
-    InfoCircleOutlined,
     EyeOutlined,
-    CloseOutlined,
     FileTextOutlined
 } from '@ant-design/icons';
-import Header from '@/components/Header/Header';
-import Layout from '@/components/Layout/Layout';
-import Head from 'next/head';
 import { format } from 'date-fns';
 
-const { confirm } = Modal;
+const { TabPane } = Tabs;
 
 const RequestManager = () => {
     const [requests, setRequests] = useState([]);
-    const [selectedRequest, setSelectedRequest] = useState(null);
+    const [reports, setReports] = useState([]);
+    const [selectedItem, setSelectedItem] = useState(null);
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
+    const [isReport, setIsReport] = useState(false);
+    const [activeTab, setActiveTab] = useState("1");
 
     useEffect(() => {
-        const fetchRequests = async () => {
+        const fetchData = async () => {
             setLoading(true);
             try {
-                const response = await requestService.getRequestByUser();
-                setRequests(response.data || []);
+                const [requestResponse, reportResponse] = await Promise.all([
+                    requestService.getRequestByUser(),
+                    reportService.getReportsByUser()
+                ]);
+                setRequests(requestResponse.data || []);
+                setReports(reportResponse.data || []);
             } catch (error) {
-                message.error("Failed to fetch requests.");
+                message.error("Failed to fetch data.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchRequests();
+        fetchData();
     }, []);
 
-    const handleViewDetails = async (requestId) => {
-        try {
-            const response = await requestService.getRequestByRequestId(requestId);
-            setSelectedRequest(response.data);
-            setModalVisible(true);
-        } catch (error) {
-            message.error("Failed to fetch request details.");
-        }
+    const handleViewDetails = (item, isReportItem) => {
+        setSelectedItem(item);
+        setIsReport(isReportItem);
+        setModalVisible(true);
     };
 
     const handleCloseDetails = () => {
         setModalVisible(false);
     };
 
-    const handleSort = (key) => {
+    const handleSort = (key, isReportData) => {
         let direction = "asc";
         if (sortConfig.key === key && sortConfig.direction === "asc") {
             direction = "desc";
         }
         setSortConfig({ key, direction });
 
-        const sortedData = [...requests].sort((a, b) => {
+        const dataToSort = isReportData ? [...reports] : [...requests];
+        const sortedData = dataToSort.sort((a, b) => {
             if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
             if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
             return 0;
         });
-        setRequests(sortedData);
+
+        if (isReportData) {
+            setReports(sortedData);
+        } else {
+            setRequests(sortedData);
+        }
     };
 
     const getStatusTag = (status) => {
@@ -73,6 +78,7 @@ const RequestManager = () => {
             case 'pending': color = 'orange'; break;
             case 'approved': color = 'green'; break;
             case 'rejected': color = 'red'; break;
+            case 'under_review': color = 'blue'; break;
             default: color = 'blue';
         }
         return (
@@ -96,8 +102,111 @@ const RequestManager = () => {
             : <ArrowDownOutlined style={{ fontSize: 12, marginLeft: 4 }} />;
     };
 
-    return (
+    const renderTable = (data, isReportData) => (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+                <tr style={{ backgroundColor: '#fafafa' }}>
+                    <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontWeight: 500,
+                        width: '5%'
+                    }}>No.</th>
+                    <th
+                        style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            width: '30%'
+                        }}
+                        onClick={() => handleSort('title', isReportData)}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            Title
+                            <SortIndicator sortKey="title" />
+                        </div>
+                    </th>
+                    <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontWeight: 500,
+                        width: '15%'
+                    }}>Type</th>
+                    <th
+                        style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            width: '20%'
+                        }}
+                        onClick={() => handleSort('createdAt', isReportData)}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            Created At
+                            <SortIndicator sortKey="createdAt" />
+                        </div>
+                    </th>
+                    <th
+                        style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            width: '15%'
+                        }}
+                        onClick={() => handleSort('status', isReportData)}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            Status
+                            <SortIndicator sortKey="status" />
+                        </div>
+                    </th>
+                    <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontWeight: 500,
+                        width: '15%'
+                    }}>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {data.map((item, index) => (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '12px 16px' }}>{index + 1}</td>
+                        <td style={{ padding: '12px 16px' }}>{item.title}</td>
+                        <td style={{ padding: '12px 16px' }}>{item.type}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                            {format(new Date(item.createdAt), 'dd MMM yyyy HH:mm')}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                            {getStatusTag(item.status)}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                            <button
+                                onClick={() => handleViewDetails(item, isReportData)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '4px 8px',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid #d9d9d9',
+                                    borderRadius: 4,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <EyeOutlined style={{ marginRight: 4 }} />
+                                View
+                            </button>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
 
+    return (
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
             <h1 style={{
                 fontSize: 24,
@@ -113,98 +222,23 @@ const RequestManager = () => {
                 borderRadius: 8,
                 boxShadow: '0 1px 2px 0 rgba(0,0,0,0.03)'
             }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr style={{ backgroundColor: '#fafafa' }}>
-                            <th style={{
-                                padding: '12px 16px',
-                                textAlign: 'left',
-                                fontWeight: 500,
-                                width: 50
-                            }}>No.</th>
-                            <th
-                                style={{
-                                    padding: '12px 16px',
-                                    textAlign: 'left',
-                                    fontWeight: 500,
-                                    cursor: 'pointer'
-                                }}
-                                onClick={() => handleSort('title')}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    Title
-                                    <SortIndicator sortKey="title" />
-                                </div>
-                            </th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>Type</th>
-                            <th
-                                style={{
-                                    padding: '12px 16px',
-                                    textAlign: 'left',
-                                    fontWeight: 500,
-                                    cursor: 'pointer'
-                                }}
-                                onClick={() => handleSort('createdAt')}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    Created At
-                                    <SortIndicator sortKey="createdAt" />
-                                </div>
-                            </th>
-                            <th
-                                style={{
-                                    padding: '12px 16px',
-                                    textAlign: 'left',
-                                    fontWeight: 500,
-                                    cursor: 'pointer'
-                                }}
-                                onClick={() => handleSort('status')}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    Status
-                                    <SortIndicator sortKey="status" />
-                                </div>
-                            </th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {requests.map((request, index) => (
-                            <tr key={request.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                <td style={{ padding: '12px 16px' }}>{index + 1}</td>
-                                <td style={{ padding: '12px 16px' }}>{request.title}</td>
-                                <td style={{ padding: '12px 16px' }}>{request.type}</td>
-                                <td style={{ padding: '12px 16px' }}>
-                                    {format(new Date(request.createdAt), 'dd MMM yyyy HH:mm')}
-                                </td>
-                                <td style={{ padding: '12px 16px' }}>
-                                    {getStatusTag(request.status)}
-                                </td>
-                                <td style={{ padding: '12px 16px' }}>
-                                    <button
-                                        onClick={() => handleViewDetails(request.id)}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            padding: '4px 8px',
-                                            backgroundColor: 'transparent',
-                                            border: '1px solid #d9d9d9',
-                                            borderRadius: 4,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <EyeOutlined style={{ marginRight: 4 }} />
-                                        View
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <Tabs
+                    activeKey={activeTab}
+                    onChange={(key) => setActiveTab(key)}
+                    style={{ padding: '0 16px' }}
+                >
+                    <TabPane tab="Requests" key="1">
+                        {renderTable(requests, false)}
+                    </TabPane>
+                    <TabPane tab="Reports" key="2">
+                        {renderTable(reports, true)}
+                    </TabPane>
+                </Tabs>
             </div>
 
+            {/* Modal for Details */}
             <Modal
-                title="Request Details"
+                title={isReport ? "Report Details" : "Request Details"}
                 visible={modalVisible}
                 onCancel={handleCloseDetails}
                 footer={[
@@ -224,19 +258,21 @@ const RequestManager = () => {
                 ]}
                 width={800}
             >
-                {selectedRequest && (
+                {selectedItem && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                         <div>
-                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Request Information</h3>
+                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                                {isReport ? "Report Information" : "Request Information"}
+                            </h3>
                             <div style={{ display: 'grid', gap: 8 }}>
                                 <div>
-                                    <strong>Title:</strong> {selectedRequest.title}
+                                    <strong>Title:</strong> {selectedItem.title}
                                 </div>
                                 <div>
-                                    <strong>Type:</strong> {selectedRequest.type}
+                                    <strong>Type:</strong> {selectedItem.type}
                                 </div>
                                 <div>
-                                    <strong>Status:</strong> {getStatusTag(selectedRequest.status)}
+                                    <strong>Status:</strong> {getStatusTag(selectedItem.status)}
                                 </div>
                             </div>
                         </div>
@@ -246,12 +282,12 @@ const RequestManager = () => {
                             <div style={{ display: 'grid', gap: 8 }}>
                                 <div>
                                     <strong>Created At:</strong>{' '}
-                                    {format(new Date(selectedRequest.createdAt), 'dd MMM yyyy HH:mm')}
+                                    {format(new Date(selectedItem.createdAt), 'dd MMM yyyy HH:mm')}
                                 </div>
                                 <div>
                                     <strong>Updated At:</strong>{' '}
-                                    {selectedRequest.updatedAt
-                                        ? format(new Date(selectedRequest.updatedAt), 'dd MMM yyyy HH:mm')
+                                    {selectedItem.updatedAt
+                                        ? format(new Date(selectedItem.updatedAt), 'dd MMM yyyy HH:mm')
                                         : 'N/A'}
                                 </div>
                             </div>
@@ -265,27 +301,27 @@ const RequestManager = () => {
                                 borderRadius: 4,
                                 border: '1px solid #f0f0f0'
                             }}>
-                                {selectedRequest.description}
+                                {selectedItem.description}
                             </div>
                         </div>
 
-                        <div style={{ gridColumn: '1 / -1' }}>
-                            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Response</h3>
-                            <div style={{
-                                backgroundColor: '#fafafa',
-                                padding: 12,
-                                borderRadius: 4,
-                                border: '1px solid #f0f0f0'
-                            }}>
-                                {selectedRequest.response || "No response yet"}
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Response</h3>
+                                <div style={{
+                                    backgroundColor: '#fafafa',
+                                    padding: 12,
+                                    borderRadius: 4,
+                                    border: '1px solid #f0f0f0'
+                                }}>
+                                    {selectedItem.response || "No response yet"}
+                                </div>
                             </div>
-                        </div>
 
-                        {selectedRequest.attachmentUrl && (
+                        {selectedItem.attachmentUrl && (
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Attachment</h3>
                                 <button
-                                    onClick={() => window.open(selectedRequest.attachmentUrl, '_blank')}
+                                    onClick={() => window.open(selectedItem.attachmentUrl, '_blank')}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',

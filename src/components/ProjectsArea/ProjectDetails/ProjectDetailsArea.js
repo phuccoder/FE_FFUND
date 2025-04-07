@@ -80,7 +80,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   const { title, projectImage, projectUrl, status, category, totalTargetAmount, mainSocialMediaUrl, description, projectVideoDemo, subCategories, currentPhase } = project;
 
   const raised = currentPhase?.raiseAmount || 0;
-  const backers = 150;
+  const backers = currentPhase?.totalInvestors || 0;
   const calculateDaysLeft = () => {
     if (!currentPhase?.endDate) return 0;
 
@@ -269,7 +269,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                 </div>
                 <div className="item text-center">
                   <h5 className="title">{backers}</h5>
-                  <span>Backers</span>
+                  <span>Investors</span>
                 </div>
                 <div className="item text-center">
                   <h5 className="title">{daysLeft}</h5>
