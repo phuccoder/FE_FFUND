@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 
-const SingleProject = ({ project = {}, processPhase = null }) => {
+const SingleProject = ({ project = {} }) => {
   const [showVideo, setShowVideo] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -15,19 +15,20 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
     isClassPotential,
     location,
     team = {},
-    category = {}
+    category = {},
+    currentPhase = null, 
   } = project;
 
   // Get team information
   const teamName = team?.teamName || "Unknown Team";
-  const teamLeader = team?.teamMembers?.find(member => member.teamRole === "LEADER");
-  const leaderAvatar = teamLeader?.memberAvatar || 'https://via.placeholder.com/40';
+  const teamLeader = team?.teamMembers?.find((member) => member.teamRole === "LEADER");
+  const leaderAvatar = teamLeader?.memberAvatar || "https://via.placeholder.com/40";
 
   const calculateDaysLeft = () => {
-    if (!processPhase?.endDate) return 0;
+    if (!currentPhase?.endDate) return 0;
 
     const today = new Date();
-    const endDate = new Date(processPhase.endDate);
+    const endDate = new Date(currentPhase.endDate);
     const timeLeft = endDate - today;
     return Math.max(0, Math.ceil(timeLeft / (1000 * 60 * 60 * 24)));
   };
@@ -36,11 +37,11 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
 
   // Calculate funding percentage
   const calculatePercentage = () => {
-    if (!processPhase?.targetAmount || !processPhase?.raiseAmount) {
-      return 0; 
+    if (!currentPhase?.targetAmount || !currentPhase?.raiseAmount) {
+      return 0;
     }
-    const percentage = (processPhase.raiseAmount / processPhase.targetAmount) * 100;
-    return Math.round(percentage); 
+    const percentage = (currentPhase.raiseAmount / currentPhase.targetAmount) * 100;
+    return Math.round(percentage);
   };
 
   const fundingPercentage = calculatePercentage();
@@ -52,7 +53,6 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
     router.replace("/single-project");
     window.dispatchEvent(new Event("storage"));
   };
-
 
   return (
     <div
@@ -77,7 +77,7 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
           ></iframe>
         ) : (
           <img
-            src={projectImage || 'https://via.placeholder.com/600x400'}
+            src={projectImage || "https://via.placeholder.com/600x400"}
             alt={title}
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
           />
@@ -126,7 +126,7 @@ const SingleProject = ({ project = {}, processPhase = null }) => {
         <div className="mb-4">
           <div className="w-full h-2 bg-gray-200 rounded-full">
             <div
-              className={`h-full rounded-full ${fundingPercentage >= 100 ? 'bg-yellow-500' : 'bg-green-600'}`}
+              className={`h-full rounded-full ${fundingPercentage >= 100 ? "bg-yellow-500" : "bg-green-600"}`}
               style={{ width: `${Math.min(fundingPercentage, 100)}%` }}
             ></div>
           </div>
