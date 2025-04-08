@@ -313,12 +313,6 @@ function CreateProject() {
       console.log(`Section ${section} includes projectImage:`, projectImage);
     }
 
-    // If a new projectId is received, store it in localStorage
-    if (projectId && (!formData.projectId || formData.projectId !== projectId)) {
-      console.log("Storing new project ID in localStorage:", projectId);
-      localStorage.setItem('founderProjectId', projectId);
-    }
-
     // Handle termsAgreed section
     if (section === 'termsAgreed') {
       localStorage.setItem('agreedToTerms', JSON.stringify(data)); // Save to localStorage

@@ -31,7 +31,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit, // This already includes heading functionality
+      StarterKit, 
       Underline,
       TextStyle,
       Color,
@@ -183,16 +183,11 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
           }
 
           if (imageUrl && editor) {
-            // Insert the image with proper attributes for the API to recognize
-            editor.chain().focus().insertContent(`
-              <img 
-                src="${imageUrl}" 
-                alt="${file.name || 'Project image'}" 
-                title="${file.name || 'Project image'}"
-                class="story-image" 
-                data-type="IMAGE"
-              />
-            `).run();
+            editor.chain().focus().setImage({
+              src: imageUrl,
+              alt: file.name || 'Project image',
+              title: file.name || 'Project image'
+            }).run();
 
             console.log('Image inserted successfully');
           } else {
