@@ -124,10 +124,6 @@ function EditProjectPage() {
 
     console.log("Updating all project IDs to:", id);
 
-    // Update localStorage first for persistence
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('founderProjectId', id);
-    }
 
     // Create a more thorough update across all state properties
     setFormData(prevData => {
@@ -294,11 +290,6 @@ function EditProjectPage() {
           return;
         }
 
-        // Immediately store in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', projectId);
-        }
-
         // Update all project IDs in state
         updateAllProjectIds(projectId);
 
@@ -461,11 +452,6 @@ function EditProjectPage() {
             phases: processedPhasesArray
           }
         };
-
-        // Immediately update localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', projectId);
-        }
 
         return updatedData;
       });
@@ -910,11 +896,6 @@ function EditProjectPage() {
             : []
         }
       }));
-
-      // Immediately store in localStorage for persistence
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('founderProjectId', extractedProjectId);
-      }
 
       console.log("Project data loaded successfully with ID:", extractedProjectId);
       return projectData;

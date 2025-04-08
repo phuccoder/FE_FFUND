@@ -20,6 +20,7 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
     canDeleteTeam: false
   });
   const [showEditModal, setShowEditModal] = useState(false);
+  const [missingExtendedProfile, setMissingExtendedProfile] = useState(false);
 
   // Added state for delete team functionality
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -34,6 +35,14 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
 
         // Get current user basic info
         const userExtendedInfo = await getUserExtendedInfo();
+
+        // Check if extended profile exists
+        if (!userExtendedInfo || (!userExtendedInfo.studentClass && !userExtendedInfo.studentCode)) {
+          setMissingExtendedProfile(true);
+          setError("Please complete your extended profile information to access all features.");
+          setLoading(false);
+          return;
+        }
 
         // Extract role from user data
         const userRole = userExtendedInfo?.user?.roles || null;
@@ -109,7 +118,13 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
         }
       } catch (err) {
         console.error("Failed to check user permissions:", err);
-        setError("Failed to load user permissions. Some features might be unavailable.");
+        // Check if the error is due to missing extended profile
+        if (err.response && err.response.status === 404) {
+          setMissingExtendedProfile(true);
+          setError("Please complete your extended profile information to access all features.");
+        } else {
+          setError("Failed to load user permissions. Some features might be unavailable.");
+        }
       } finally {
         setLoading(false);
       }
@@ -148,6 +163,11 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
     }
   };
 
+  // Handler to navigate to the extended profile page
+  const navigateToExtendedProfile = () => {
+    router.push("/profile?tab=extended");
+  };
+
   return (
     <div className="team-management-section py-4">
       {/* Header Section in its own container */}
@@ -158,61 +178,83 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
             <Title tagline="Team Management" className="section-title-2" />
           </Col>
           <Col lg={5} className="text-lg-end">
-            <div className="d-flex flex-column align-items-end">
-              {/* Edit Team button - only for team leaders */}
-              {userPermissions.isAdmin && (
-                <Button
-                  variant="info"
-                  className="mb-2"
-                  onClick={handleEditClick}
-                  style={{
-                    backgroundColor: '#17a2b8',
-                    borderColor: '#17a2b8',
-                    color: 'white',
-                    width: '200px'
-                  }}
-                >
-                  <i className="fa fa-edit me-2"></i>
-                  Edit Team Info
-                </Button>
-              )}
-
-              {/* Only show Invite Members button if user is a LEADER */}
-              {userPermissions.isAdmin && (
-                <Link href="/team/invite" passHref>
+            {!missingExtendedProfile ? (
+              <div className="d-flex flex-column align-items-end">
+                {/* Edit Team button - only for team leaders */}
+                {userPermissions.isAdmin && (
                   <Button
-                    variant="primary"
+                    variant="info"
                     className="mb-2"
+                    onClick={handleEditClick}
                     style={{
-                      backgroundColor: '#FF8C00',
-                      borderColor: '#FF8C00',
+                      backgroundColor: '#17a2b8',
+                      borderColor: '#17a2b8',
+                      color: 'white',
                       width: '200px'
                     }}
                   >
-                    <i className="fa fa-user-plus me-2"></i>
-                    Invite Members
+                    <i className="fa fa-edit me-2"></i>
+                    Edit Team Info
                   </Button>
-                </Link>
-              )}
+                )}
 
-              {/* Added Delete Team Button - only visible if user has permission */}
-              {userPermissions.canDeleteTeam && (
-                <Button
-                  variant="danger"
-                  onClick={handleDeleteClick}
-                  style={{ width: '200px' }}
-                >
-                  <i className="fa fa-trash me-2"></i>
-                  Delete Team
-                </Button>
-              )}
-            </div>
+                {/* Only show Invite Members button if user is a LEADER */}
+                {userPermissions.isAdmin && (
+                  <Link href="/team/invite" passHref>
+                    <Button
+                      variant="primary"
+                      className="mb-2"
+                      style={{
+                        backgroundColor: '#FF8C00',
+                        borderColor: '#FF8C00',
+                        width: '200px'
+                      }}
+                    >
+                      <i className="fa fa-user-plus me-2"></i>
+                      Invite Members
+                    </Button>
+                  </Link>
+                )}
+
+                {/* Added Delete Team Button - only visible if user has permission */}
+                {userPermissions.canDeleteTeam && (
+                  <Button
+                    variant="danger"
+                    onClick={handleDeleteClick}
+                    style={{ width: '200px' }}
+                  >
+                    <i className="fa fa-trash me-2"></i>
+                    Delete Team
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Button
+                variant="warning"
+                onClick={navigateToExtendedProfile}
+                style={{ width: '250px' }}
+              >
+                <i className="fa fa-exclamation-circle me-2"></i>
+                Complete Your Profile
+              </Button>
+            )}
           </Col>
         </Row>
 
         {error && (
-          <Alert variant="danger" className="mb-4" dismissible onClose={() => setError(null)}>
+          <Alert variant="warning" className="mb-4" dismissible onClose={() => setError(null)}>
             {error}
+            {missingExtendedProfile && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline-warning" 
+                  onClick={navigateToExtendedProfile}
+                  size="sm"
+                >
+                  Go to Profile Setup
+                </Button>
+              </div>
+            )}
           </Alert>
         )}
       </Container>
@@ -225,6 +267,27 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-2">Checking permissions...</p>
+          </div>
+        ) : missingExtendedProfile ? (
+          <div className="text-center py-5">
+            <div className="mb-4">
+              <i className="fa fa-user-edit" style={{ fontSize: '3rem', color: '#FF8C00' }}></i>
+            </div>
+            <h3 className="mb-3">Extended Profile Information Required</h3>
+            <p className="mb-4">
+              To access team management features, you need to complete your extended profile information first.
+              This helps us better understand your role and position within the organization.
+            </p>
+            <Button
+              variant="primary"
+              onClick={navigateToExtendedProfile}
+              style={{
+                backgroundColor: '#FF8C00',
+                borderColor: '#FF8C00',
+              }}
+            >
+              Complete Your Profile Now
+            </Button>
           </div>
         ) : (
           <TeamMainArea
