@@ -13,6 +13,7 @@ import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
 import Head from 'next/head';
 import { format } from 'date-fns';
+import PageTitle from "@/components/Reuseable/PageTitle";
 
 const { confirm } = Modal;
 
@@ -97,12 +98,11 @@ const RequestManager = () => {
     };
 
     return (
+        <>
         <Layout>
-            <Header style={{ Bottom: '24px' }} />
-            <Head>
-                <title>Request/Report Management</title>
-            </Head>
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+            <Header/>
+            <PageTitle title="Request/Report Management" />
+            <div style={{ maxWidth: 1200, margin: '0 auto', paddingTop: '60px' }}>
                 <h1 style={{
                     fontSize: 24,
                     fontWeight: 600,
@@ -310,6 +310,7 @@ const RequestManager = () => {
                 </Modal>
             </div>
         </Layout>
+        </>
     );
 };
 

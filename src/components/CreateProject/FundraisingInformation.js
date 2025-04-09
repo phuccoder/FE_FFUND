@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
+import ExtendTimeRequestForm from '../Request/RequestExtendTime';
 
 export default function FundraisingInformation({ formData, updateFormData, projectId }) {
   // Initialize with safe default values
@@ -22,6 +23,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const isLastPhaseCompleted = form.phases?.length > 0 && form.phases[form.phases.length - 1].status === 'COMPLETED';
 
   // Add debugging logs
   useEffect(() => {
@@ -401,6 +403,14 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full mr-2">
                       Phase {phase.phaseNumber || index + 1}
                     </span>
+                    {phase.status && (
+                      <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded-full ${phase.status === 'PLAN' ? 'bg-yellow-100 text-yellow-800' :
+                          phase.status === 'PROCESS' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                        }`}>
+                        {phase.status}
+                      </span>
+                    )}
                     {phase.savedToServer && (
                       <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">
                         Saved
@@ -556,6 +566,20 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                   {loading ? 'Adding...' : 'Add Phase'}
                 </button>
               </div>
+            </div>
+          </div>
+          
+        )}
+        {/* Show ExtendTimeRequestForm only if the last phase is COMPLETED */}
+        {isLastPhaseCompleted && (
+          <div className="flex items-start mt-4">
+            <div className="w-full">
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                <p className="text-sm text-yellow-700">
+                  Your project has successfully completed its fundraising phase. If you need more time to raise funds, please fill out the form below.
+                </p>
+              </div>
+              <ExtendTimeRequestForm />
             </div>
           </div>
         )}

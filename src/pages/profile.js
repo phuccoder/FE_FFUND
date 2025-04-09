@@ -59,14 +59,6 @@ function ProfilePage() {
                                     </Nav.Item>
                                     <Nav.Item>
                                         <Nav.Link
-                                            eventKey="request-report"
-                                            className={`px-4 py-2 font-medium ${key === 'request-report' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
-                                        >
-                                            Request/Report
-                                        </Nav.Link>
-                                    </Nav.Item>
-                                    <Nav.Item>
-                                        <Nav.Link
                                             eventKey="address"
                                             className={`px-4 py-2 font-medium ${key === 'address' ? 'text-yellow-500 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
