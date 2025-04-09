@@ -38,14 +38,13 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
 
       // First check if we have any data at all
       if (response && response.id) {
-        // Direct response object (not nested in data property)
         newPaymentInfo = {
           id: response.id,
           stripeAccountId: response.stripeAccountId,
           projectId: response.projectId,
           createdAt: response.createdAt,
           updatedAt: response.updatedAt,
-          status: response.stripeAccountId ? 'LINKED' : 'PENDING'
+          status: response.status
         };
       }
       // Check if response has the nested data structure
@@ -57,7 +56,7 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
           projectId: response.data.projectId,
           createdAt: response.data.createdAt,
           updatedAt: response.data.updatedAt,
-          status: response.data.stripeAccountId ? 'LINKED' : 'PENDING'
+          status: response.data.status  // Use status directly from API response
         };
       }
 
@@ -69,7 +68,8 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
         const prevInfo = prevPaymentInfoRef.current;
         const hasChanged = !prevInfo ||
           prevInfo.id !== newPaymentInfo.id ||
-          prevInfo.stripeAccountId !== newPaymentInfo.stripeAccountId;
+          prevInfo.stripeAccountId !== newPaymentInfo.stripeAccountId ||
+          prevInfo.status !== newPaymentInfo.status;
 
         if (hasChanged) {
           setPaymentInfo(newPaymentInfo);
@@ -80,8 +80,8 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
             ...prevData,
             paymentInfo: {
               ...newPaymentInfo,
-              // Ensure status is set correctly
-              status: newPaymentInfo.stripeAccountId ? 'LINKED' : 'PENDING'
+              // Use status directly from API response
+              status: newPaymentInfo.status
             }
           }));
 
@@ -160,55 +160,124 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
     }
   };
 
-  // Format date from array format [year, month, day, hour, minute, second, nanosecond]
-  const formatDateFromArray = (dateArray) => {
-    if (!dateArray || !Array.isArray(dateArray) || dateArray.length < 6) {
-      return 'Unknown date';
+  const handleUpdateStripe = async () => {
+    if (!projectData || !projectData.id) {
+      setError("Project information is missing. Please save your project first.");
+      return;
     }
 
-    // JS months are 0-indexed, but the API returns 1-indexed months
-    const [year, month, day, hour, minute, second] = dateArray;
-    return new Date(year, month - 1, day, hour, minute, second).toLocaleString();
+    if (!paymentInfo || !paymentInfo.id) {
+      setError("Payment information is missing. Please connect your account first.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      // Use paymentInfo.id instead of projectData.id for updating the onboarding link
+      const response = await paymentInfoService.updateOnboardingLink(paymentInfo.id);
+      console.log("Onboarding link response:", response);
+
+      if (response && response.data && typeof response.data === 'string' && response.data.startsWith('http')) {
+        // Open the Stripe onboarding link in a new tab
+        window.open(response.data, "_blank");
+        setSuccess("Stripe connection process initiated. Please complete the onboarding in the new tab.");
+      } else if (response && response.success) {
+        setSuccess("Stripe connection initialized. Please check your email to continue the onboarding process.");
+      } else if (response && response.message) {
+        setSuccess(response.message);
+      } else {
+        setError("Unable to continue Stripe connection. Please try again.");
+      }
+
+      // After initiating the connection, refresh payment info to show pending status
+      if (response && (response.data || response.success)) {
+        // Use setTimeout to ensure UI updates before fetching
+        setTimeout(() => {
+          fetchPaymentInfo();
+        }, 1000);
+      }
+    } catch (err) {
+      console.error("Stripe connection error:", err);
+      setError(err.message || "Failed to connect with Stripe. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Determine if the account is linked based on the payment info
+  // Format date from array format [year, month, day, hour, minute, second, nanosecond]
+  const formatDateFromArray = (dateInput) => {
+    // If dateInput is null or undefined, return 'Unknown date'
+    if (!dateInput) return 'Unknown date';
+
+    // Handle string format: "2025-04-07T22:40:29.614771"
+    if (typeof dateInput === 'string') {
+      try {
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return 'Unknown date';
+        return date.toLocaleString();
+      } catch (error) {
+        console.error('Error parsing date string:', error);
+        return 'Unknown date';
+      }
+    }
+
+    // Handle array format: [year, month, day, hour, minute, second, nanosecond]
+    if (Array.isArray(dateInput) && dateInput.length >= 6) {
+      try {
+        const [year, month, day, hour, minute, second] = dateInput;
+        // JS months are 0-indexed, but the API returns 1-indexed months
+        return new Date(year, month - 1, day, hour, minute, second).toLocaleString();
+      } catch (error) {
+        console.error('Error parsing date array:', error);
+        return 'Unknown date';
+      }
+    }
+
+    return 'Unknown date';
+  };
+
+  // Determine if the account is linked based on the payment info status
   const isAccountLinked = useCallback(() => {
     if (!paymentInfo) return false;
-    return Boolean(paymentInfo.stripeAccountId);
+    return paymentInfo.status === 'LINKED';
+  }, [paymentInfo]);
+
+  // Check if account is in pending status
+  const isAccountPending = useCallback(() => {
+    if (!paymentInfo) return false;
+    return paymentInfo.status === 'PENDING';
   }, [paymentInfo]);
 
   // Get status badge color based on payment info status
   const getStatusBadgeColor = useCallback(() => {
     if (!paymentInfo) return 'bg-gray-100 text-gray-800';
 
-    if (isAccountLinked()) {
-      return 'bg-green-100 text-green-800';
-    } else if (paymentInfo.id) {
-      return 'bg-yellow-100 text-yellow-800';
-    } else {
-      return 'bg-gray-100 text-gray-800';
+    switch (paymentInfo.status) {
+      case 'LINKED':
+        return 'bg-green-100 text-green-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
-  }, [paymentInfo, isAccountLinked]);
+  }, [paymentInfo]);
 
   // Get status text based on payment info
   const getStatusText = useCallback(() => {
     if (!paymentInfo) return 'Not Connected';
-
-    if (isAccountLinked()) {
-      return 'LINKED';
-    } else if (paymentInfo.id) {
-      return 'PENDING';
-    } else {
-      return 'Not Set Up';
-    }
-  }, [paymentInfo, isAccountLinked]);
+    return paymentInfo.status || 'Not Set Up';
+  }, [paymentInfo]);
 
   useEffect(() => {
     // Send current payment info back to parent whenever it changes
     if (paymentInfo && (
       !prevPaymentInfoRef.current ||
       prevPaymentInfoRef.current?.id !== paymentInfo.id ||
-      prevPaymentInfoRef.current?.stripeAccountId !== paymentInfo.stripeAccountId
+      prevPaymentInfoRef.current?.stripeAccountId !== paymentInfo.stripeAccountId ||
+      prevPaymentInfoRef.current?.status !== paymentInfo.status
     )) {
       console.log("Sending updated payment info to parent:", paymentInfo);
 
@@ -218,8 +287,8 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
           ...prevData,
           paymentInfo: {
             ...paymentInfo,
-            // Always ensure status is correctly set based on stripeAccountId
-            status: paymentInfo.stripeAccountId ? 'LINKED' : 'PENDING'
+            // Use status directly from the API response
+            status: paymentInfo.status
           }
         };
       });
@@ -230,21 +299,10 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
   }, [paymentInfo, updateFormData]);
 
   useEffect(() => {
-    // Send current payment info back to parent whenever it changes
-    if (paymentInfo && (prevPaymentInfoRef.current?.id !== paymentInfo.id ||
-      prevPaymentInfoRef.current?.stripeAccountId !== paymentInfo.stripeAccountId)) {
-      console.log("Sending updated payment info to parent:", paymentInfo);
-      updateFormData(prevData => {
-        return { ...prevData, paymentInfo };
-      });
-    }
-  }, [paymentInfo, updateFormData]);
-
-  useEffect(() => {
     // Ensure payment info is properly initialized
     if (paymentInfo && Object.keys(paymentInfo).length > 0) {
       console.log("Sending payment info to parent on component init:", paymentInfo);
-      
+
       // Create a direct copy to avoid reference issues
       const paymentInfoToSend = {
         id: paymentInfo.id,
@@ -252,10 +310,9 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
         projectId: paymentInfo.projectId,
         createdAt: paymentInfo.createdAt,
         updatedAt: paymentInfo.updatedAt,
-        status: paymentInfo.stripeAccountId ? 'LINKED' : 
-                paymentInfo.id ? 'PENDING' : 'NOT_STARTED'
+        status: paymentInfo.status // Use status directly from API response
       };
-      
+
       // Send directly to parent without wrapping in paymentInfo object
       updateFormData(paymentInfoToSend);
     }
@@ -323,7 +380,9 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
               <p className="text-sm text-gray-600">
                 {isAccountLinked()
                   ? 'Your Stripe account is successfully connected. You can now receive payments.'
-                  : 'Your Stripe account connection is pending. Please complete the onboarding process.'}
+                  : isAccountPending()
+                    ? 'Your Stripe account setup is pending. Please complete the onboarding process to start receiving payments.'
+                    : 'Your Stripe account connection needs to be set up. Connect your account to receive payments.'}
               </p>
 
               {paymentInfo.stripeAccountId && (
@@ -356,15 +415,18 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
                 </p>
               )}
 
+              {/* Show the button for both PENDING status and non-LINKED accounts */}
               {!isAccountLinked() && (
                 <div className="mt-3">
                   <button
                     type="button"
-                    onClick={handleConnectStripe}
+                    onClick={handleUpdateStripe}
                     disabled={loading}
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    {loading ? 'Processing...' : 'Reconnect Stripe Account'}
+                    {loading ? 'Processing...' : isAccountPending()
+                      ? 'Continue Stripe Setup'
+                      : 'Connect Stripe Account'}
                   </button>
                 </div>
               )}
@@ -416,18 +478,6 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
               Stripe Connect allows you to securely receive payments from backers. Your account information is handled directly by Stripe, ensuring the security of your financial data.
             </p>
           </div>
-
-          {/* Debug information in development */}
-          {process.env.NODE_ENV !== 'production' && (
-            <div className="mt-4 border-t border-gray-200 pt-4">
-              <details>
-                <summary className="text-xs text-gray-500 cursor-pointer">Debug info</summary>
-                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
-                  {JSON.stringify({ paymentInfo, projectId: projectData?.id }, null, 2)}
-                </pre>
-              </details>
-            </div>
-          )}
         </div>
       </div>
     </div>
