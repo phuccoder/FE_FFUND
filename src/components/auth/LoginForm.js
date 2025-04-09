@@ -21,6 +21,9 @@ export const LoginForm = () => {
     password: '',
     confirmPassword: '',
     role: '',
+    studentCode: '',
+    exeClass: 'EXE201',
+    fptFacility: 'CAN_THO',
   });
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export const LoginForm = () => {
 
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    localStorage.setItem('role', data.role); 
+    localStorage.setItem('role', data.role);
     localStorage.setItem('userId', data.userId);
     if (data.teamRole) {
       localStorage.setItem('teamRole', data.teamRole);
@@ -105,30 +108,74 @@ export const LoginForm = () => {
 
   const handleGoogleSetupSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate password confirmation
     if (googleSetupData.password !== googleSetupData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
+    // Validate that a role is selected
+    if (!googleSetupData.role) {
+      toast.error('Please select a role');
+      return;
+    }
+
+    // Role-specific validation
+    if (googleSetupData.role === 'FOUNDER') {
+      if (!googleSetupData.studentCode) {
+        toast.error('Student code is required for Founders');
+        return;
+      }
+      if (!googleSetupData.exeClass) {
+        toast.error('EXE Class is required for Founders');
+        return;
+      }
+      if (!googleSetupData.fptFacility) {
+        toast.error('FPT Facility is required for Founders');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
-      // authenticate.completeGoogleSetup already parses the JSON
+      // The updated completeGoogleSetup will handle routing to the correct endpoint
       const data = await authenticate.completeGoogleSetup(googleSetupData);
 
       toast.success('Account setup complete');
-      // Pass data directly to handleAuthSuccess
-      handleAuthSuccess(data.data);
+      // Handle successful setup
+      handleAuthSuccess(data);
     } catch (error) {
-      toast.error(error.message || 'Failed to complete account setup');
+      // Extract and display specific error message
+      let errorMessage = 'Failed to complete account setup';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Rest of your code remains the same...
   if (showGoogleSetup) {
     return (
       <div className="flex min-h-screen bg-orange-100 p-10">
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
         <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="w-full p-6">
             <div className="max-w-md mx-auto">
@@ -180,6 +227,61 @@ export const LoginForm = () => {
                     <option value="INVESTOR">Investor</option>
                   </select>
                 </div>
+
+                {/* Conditional fields for FOUNDER role */}
+                {googleSetupData.role === 'FOUNDER' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="studentCode">
+                        Student Code
+                      </label>
+                      <input
+                        id="studentCode"
+                        type="text"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                        placeholder="Enter your student code"
+                        value={googleSetupData.studentCode}
+                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, studentCode: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="exeClass">
+                        EXE Class
+                      </label>
+                      <select
+                        id="exeClass"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                        value={googleSetupData.exeClass}
+                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, exeClass: e.target.value })}
+                        required
+                      >
+                        <option value="EXE201">EXE201</option>
+                        <option value="EXE403">EXE403</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="fptFacility">
+                        FPT Facility
+                      </label>
+                      <select
+                        id="fptFacility"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                        value={googleSetupData.fptFacility}
+                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, fptFacility: e.target.value })}
+                        required
+                      >
+                        <option value="CAN_THO">CAN THO</option>
+                        <option value="DA_NANG">DA NANG</option>
+                        <option value="HA_NOI">HA NOI</option>
+                        <option value="HO_CHI_MINH">HO CHI MINH</option>
+                        <option value="QUY_NHON">QUY NHON</option>
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <button
                   type="submit"

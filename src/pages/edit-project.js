@@ -494,50 +494,47 @@ function EditProjectPage() {
   const loadProjectStory = async (projectId) => {
     try {
       console.log("Fetching story data for project:", projectId);
-
+  
       if (!projectId) {
         console.error("No project ID provided for story loading");
         return null;
       }
-
+  
       const storyData = await projectService.getProjectStoryByProjectId(projectId);
       console.log("Story data received from API:", storyData);
-
+  
       if (!storyData) {
         console.warn("No story data returned from API for project:", projectId);
         return null;
       }
-
+  
       // Handle block-based story structure
       if (storyData.blocks && Array.isArray(storyData.blocks)) {
         console.log("Processing block-based story data with", storyData.blocks.length, "blocks");
-
+  
         // Extract story content from blocks
         let storyContent = '';
         let risksContent = '';
-
-        // Look for blocks with story content
-        const storyBlocks = storyData.blocks.filter(block =>
-          block.type !== 'HEADING' ||
-          !(block.content && block.content.toLowerCase().includes('risk')));
-
-        // Look for blocks with risks content - typically under "Risks and Challenges" heading
+  
+        // Find the risks section heading index
         const risksStartIndex = storyData.blocks.findIndex(block =>
           block.type === 'HEADING' &&
           block.content &&
           block.content.toLowerCase().includes('risk'));
-
-        // If we found a risks heading, include all content after it
+  
         if (risksStartIndex !== -1) {
+          // Process blocks before risks section as story content
+          const storyBlocks = storyData.blocks.slice(0, risksStartIndex);
+          storyContent = storyBlocks.map(block => block.content || '').join('\n\n');
+          
+          // Process blocks after risks section as risks content
           const risksBlocks = storyData.blocks.slice(risksStartIndex + 1);
           risksContent = risksBlocks.map(block => block.content || '').join('\n\n');
+        } else {
+          // If no risks section found, treat all blocks as story content
+          storyContent = storyData.blocks.map(block => block.content || '').join('\n\n');
         }
-
-        // Join story content from story blocks
-        if (storyBlocks.length > 0) {
-          storyContent = storyBlocks.map(block => block.content || '').join('\n\n');
-        }
-
+  
         const processedStoryData = {
           id: storyData.projectStoryId,
           projectStoryId: storyData.projectStoryId,
@@ -545,24 +542,24 @@ function EditProjectPage() {
           risks: risksContent || '',
           status: storyData.status || 'DRAFT',
           projectId: storyData.projectId || projectId,
-          blocks: storyData.blocks, // Keep the blocks for reference
+          blocks: storyData.blocks, // Keep all blocks for reference
           version: storyData.version
         };
-
+  
         console.log("Processed block-based story data:", processedStoryData);
-
+  
         // Update form data with story information
         setFormData(prevData => ({
           ...prevData,
           projectStory: processedStoryData
         }));
-
+  
         return processedStoryData;
       }
-
+  
       // Handle simple text-based story format
       const storyId = storyData.projectStoryId || storyData.id || null;
-
+  
       const processedStoryData = {
         id: storyId,
         projectStoryId: storyId,
@@ -571,15 +568,15 @@ function EditProjectPage() {
         status: storyData.status || 'DRAFT',
         projectId: storyData.projectId || projectId
       };
-
+  
       console.log("Processed simple story data:", processedStoryData);
-
+  
       // Update form data with story information
       setFormData(prevData => ({
         ...prevData,
         projectStory: processedStoryData
       }));
-
+  
       return processedStoryData;
     } catch (error) {
       console.error("Error loading project story:", error);
@@ -1422,6 +1419,7 @@ function EditProjectPage() {
         updateFormData={(data) => handleUpdateFormData('projectStory', data)}
         readOnly={!editRestrictions.projectStory}
         isEditMode={true}
+        preserveAllBlockTypes={true}
       />
     },
     {

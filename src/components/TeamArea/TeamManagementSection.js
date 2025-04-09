@@ -44,58 +44,56 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
           return;
         }
 
-        // Extract role from user data
+        // Extract role and id from user data
         const userRole = userExtendedInfo?.user?.roles || null;
         const userId = userExtendedInfo?.user?.id || null;
+        const userEmail = userExtendedInfo?.user?.email || null;
 
-        // Create a combined user object with data from getUserExtendedInfo
-        // and add teamRole from localStorage (which was saved during login)
+        console.log('User ID from extended info:', userId);
+        console.log('User email from extended info:', userEmail);
+
+        // Create a combined user object
         const userData = {
           ...userExtendedInfo,
           id: userId,
-          email: userExtendedInfo?.user?.email,
+          email: userEmail,
           role: userRole,
-          // Get teamRole from login response or localStorage
-          teamRole: userExtendedInfo?.teamRole || localStorage.getItem('teamRole')
+          teamRole: null // Initialize with null, will set correctly below
         };
 
         // Store combined user data in state
         setCurrentUser(userData);
 
-        console.log('Combined user data:', userData);
-        console.log('teamRole:', userData.teamRole);
+        if (team && team.teamMembers && team.teamMembers.length > 0) {
+          console.log('Team members data:', team.teamMembers);
 
-        if (team) {
-          console.log('Team data:', {
-            id: team?.teamId,
-            name: team?.teamName,
-            memberCount: team?.teamMembers?.length || 0
+          // Check if user is in team by comparing userId, memberId or email
+          const userMember = team.teamMembers.find(member => {
+            const memberIdMatch = member.memberId && userId && member.memberId.toString() === userId.toString();
+            const userIdMatch = member.userId && userId && member.userId.toString() === userId.toString();
+            const emailMatch = member.memberEmail && userEmail && 
+              member.memberEmail.toLowerCase() === userEmail.toLowerCase();
+            
+            const isMatch = memberIdMatch || userIdMatch || emailMatch;
+            if (isMatch) {
+              console.log('Found matching member:', member);
+            }
+            return isMatch;
           });
 
-          // Try to determine permissions based on available data
-          let isLeader = false;
-          let isFounder = userRole === 'FOUNDER';
-
-          // PRIORITY 1: Check the teamRole from user data or localStorage
-          if (userData.teamRole === 'LEADER') {
-            isLeader = true;
-            console.log('User is identified as LEADER from teamRole');
-          }
-          // PRIORITY 2: Check if user is in team members with LEADER role
-          else if (team.teamMembers && team.teamMembers.length > 0) {
-            const userMember = team.teamMembers.find(member =>
-              (userId && member.memberId && member.memberId.toString() === userId.toString()) ||
-              (userId && member.userId && member.userId.toString() === userId.toString()) ||
-              (userData.email && member.memberEmail && member.memberEmail.toLowerCase() === userData.email.toLowerCase())
-            );
-
-            if (userMember && userMember.teamRole === 'LEADER') {
-              isLeader = true;
-              console.log('User is identified as LEADER from team members data');
-            }
+          if (userMember) {
+            console.log('Found user in team members with role:', userMember.teamRole);
+            // Set the teamRole in user data 
+            userData.teamRole = userMember.teamRole;
+            setCurrentUser({...userData});
+          } else {
+            console.log('User is not found in team members');
           }
 
-          // Set permissions based on role determination
+          // Determine permissions based on teamRole and userRole
+          const isLeader = userData.teamRole === 'LEADER';
+          const isFounder = userRole === 'FOUNDER';
+
           const permissions = {
             isAdmin: isLeader,
             canUpdateRoles: isLeader,
@@ -104,17 +102,14 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
           };
 
           console.log('Final permissions:', permissions);
+          console.log('User is leader:', isLeader);
+          console.log('User is founder:', isFounder);
 
-          // Set the states based on the permissions
+          // Set the states based on the determined permissions
           setUserIsAdmin(permissions.isAdmin);
           setUserPermissions(permissions);
-
-          // Log authorization message for clarity
-          if (permissions.isAdmin) {
-            console.log('User is authorized as LEADER and can make changes');
-          } else {
-            console.log('User is NOT authorized as LEADER and cannot make changes');
-          }
+        } else {
+          console.log('No team members found in team data');
         }
       } catch (err) {
         console.error("Failed to check user permissions:", err);
@@ -130,7 +125,9 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
       }
     };
 
-    checkUserPermissions();
+    if (team) {
+      checkUserPermissions();
+    }
   }, [team]);
 
   // Added handler for edit team functionality
@@ -176,6 +173,11 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
         <Row className="justify-content-between align-items-center mb-4">
           <Col lg={7}>
             <Title tagline="Team Management" className="section-title-2" />
+            {currentUser?.teamRole && (
+              <div className="mt-2">
+                <span className="badge bg-info">Your Role: {currentUser.teamRole}</span>
+              </div>
+            )}
           </Col>
           <Col lg={5} className="text-lg-end">
             {!missingExtendedProfile ? (
