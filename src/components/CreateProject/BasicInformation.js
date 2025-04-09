@@ -312,31 +312,37 @@ export default function BasicInformation({ formData, updateFormData, editMode })
   // Validate the form before submission
   const validateForm = () => {
     const validationErrors = {};
-
+  
+    // Only validate required fields
     if (!form.title?.trim()) {
       validationErrors.title = 'Project title is required';
     }
-
+  
     if (!form.shortDescription?.trim()) {
       validationErrors.shortDescription = 'Project description is required';
     }
-
+  
     if (!form.location?.trim()) {
       validationErrors.location = 'Project location is required';
     }
-
+  
     if (!form.categoryId) {
       validationErrors.categoryId = 'Please select a category';
     }
-
+  
     if (!form.subCategoryIds?.length) {
       validationErrors.subCategoryIds = 'Please select at least one subcategory';
     }
-
+  
     if (!form.totalTargetAmount || form.totalTargetAmount < 1000) {
-      validationErrors.totalTargetAmount = 'Target amount must be at least 1000 VND';
+      validationErrors.totalTargetAmount = 'Target amount must be at least 1000$';
     }
-
+  
+    // isClassPotential is required but can be either true or false
+    if (form.isClassPotential !== true && form.isClassPotential !== false) {
+      validationErrors.isClassPotential = 'Please indicate whether this is a class potential project';
+    }
+  
     return {
       isValid: Object.keys(validationErrors).length === 0,
       errors: validationErrors
