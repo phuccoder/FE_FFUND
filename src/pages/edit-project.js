@@ -34,6 +34,7 @@ function EditProjectPage() {
   const [projectStatus, setProjectStatus] = useState('DRAFT');
   const [existingUpdates, setExistingUpdates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   const debugFormData = () => {
     console.log("DEBUG - Current form state:", {
@@ -114,6 +115,7 @@ function EditProjectPage() {
     isLoading: true
   });
 
+
   const updateAllProjectIds = (id) => {
     if (!id) {
       console.warn("Attempted to update project IDs with null/undefined value");
@@ -122,10 +124,6 @@ function EditProjectPage() {
 
     console.log("Updating all project IDs to:", id);
 
-    // Update localStorage first for persistence
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('founderProjectId', id);
-    }
 
     // Create a more thorough update across all state properties
     setFormData(prevData => {
@@ -269,6 +267,13 @@ function EditProjectPage() {
   }, [router]);
 
   useEffect(() => {
+    const teamRole = localStorage.getItem('teamRole');
+    console.log("User teamRole:", teamRole);
+    setUserRole(teamRole);
+
+  }, [authStatus.isAuthenticated, authStatus.isLoading]);
+
+  useEffect(() => {
     const initializeProject = async () => {
       try {
         // Only initialize once auth is ready
@@ -283,11 +288,6 @@ function EditProjectPage() {
         if (!projectId) {
           console.warn("No project ID found from any source");
           return;
-        }
-
-        // Immediately store in localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', projectId);
         }
 
         // Update all project IDs in state
@@ -452,11 +452,6 @@ function EditProjectPage() {
             phases: processedPhasesArray
           }
         };
-
-        // Immediately update localStorage for persistence
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('founderProjectId', projectId);
-        }
 
         return updatedData;
       });
@@ -902,11 +897,6 @@ function EditProjectPage() {
         }
       }));
 
-      // Immediately store in localStorage for persistence
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('founderProjectId', extractedProjectId);
-      }
-
       console.log("Project data loaded successfully with ID:", extractedProjectId);
       return projectData;
     } catch (error) {
@@ -915,6 +905,18 @@ function EditProjectPage() {
       throw error;
     }
   };
+
+  const isMilestoneEditable = (rewardData) => {
+    // If we don't have a phaseId, it's a new milestone that hasn't been saved yet
+    if (!rewardData.phaseId) return true;
+
+    // Find the phase this milestone belongs to
+    const phase = formData.fundraisingInfo?.phases?.find(p => p.id === rewardData.phaseId);
+
+    // Only allow editing if the phase status is PLAN
+    return phase && phase.status === 'PLAN';
+  };
+
 
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating ${section} data:`, data);
@@ -932,12 +934,31 @@ function EditProjectPage() {
       setUpdateRequired(true);
     }
 
-    // Make sure we preserve projectId in the updated data
+    // Special check for rewardInfo to enforce phase status restrictions
+    if (section === 'rewardInfo' && Array.isArray(data)) {
+      // If any of the rewards being updated belong to a non-PLAN phase, show warning
+      const nonEditableRewards = data.filter(reward => reward.id && !isMilestoneEditable(reward));
+
+      if (nonEditableRewards.length > 0) {
+
+        // Filter out the non-editable rewards from the data
+        const editableRewards = data.filter(reward => !reward.id || isMilestoneEditable(reward));
+
+        // Get the current rewards that are not editable to preserve them
+        const currentNonEditableRewards = formData.rewardInfo.filter(reward =>
+          reward.id && !isMilestoneEditable(reward)
+        );
+
+        // Combine editable updates with preserved non-editable rewards
+        data = [...editableRewards, ...currentNonEditableRewards];
+      }
+    }
+
     let updatedData = data;
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
       updatedData = {
         ...data,
-        projectId: formData.projectId // Use formData.projectId instead of projectId
+        projectId: formData.projectId
       };
     }
 
@@ -951,7 +972,7 @@ function EditProjectPage() {
         // Deep comparison would be better, but for simple check:
         if (JSON.stringify(prevData.rewardInfo) === JSON.stringify(updatedData)) {
           console.log('Skipping rewardInfo update - no changes detected');
-          return prevData; // No change needed
+          return prevData;
         }
       }
 
@@ -1026,6 +1047,12 @@ function EditProjectPage() {
 
   const handleSave = async () => {
     try {
+
+      if (userRole !== 'LEADER') {
+        alert("Only users with the Leader role can save and submit projects.");
+        return;
+      }
+
       setIsSaving(true);
       console.log("Current project status before save:", projectStatus);
 
@@ -1071,6 +1098,7 @@ function EditProjectPage() {
       setIsSaving(false);
     }
   };
+
 
   // Save all sections of the project
   const saveAllSections = async (projectId) => {
@@ -1468,7 +1496,7 @@ function EditProjectPage() {
   return (
     <>
       <Layout>
-        <Header/>
+        <Header />
         <PageTitle title="Edit Project" />
         {authStatus.isLoading && (
           <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50">
@@ -1563,9 +1591,11 @@ function EditProjectPage() {
                   {projectStatus !== 'SUSPENDED' && projectStatus !== 'CANCELLED' && (
                     <button
                       onClick={handleSave}
-                      disabled={isSaving || isUpdateBlogSection}
-                      className={`${isSaving || isUpdateBlogSection ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center`}
+                      disabled={isSaving || isUpdateBlogSection || userRole !== 'LEADER'}
+                      className={`${isSaving || isUpdateBlogSection || userRole !== 'LEADER' ?
+                        "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                        } text-white font-semibold py-2 px-4 rounded-lg flex items-center relative`}
+                      title={userRole !== 'LEADER' ? "Only team leaders can submit projects" : ""}
                     >
                       {isSaving ? (
                         <>
@@ -1581,6 +1611,11 @@ function EditProjectPage() {
                         "Save & Submit for Review"
                       ) : (
                         "Save Changes"
+                      )}
+                      {userRole !== 'LEADER' && (
+                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap">
+                          Only team leaders can submit
+                        </span>
                       )}
                     </button>
                   )}

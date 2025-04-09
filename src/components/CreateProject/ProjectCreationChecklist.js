@@ -1056,7 +1056,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         </div>
       )}
 
-      {totalProgress === 100 && (
+      {totalProgress === 80 && (
         <div className="mt-6 bg-green-50 border border-green-100 rounded-md p-4">
           <div className="flex">
             <div className="flex-shrink-0">

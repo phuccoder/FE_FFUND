@@ -36,11 +36,11 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
         }, {});
 
         setMilestones(milestonesObj);
-        
+
         // Select the first phase by default
         if (fetchedPhases.length > 0) {
           setSelectedPhaseId(fetchedPhases[0].id);
-          
+
           // Select the first milestone of the first phase if available
           if (milestonesObj[fetchedPhases[0].id]?.length > 0) {
             setSelectedMilestone(milestonesObj[fetchedPhases[0].id][0]);
@@ -119,7 +119,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
           <h3 className="text-xl font-bold text-yellow-700">Funding Details</h3>
           <p className="text-sm text-yellow-600">Explore phases and milestones</p>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3">
           {/* Column 1: Phases List */}
           <div className="border-r border-gray-200 p-4">
@@ -127,22 +127,20 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
               {phases.length > 0 ? (
                 phases.map((phase) => (
-                  <div 
+                  <div
                     key={phase.id}
                     onClick={() => handlePhaseClick(phase.id)}
-                    className={`p-3 rounded-md cursor-pointer transition-colors ${
-                      selectedPhaseId === phase.id 
-                        ? 'bg-blue-100 border border-yellow-300' 
+                    className={`p-3 rounded-md cursor-pointer transition-colors ${selectedPhaseId === phase.id
+                        ? 'bg-blue-100 border border-yellow-300'
                         : 'hover:bg-gray-100 border border-gray-200'
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-center">
                       <h5 className="font-medium text-yellow-700">Phase {phase.phaseNumber}</h5>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        phase.status === 'ACTIVE' 
-                          ? 'bg-green-100 text-green-700' 
+                      <span className={`text-xs px-2 py-1 rounded-full ${phase.status === 'ACTIVE'
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-700'
-                      }`}>
+                        }`}>
                         {phase.status}
                       </span>
                     </div>
@@ -152,15 +150,17 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                         <span className="font-medium">Timeline:</span> {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
                       </p>
                     </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleContinueClick(phase.id);
-                      }} 
-                      className="mt-2 w-full py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded transition-colors"
-                    >
-                      Support This Phase
-                    </button>
+                    {phase.status === 'PROCESS' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleContinueClick(phase.id);
+                        }}
+                        className="mt-2 w-full py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded transition-colors"
+                      >
+                        Support This Phase
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (
@@ -170,7 +170,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
               )}
             </div>
           </div>
-          
+
           {/* Column 2: Milestones for Selected Phase */}
           <div className="border-r border-gray-200 p-4">
             <div className="flex justify-between items-center mb-3 pb-2 border-b">
@@ -178,28 +178,26 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                 {selectedPhase ? `Milestones for Phase ${selectedPhase.phaseNumber}` : 'Select a Phase'}
               </h4>
               {selectedPhase && (
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  selectedPhase.status === 'ACTIVE' 
-                    ? 'bg-green-100 text-green-700' 
+                <span className={`text-xs px-2 py-1 rounded-full ${selectedPhase.status === 'ACTIVE'
+                    ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-700'
-                }`}>
+                  }`}>
                   {selectedPhase.status}
                 </span>
               )}
             </div>
-            
+
             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
               {selectedPhaseId ? (
                 phasesMilestones.length > 0 ? (
                   phasesMilestones.map((milestone) => (
-                    <div 
+                    <div
                       key={milestone.id}
                       onClick={() => handleMilestoneClick(milestone)}
-                      className={`p-3 rounded-md border cursor-pointer transition-colors ${
-                        selectedMilestone?.id === milestone.id 
-                          ? 'bg-blue-50 border-blue-300' 
+                      className={`p-3 rounded-md border cursor-pointer transition-colors ${selectedMilestone?.id === milestone.id
+                          ? 'bg-blue-50 border-blue-300'
                           : 'hover:bg-gray-50 border-gray-200'
-                      }`}
+                        }`}
                     >
                       <h5 className="font-semibold text-yellow-700-700 mb-1">{milestone.title}</h5>
                       <p className="text-sm text-gray-600 line-clamp-2 mb-2">{milestone.description}</p>
@@ -223,13 +221,13 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
               )}
             </div>
           </div>
-          
+
           {/* Column 3: Items for Selected Milestone */}
           <div className="p-4">
             <h4 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b">
               {selectedMilestone ? 'Milestone Items' : 'Select a Milestone'}
             </h4>
-            
+
             {selectedMilestone ? (
               <div className="space-y-4">
                 <div className="bg-blue-50 p-4 rounded-md mb-4 border border-blue-100">
@@ -245,16 +243,16 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                     </button>
                   </div>
                 </div>
-                
+
                 {selectedMilestone.items && selectedMilestone.items.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {selectedMilestone.items.map((item) => (
                       <div key={item.id} className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
                         <div className="h-32 overflow-hidden bg-gray-100">
                           {item.imageUrl ? (
-                            <img 
-                              src={item.imageUrl} 
-                              alt={item.name} 
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.onerror = null;
