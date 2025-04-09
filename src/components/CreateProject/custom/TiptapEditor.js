@@ -140,15 +140,15 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
       alert(`You've reached the character limit (${MAX_CHARS}). Please remove some content before adding images.`);
       return;
     }
-
+  
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-
+  
     input.onchange = async () => {
       if (input.files?.length) {
         const file = input.files[0];
-
+  
         // Add loading indicator
         if (editor) {
           const tempId = `loading-${Date.now()}`;
@@ -158,10 +158,10 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
             </div>
           `).run();
         }
-
+  
         try {
           let imageUrl;
-
+  
           if (onImageUpload && typeof onImageUpload === 'function') {
             console.log('Using provided upload function');
             imageUrl = await onImageUpload(file);
@@ -173,7 +173,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
               reader.readAsDataURL(file);
             });
           }
-
+  
           // Remove the loading placeholder
           const tempElements = document.querySelectorAll('[id^="loading-"]');
           if (tempElements.length > 0) {
@@ -181,22 +181,30 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
               el.parentNode?.removeChild(el);
             });
           }
-
+  
           if (imageUrl && editor) {
-            editor.chain().focus().setImage({
-              src: imageUrl,
-              alt: file.name || 'Project image',
-              title: file.name || 'Project image'
-            }).run();
-
-            console.log('Image inserted successfully');
+            // IMPORTANT CHANGE: Insert image as a proper block with data attributes
+            const imageId = `img-${Date.now()}`;
+            editor.chain().focus().insertContent(`
+              <div class="image-container" data-type="IMAGE" data-block-id="${imageId}">
+                <img 
+                  src="${imageUrl}" 
+                  alt="${file.name || 'Project image'}" 
+                  title="${file.name || 'Project image'}"
+                  class="story-image"
+                  data-type="IMAGE" 
+                  data-block-id="${imageId}">
+              </div>
+            `).run();
+            
+            console.log('Image inserted successfully with proper IMAGE block type');
           } else {
             alert('Failed to upload image. Please try again.');
           }
         } catch (error) {
           console.error('Image upload failed:', error);
           alert('Failed to upload image: ' + (error.message || 'Unknown error'));
-
+  
           // Remove loading placeholder
           const tempElements = document.querySelectorAll('[id^="loading-"]');
           if (tempElements.length > 0) {
@@ -207,7 +215,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
         }
       }
     };
-
+  
     input.click();
   };
 

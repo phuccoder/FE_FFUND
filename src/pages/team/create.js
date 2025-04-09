@@ -190,7 +190,6 @@ const CreateTeamPage = () => {
     <Layout>
       <Header />
       <PageTitle title="Create Team" />
-      <ToastContainer />
       <Container className="py-5">
         <Row>
           <Col lg={8} className="mx-auto">
