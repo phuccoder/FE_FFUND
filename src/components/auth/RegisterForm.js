@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export const RegisterForm = () => {
   const router = useRouter();
@@ -35,10 +36,34 @@ export const RegisterForm = () => {
       });
       
       if (response.ok) {
-        router.push('/login-register');
+        // Show success notification
+        toast.success('Registration successful! Please check your email for verification instructions.', {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        
+        // Delayed redirect to give user time to see the toast
+        setTimeout(() => {
+          router.push('/login-register');
+        }, 3000);
+      } else {
+        // Handle error response
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Registration failed. Please try again.', {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
     } catch (error) {
       console.error('Registration error:', error);
+      toast.error('Network error. Please check your connection and try again.', {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -162,7 +187,6 @@ export const RegisterForm = () => {
           </div>
         </div>
       </div>
-      <ToastContainer />
     </div>
   );
 };

@@ -6,123 +6,94 @@ import { useAuth } from './AuthContext';
 const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [wsClient, setWsClient] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [wsClient, setWsClient] = useState(null);
 
-
-  // Initialize WebSocket connection
   useEffect(() => {
-    if (isAuthenticated && user?.userId) {
-      // Connect to WebSocket server
-      const client = new WebSocketClient(
-        `https://quanbeo.duckdns.org:8080/ws`,
-        handleNotification,
-        // Add callbacks for connection status
-        () => setConnectionStatus('connected'),
-        () => setConnectionStatus('disconnected')
-      );
-
-      client.connect();
-      setWsClient(client);
-
-      // Cleanup on unmount
-      return () => {
-        if (client) {
-          client.disconnect();
-        }
-      };
+    // Early return if not authenticated
+    if (!isAuthenticated) {
+      console.log('🔌 Not authenticated — disconnecting WebSocket');
+      if (wsClient) {
+        wsClient.disconnect();
+        setWsClient(null);
+      }
+      return;
     }
-  }, [isAuthenticated, user?.userId]);
 
-  // Handle incoming notifications
+    // Get userId from localStorage
+    const userId = localStorage.getItem('userId');
+    
+    // Early return if userId is not available
+    if (!userId) {
+      console.log('⚠️ User ID not available - cannot establish WebSocket connection');
+      return;
+    }
+
+    // Already connected — don't reconnect
+    if (wsClient) {
+      console.log('🔄 WebSocket already connected');
+      return;
+    }
+
+    console.log('🔄 Setting up new WebSocket connection for user:', userId);
+
+    const client = new WebSocketClient({
+      serverUrl: 'https://quanbeo.duckdns.org/ws',
+      onMessage: handleNotification,
+      onConnect: () => {
+        console.log('✅ WebSocket connected');
+        setConnectionStatus('connected');
+        
+        // Create destination path with userId
+        const destination = `/user/${userId}/notification`;
+        client.subscribe(destination);
+        console.log('📩 Subscribed to:', destination);
+      },
+      onDisconnect: () => {
+        console.warn('⚠️ WebSocket disconnected');
+        setConnectionStatus('disconnected');
+      },
+    });
+
+    client.connect();
+    setWsClient(client);
+
+    return () => {
+      console.log('🧹 Cleaning up WebSocket connection');
+      client.disconnect();
+      setWsClient(null);
+    };
+  }, [isAuthenticated]);
+
   const handleNotification = (notification) => {
-    console.log('Received notification:', notification);
-    
-    // Add to notifications list
-    setNotifications(prev => [notification, ...prev]);
-    
-    // Increment unread count
-    setUnreadCount(prev => prev + 1);
-    
-    // Show toast notification
+    const data = typeof notification === 'string' ? JSON.parse(notification) : notification;
+
+    setNotifications((prev) => [data, ...prev]);
+    setUnreadCount((prev) => prev + 1);
+
     toast.info(
       <div>
-        <strong>{notification.title}</strong>
-        <p>{notification.message}</p>
+        <strong>{data.title}</strong>
+        <p>{data.message || 'You have a new notification'}</p>
       </div>,
       {
-        position: "top-right",
+        position: 'top-right',
         autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
       }
     );
   };
 
-  // Mark notification as read
-  const markAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, read: true } 
-          : notification
-      )
-    );
-    
-    // Recalculate unread count
-    const unread = notifications.filter(n => !n.read).length;
-    setUnreadCount(unread);
-    
-    // Send read status to server
-    if (wsClient) {
-      wsClient.sendMessage('/app/notifications/markAsRead', {
-        notificationId,
-        userId: user?.userId
-      });
-    }
-  };
-
-  // Mark all as read
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, read: true }))
-    );
-    setUnreadCount(0);
-    
-    // Send read status to server
-    if (wsClient) {
-      wsClient.sendMessage('/app/notifications/markAllAsRead', {
-        userId: user?.userId
-      });
-    }
-  };
-
-  const sendTestMessage = () => {
-    if (wsClient) {
-      wsClient.sendMessage('/app/test', {
-        message: 'Test message',
-        userId: user?.userId
-      });
-    }
-  };
-
-  // Value to be provided by the context
-  const value = {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    connectionStatus,
-    sendTestMessage
-  };
-
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        connectionStatus,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );

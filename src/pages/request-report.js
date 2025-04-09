@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons';
 import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
-import Head from 'next/head';
 import { format } from 'date-fns';
 import PageTitle from "@/components/Reuseable/PageTitle";
 
@@ -100,18 +99,9 @@ const RequestManager = () => {
     return (
         <>
         <Layout>
-            <Header/>
+            <Header />
             <PageTitle title="Request/Report Management" />
-            <div style={{ maxWidth: 1200, margin: '0 auto', paddingTop: '60px' }}>
-                <h1 style={{
-                    fontSize: 24,
-                    fontWeight: 600,
-                    marginBottom: 24,
-                    color: '#333'
-                }}>
-                    Request/Report Management
-                </h1>
-
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
                 <div style={{
                     backgroundColor: '#fff',
                     borderRadius: 8,
