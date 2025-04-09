@@ -1,91 +1,81 @@
+// utils/WebSocketClient.js
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 export class WebSocketClient {
-    constructor(serverUrl, topicEndpoint, onMessageCallback, onConnectCallback, onDisconnectCallback) {
-      this.serverUrl = serverUrl;
-      this.topicEndpoint = topicEndpoint;
-      this.onMessageCallback = onMessageCallback;
-      this.client = null;
-      this.subscription = null;
-      this.onConnectCallback = onConnectCallback;
-      this.onDisconnectCallback = onDisconnectCallback;
-    }
+  constructor({ serverUrl, onMessage, onConnect, onDisconnect }) {
+    this.serverUrl = serverUrl;
+    this.onMessage = onMessage;
+    this.onConnect = onConnect;
+    this.onDisconnect = onDisconnect;
+    this.client = null;
+    this.subscription = null;
+  }
 
   connect() {
-    // Create a new STOMP client
+    console.log('🧪 Activating STOMP client...');
     this.client = new Client({
-      brokerURL: this.serverUrl,
-      debug: function (str) {
-        console.log('STOMP Debug: ' + str);
-      },
-      reconnectDelay: 5000, // Attempt to reconnect after 5 seconds
+      webSocketFactory: () => new SockJS(this.serverUrl),
+      debug: (str) => console.log('[STOMP DEBUG]', str),
+      reconnectDelay: 5000,
       heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000
+      heartbeatOutgoing: 4000,
+      onConnect: () => {
+        console.log('✅ STOMP connected');
+        this.onConnect?.();
+      },
+      onStompError: (frame) => {
+        console.error('❌ STOMP Error:', frame.headers['message'], frame.body);
+      },
+      onWebSocketError: (event) => {
+        console.error('❌ WebSocket Error:', event);
+      },
+      onWebSocketClose: () => {
+        console.warn('🔌 WebSocket Closed');
+        this.onDisconnect?.();
+      },
+    });
+  
+    this.client.activate();
+  }
+  
+
+  subscribe(destination) {
+    if (!this.client?.connected) {
+      console.warn('⚠️ Cannot subscribe, client not connected');
+      return;
+    }
+
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+
+    this.subscription = this.client.subscribe(destination, (message) => {
+      try {
+        const body = JSON.parse(message.body);
+        this.onMessage?.(body);
+      } catch (e) {
+        console.warn('Could not parse message body:', message.body);
+        this.onMessage?.(message.body);
+      }
     });
 
-    // Setup connection event handlers
-    this.client.onConnect = (frame) => {
-      console.log('Connected to WebSocket server');
-      if (this.onConnectCallback) this.onConnectCallback();
-      
-      // Subscribe to the topic
-      this.subscription = this.client.subscribe(this.topicEndpoint, (message) => {
-        // Parse the message body (usually JSON)
-        let messageBody;
-        try {
-          messageBody = JSON.parse(message.body);
-        } catch (e) {
-          messageBody = message.body;
-        }
-        
-        // Call the callback with the parsed message
-        this.onMessageCallback(messageBody);
-      });
-      
-      console.log(`Subscribed to topic: ${this.topicEndpoint}`);
-    };
+    console.log(`📩 Subscribed to: ${destination}`);
+  }
 
-    this.client.onStompError = (frame) => {
-      console.error('STOMP Error:', frame.headers['message']);
-      console.error('Additional details:', frame.body);
-    };
-
-    this.client.onWebSocketError = (event) => {
-      console.error('WebSocket Error:', event);
-    };
-
-    this.client.onWebSocketClose = () => {
-      console.log('WebSocket connection closed');
-      if (this.onDisconnectCallback) this.onDisconnectCallback();
-    };
-
-    // Start the connection
-    this.client.activate();
+  send(destination, payload) {
+    if (this.client?.connected) {
+      const body = typeof payload === 'object' ? JSON.stringify(payload) : payload;
+      this.client.publish({ destination, body });
+      console.log(`📤 Sent to ${destination}:`, payload);
+    } else {
+      console.warn('⚠️ Cannot send, not connected');
+    }
   }
 
   disconnect() {
-    if (this.client && this.client.connected) {
-      // Unsubscribe from the topic
-      if (this.subscription) {
-        this.subscription.unsubscribe();
-      }
-      
-      // Disconnect from the server
-      this.client.deactivate();
-      console.log('Disconnected from WebSocket server');
-    }
-  }
-
-  // Method to send a message to a specific destination
-  sendMessage(destination, message) {
-    if (this.client && this.client.connected) {
-      this.client.publish({
-        destination: destination,
-        body: typeof message === 'object' ? JSON.stringify(message) : message
-      });
-      console.log(`Message sent to ${destination}`);
-    } else {
-      console.error('Cannot send message: Not connected to WebSocket server');
-    }
+    this.subscription?.unsubscribe();
+    this.client?.deactivate();
+    console.log('🔌 Disconnected');
   }
 }

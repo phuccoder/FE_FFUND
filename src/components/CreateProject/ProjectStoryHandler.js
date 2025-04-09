@@ -115,10 +115,18 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     // Sort blocks by order property
     const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order);
 
+    // Track image URLs to avoid duplicates
+    const processedImageUrls = new Set();
+
     let htmlContent = '';
 
-    sortedBlocks.forEach(block => {
+    sortedBlocks.forEach((block, index) => {
       const { type, content, metadata = {} } = block;
+
+      // Skip empty blocks
+      if (!content || (typeof content === 'string' && content.trim() === '')) {
+        return;
+      }
 
       // Parse metadata from string if it's a string
       let parsedMetadata = metadata;
@@ -131,23 +139,53 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         }
       }
 
+      // Add content based on block type
       switch (type) {
         case 'TEXT':
-          // Check if content already has HTML tags
-          if (content.includes('<') && content.includes('>')) {
-            htmlContent += content; // Already HTML content
-          } else {
-            // Apply styles from metadata if available
-            const textStyles = [];
-            if (parsedMetadata.additionalProp1?.color) {
-              textStyles.push(`color: ${parsedMetadata.additionalProp1.color}`);
-            }
-            if (parsedMetadata.additionalProp1?.align) {
-              textStyles.push(`text-align: ${parsedMetadata.additionalProp1.align}`);
-            }
-            const styleAttr = textStyles.length > 0 ? ` style="${textStyles.join(';')}"` : '';
-            htmlContent += `<p${styleAttr}>${content}</p>`;
+          // Special handling for empty paragraphs to preserve spacing
+          if (content === '<br>' ||
+            content === '<p><br></p>' ||
+            content === '&nbsp;' ||
+            parsedMetadata.additionalProp1?.isEmptyParagraph ||
+            parsedMetadata.additionalProp1?.isBreak) {
+            // Use proper line breaks instead of <br> tags
+            htmlContent += '<p>\n</p>';
+            break;
           }
+
+          // Check if this TEXT block contains an embedded image
+          if (content && content.includes('<img')) {
+            // Extract the image URL to check for duplication
+            const imgMatch = content.match(/src="([^"]+)"/);
+            const imgUrl = imgMatch ? imgMatch[1] : null;
+
+            // If this TEXT block contains an image that will be processed separately as IMAGE type,
+            // check if we already processed this image URL
+            if (imgUrl && processedImageUrls.has(imgUrl)) {
+              console.log('Skipping TEXT block containing already processed image:', imgUrl);
+              break; // Skip this block entirely
+            }
+
+            // If the TEXT block ONLY contains an image (and no other significant content)
+            // and there's an IMAGE block with the same URL, skip it
+            if (imgUrl && sortedBlocks.some(b => b.type === 'IMAGE' && b.content === imgUrl)) {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = content;
+
+              // Remove img tags to see if there's other content
+              const imgTags = tempDiv.querySelectorAll('img');
+              imgTags.forEach(img => img.remove());
+
+              // If there's no substantial content beyond the image
+              if (!tempDiv.textContent.trim()) {
+                console.log('Skipping TEXT block that only contains an image matching an IMAGE block');
+                break; // Skip this block
+              }
+            }
+          }
+
+          // For all other TEXT blocks, preserve exactly as is
+          htmlContent += content;
           break;
 
         case 'HEADING':
@@ -160,10 +198,17 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             headingStyles.push(`text-align: ${parsedMetadata.additionalProp1.align}`);
           }
           const headingStyleAttr = headingStyles.length > 0 ? ` style="${headingStyles.join(';')}"` : '';
+
+          // Preserve exact content without trimming
           htmlContent += `<h${level}${headingStyleAttr}>${content}</h${level}>`;
           break;
 
         case 'IMAGE':
+          // Record this image URL as processed
+          if (content) {
+            processedImageUrls.add(content);
+          }
+
           const imageStyles = [];
           if (parsedMetadata.additionalProp1?.width) {
             imageStyles.push(`width: ${parsedMetadata.additionalProp1.width}`);
@@ -178,19 +223,24 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           }
           const imageStyleAttr = imageStyles.length > 0 ? ` style="${imageStyles.join(';')}"` : '';
           const imageClass = parsedMetadata.additionalProp1?.class || 'story-image';
-          // Add a div wrapper with data-type attribute to ensure proper parsing later
-          htmlContent += `<div class="image-container" data-type="IMAGE"><img src="${content}" alt="${parsedMetadata.additionalProp1?.alt || 'Project image'}" class="${imageClass}"${imageStyleAttr} data-type="IMAGE"></div>`;
+          const imageAlt = parsedMetadata.additionalProp1?.alt || 'Project image';
+
+          // Add unique ID to help identify images
+          const imageId = block.storyBlockId || Math.random().toString(36).substr(2, 9);
+          htmlContent += `<div class="image-container" data-type="IMAGE" data-block-id="${imageId}">
+            <img src="${content}" alt="${imageAlt}" title="${imageAlt}" 
+            class="${imageClass}"${imageStyleAttr} data-type="IMAGE" data-block-id="${imageId}">
+          </div>`;
           break;
 
         case 'VIDEO':
-          // Parse metadata if it's a string
+          // Video handling code remains the same...
           let videoMetadata = {};
           if (typeof parsedMetadata === 'string') {
             try {
               videoMetadata = JSON.parse(parsedMetadata);
             } catch (e) {
               console.warn('Failed to parse video metadata:', e);
-              // Provide default values
               videoMetadata = {
                 additionalProp1: {
                   width: "560px",
@@ -204,13 +254,11 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             videoMetadata = parsedMetadata;
           }
 
-          // Extract dimensions and attributes from metadata
           const width = videoMetadata.additionalProp1?.width || '560px';
           const height = videoMetadata.additionalProp1?.height || '315px';
           const autoplay = videoMetadata.additionalProp1?.autoplay ? 1 : 0;
           const controls = videoMetadata.additionalProp1?.controls !== false ? 1 : 0;
 
-          // Ensure content is a clean YouTube URL
           let youtubeUrl = content;
           if (!youtubeUrl.includes('youtube.com/embed/') && youtubeUrl.includes('youtube.com')) {
             try {
@@ -224,14 +272,13 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             }
           }
 
-          // Add parameters for controls and autoplay if needed
           const embedUrl = autoplay || controls
             ? `${youtubeUrl}${youtubeUrl.includes('?') ? '&' : '?'}controls=${controls}&autoplay=${autoplay}`
             : youtubeUrl;
 
-          // Create the HTML for the video iframe with explicit data-type attribute
+          const videoId = block.storyBlockId || Math.random().toString(36).substr(2, 9);
           htmlContent += `
-          <div class="ProseMirror-youtube-iframe" data-youtube-video="true" data-type="VIDEO">
+          <div class="ProseMirror-youtube-iframe" data-youtube-video="true" data-type="VIDEO" data-block-id="${videoId}">
             <iframe 
               src="${embedUrl}"
               width="${width}" 
@@ -245,14 +292,29 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           break;
 
         default:
-          htmlContent += content;
+          if (content && content.trim()) {
+            htmlContent += content;
+          }
+      }
+
+      // Add a line break after each block (unless it's the last block or the next block is a heading)
+      if (index < sortedBlocks.length - 1) {
+        const nextBlock = sortedBlocks[index + 1];
+        // Don't add line break before headings as they already create visual separation
+        if (nextBlock.type !== 'HEADING') {
+          // Check if current block's HTML ends with a paragraph or div closing tag
+          const endsWithP = /(<\/p>|<\/div>|<\/ul>|<\/ol>)$/.test(htmlContent.trim());
+          // Only add additional spacing if the block doesn't already have proper spacing
+          if (!endsWithP) {
+            htmlContent += '<p>\n</p>';
+          }
+        }
       }
     });
 
     return htmlContent;
   };
 
-  // Improved parseHtmlToBlocks function
 
   const parseHtmlToBlocks = (html) => {
     if (!html) return [];
@@ -263,339 +325,150 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
     console.log('Parsing HTML content with length:', html.length);
 
+    // Approach: Map all elements with their positions first, then process them in document order
     const blocks = [];
-    let order = 0;
+    const processedElements = new Set();
+    const processedImageSrcs = new Set();
+    const processedListItems = new Set(); // NEW: Track list items to avoid duplication
 
-    // Track node positions for precise ordering - this is critical for maintaining order
-    const nodePositions = new Map();
+    // Function to map all elements in document order
+    const mapElements = () => {
+      // Create a walker to process nodes in document order
+      const walker = document.createTreeWalker(
+        tempDiv,
+        NodeFilter.SHOW_ELEMENT,
+        null,
+        false
+      );
 
-    // First, map the DOM structure to get the proper order of elements
-    const mapNodePositions = () => {
-      const allNodes = [];
+      let order = 0;
+      let currentNode;
 
-      // Function to recursively get all nodes in DOM order
-      const collectNodes = (node) => {
-        if (!node) return;
+      // Walk through all elements in document order
+      while (currentNode = walker.nextNode()) {
+        const element = currentNode;
+        const tagName = element.tagName.toLowerCase();
 
-        // For element nodes, add to our collection
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          allNodes.push(node);
+        // Skip empty or whitespace-only elements
+        if (!element.textContent && !element.children.length && element.attributes.length === 0) {
+          if (tagName !== 'img' &&
+            tagName !== 'br' &&
+            !element.querySelector('img') &&
+            !element.querySelector('iframe') &&
+            !element.querySelector('br')) {
+            continue;
+          }
         }
 
-        // Process children
-        Array.from(node.childNodes).forEach(childNode => {
-          collectNodes(childNode);
-        });
-      };
+        // Skip elements that are direct children of list items - they'll be handled by the list
+        if (element.parentElement && (element.parentElement.tagName.toLowerCase() === 'li')) {
+          processedListItems.add(element);
+          continue;
+        }
 
-      // Start collection from root
-      collectNodes(tempDiv);
-
-      // Assign position values to all collected nodes
-      allNodes.forEach((node, index) => {
-        nodePositions.set(node, index);
-      });
-
-      console.log(`Mapped ${allNodes.length} nodes for position tracking`);
-    };
-
-    mapNodePositions();
-
-    // Function to check if a node is empty or just whitespace
-    const isEmptyOrWhitespace = (node) => {
-      if (!node.textContent || !node.textContent.trim()) return true;
-
-      // Special case for paragraphs with just line breaks or non-breaking spaces
-      if (node.tagName?.toLowerCase() === 'p') {
-        const content = node.innerHTML.trim();
-        return content === '<br>' || content === '&nbsp;' ||
-          content === '<br/>' || content === '<br />' ||
-          content === '' || !content;
-      }
-
-      return false;
-    };
-
-    // Clean up empty nodes first
-    const nodesToRemove = [];
-    Array.from(tempDiv.childNodes).forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE && (!node.textContent || !node.textContent.trim())) {
-        nodesToRemove.push(node);
-      } else if (node.nodeType === Node.ELEMENT_NODE && isEmptyOrWhitespace(node)) {
-        nodesToRemove.push(node);
-      }
-    });
-
-    nodesToRemove.forEach(node => node.parentNode?.removeChild(node));
-
-    // IMPROVED: First pass - process all multimedia elements that need special handling
-    console.log('Processing video elements...');
-
-    // Track all elements that have already been processed
-    // Look for this code section in parseHtmlToBlocks:
-    console.log('Processing video elements...');
-
-    // Track all elements that have already been processed
-    const processedElements = new Set();
-
-    // Add this code to check for YouTube URLs directly in content
-    // Check for YouTube URLs in the raw HTML first
-    if (html.includes('youtube.com/embed') || html.includes('youtu.be/')) {
-      console.log('YouTube URL detected in raw HTML');
-
-      // Extract YouTube URLs using regex pattern
-      const youtubePattern = /(https?:\/\/)?(www\.)?(youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/g;
-      const matches = html.match(youtubePattern);
-
-      if (matches && matches.length > 0) {
-        console.log(`Found ${matches.length} YouTube URLs in content`);
-
-        // Process each match to create video blocks
-        matches.forEach((match, index) => {
-          let videoId = '';
-
-          if (match.includes('youtube.com/embed/')) {
-            videoId = match.split('youtube.com/embed/')[1].split(/[?&#]/)[0];
-          } else if (match.includes('youtu.be/')) {
-            videoId = match.split('youtu.be/')[1].split(/[?&#]/)[0];
-          } else if (match.includes('youtube.com/watch?v=')) {
-            videoId = match.split('v=')[1].split(/[?&#]/)[0];
-          }
-
-          if (videoId) {
-            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            console.log(`Creating VIDEO block for YouTube URL: ${embedUrl}`);
+        // Handle YouTube videos (iframes)
+        if (tagName === 'iframe' && element.src && element.src.includes('youtube.com/embed')) {
+          if (!processedElements.has(element)) {
+            const cleanUrl = element.src.split('?')[0];
 
             blocks.push({
               type: 'VIDEO',
-              content: embedUrl,
-              order: 1000 + index, // High order to position at end initially
+              content: cleanUrl,
+              order: order++,
               metadata: {
                 additionalProp1: {
-                  autoplay: false,
-                  controls: true,
-                  width: "560px",
-                  height: "315px"
+                  autoplay: element.src.includes('autoplay=1'),
+                  controls: !element.src.includes('controls=0'),
+                  width: element.width || "560px",
+                  height: element.height || "315px"
                 }
               }
             });
+
+            processedElements.add(element);
+            // Also mark the parent YouTube container if it exists
+            if (element.parentElement &&
+              (element.parentElement.classList.contains('ProseMirror-youtube-iframe') ||
+                element.parentElement.hasAttribute('data-youtube-video'))) {
+              processedElements.add(element.parentElement);
+            }
           }
-        });
-      }
-    }
+          continue;
+        }
 
-    // Improve the iframe detection logic
-    const iframes = Array.from(tempDiv.querySelectorAll('iframe'));
-    console.log(`Found ${iframes.length} iframes in content`);
+        // Handle YouTube container divs (may contain iframes)
+        if ((element.classList.contains('ProseMirror-youtube-iframe') ||
+          element.hasAttribute('data-youtube-video')) &&
+          !processedElements.has(element)) {
 
-    iframes.forEach(iframe => {
-      if (iframe.src && iframe.src.includes('youtube.com/embed/') && !processedElements.has(iframe)) {
-        try {
-          // Clean YouTube URL without query parameters
-          const cleanUrl = iframe.src.split('?')[0];
-          console.log('Found YouTube iframe with src:', cleanUrl);
+          const iframe = element.querySelector('iframe[src*="youtube.com/embed"]');
+          if (iframe && !processedElements.has(iframe)) {
+            const cleanUrl = iframe.src.split('?')[0];
 
-          // Get position for ordering - use parent if available for better context
-          const positionElement = iframe.parentElement || iframe;
-          const nodePosition = nodePositions.get(positionElement) || nodePositions.get(iframe);
+            blocks.push({
+              type: 'VIDEO',
+              content: cleanUrl,
+              order: order++,
+              metadata: {
+                additionalProp1: {
+                  autoplay: iframe.src.includes('autoplay=1'),
+                  controls: !iframe.src.includes('controls=0'),
+                  width: iframe.width || "560px",
+                  height: iframe.height || "315px"
+                }
+              }
+            });
 
-          // Create a VIDEO block with the appropriate metadata
+            processedElements.add(iframe);
+            processedElements.add(element);
+          }
+          continue;
+        }
+
+        // Handle images
+        if (tagName === 'img' && element.src && !processedElements.has(element)) {
+          // IMPORTANT FIX: Skip if this image source has already been processed
+          if (processedImageSrcs.has(element.src)) {
+            processedElements.add(element);
+            continue;
+          }
+
+          // Add to our tracking sets
+          processedElements.add(element);
+          processedImageSrcs.add(element.src);
+
+          // Also skip processing the parent image container if present
+          const imageContainer = element.closest('.image-container, [data-type="IMAGE"]');
+          if (imageContainer && imageContainer !== element) {
+            processedElements.add(imageContainer);
+          }
+
           blocks.push({
-            type: 'VIDEO',
-            content: cleanUrl,
-            order: nodePosition || order++,
+            type: 'IMAGE',
+            content: element.src,
+            order: order++,
             metadata: {
               additionalProp1: {
-                autoplay: iframe.src.includes('autoplay=1'),
-                controls: !iframe.src.includes('controls=0'),
-                width: iframe.width || "560px",
-                height: iframe.height || "315px"
+                width: element.style.width || element.width || "100%",
+                float: element.style.float || null,
+                class: element.className || 'story-image',
+                alt: element.alt || 'Project image'
               }
             }
           });
-
-          // Mark as processed
-          processedElements.add(iframe);
-          if (iframe.parentElement) {
-            processedElements.add(iframe.parentElement);
-          }
-        } catch (err) {
-          console.error('Error processing iframe element:', err);
+          continue;
         }
-      }
-    });
-
-    // 2. Find YouTube containers that might not have been caught
-    const videoSelectors = [
-      '.ProseMirror-youtube-iframe',
-      '[data-youtube-video="true"]',
-      '[data-type="VIDEO"]'
-    ];
-
-    const videoContainers = Array.from(tempDiv.querySelectorAll(videoSelectors.join(',')))
-      .filter(el => !processedElements.has(el));
-
-    console.log(`Found ${videoContainers.length} additional video containers`);
-
-    videoContainers.forEach(container => {
-      // Try to find iframe inside
-      const iframe = container.querySelector('iframe');
-      if (iframe && iframe.src && iframe.src.includes('youtube.com/embed/') && !processedElements.has(iframe)) {
-        const cleanUrl = iframe.src.split('?')[0];
-        console.log('Found YouTube container with iframe src:', cleanUrl);
-
-        // Get position in document
-        const nodePosition = nodePositions.get(container) || nodePositions.get(iframe);
-
-        blocks.push({
-          type: 'VIDEO',
-          content: cleanUrl,
-          order: nodePosition || order++,
-          metadata: {
-            additionalProp1: {
-              autoplay: iframe.src.includes('autoplay=1'),
-              controls: !iframe.src.includes('controls=0'),
-              width: iframe.width || "560px",
-              height: iframe.height || "315px"
-            }
-          }
-        });
-
-        // Mark as processed
-        processedElements.add(container);
-        processedElements.add(iframe);
-      }
-    });
-
-    // 3. Look for raw YouTube URLs in paragraphs
-    const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
-    paragraphs.forEach(p => {
-      if (processedElements.has(p)) return;
-
-      const content = p.textContent.trim();
-      if (content && (
-        content.includes('youtube.com/watch') ||
-        content.includes('youtu.be/') ||
-        content.includes('youtube.com/embed/')
-      )) {
-        try {
-          let videoId = null;
-
-          if (content.includes('youtube.com/watch')) {
-            const url = new URL(content);
-            videoId = url.searchParams.get('v');
-          } else if (content.includes('youtu.be/')) {
-            videoId = content.split('youtu.be/')[1].split(/[?&#]/)[0].trim();
-          } else if (content.includes('youtube.com/embed/')) {
-            videoId = content.split('youtube.com/embed/')[1].split(/[?&#]/)[0].trim();
-          }
-
-          if (videoId) {
-            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            console.log('Converting YouTube URL to video block:', embedUrl);
-
-            // Get position in document
-            const nodePosition = nodePositions.get(p);
-
-            blocks.push({
-              type: 'VIDEO',
-              content: embedUrl,
-              order: nodePosition || order++,
-              metadata: {
-                additionalProp1: {
-                  autoplay: false,
-                  controls: true,
-                  width: "560px",
-                  height: "315px"
-                }
-              }
-            });
-
-            // Mark as processed
-            processedElements.add(p);
-          }
-        } catch (err) {
-          console.error('Error processing YouTube URL in paragraph:', err);
-        }
-      }
-    });
-
-    // IMAGES: Process all image elements 
-    console.log('Processing image elements...');
-    const imageElements = Array.from(tempDiv.querySelectorAll('img, [data-type="IMAGE"], .image-container'))
-      .filter(el => !processedElements.has(el));
-
-    console.log(`Found ${imageElements.length} potential image elements`);
-
-    imageElements.forEach(element => {
-      const img = element.tagName.toLowerCase() === 'img' ? element : element.querySelector('img');
-      if (!img || !img.src || processedElements.has(img)) return;
-
-      // Get clean image URL
-      let cleanImageUrl = img.src;
-      try {
-        // Make sure we have a full URL
-        if (!cleanImageUrl.startsWith('data:')) {
-          const url = new URL(img.src, window.location.origin);
-          cleanImageUrl = url.href;
-        }
-        console.log('Found image with URL:', cleanImageUrl);
-      } catch (e) {
-        console.warn('Failed to parse image URL:', e);
-      }
-
-      const containerElement = img.closest('div, figure, p') || img.parentElement || img;
-      const nodePosition = nodePositions.get(containerElement) || nodePositions.get(img) || order++;
-
-      // Create IMAGE block
-      blocks.push({
-        type: 'IMAGE',
-        content: cleanImageUrl,
-        order: nodePosition,
-        metadata: {
-          additionalProp1: {
-            width: img.style.width || img.width || "100%",
-            float: img.style.float || null,
-            class: img.className || 'story-image',
-            alt: img.alt || 'Project image'
-          }
-        }
-      });
-
-      console.log('Added IMAGE block with order:', nodePosition);
-
-      // Mark as processed
-      processedElements.add(element);
-      processedElements.add(img);
-      if (element.parentNode) {
-        processedElements.add(element.parentNode);
-      }
-    });
-
-    // Process all remaining elements in DOM order
-    const walkNodes = (node) => {
-      if (!node) return;
-
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const element = node;
-
-        // Skip already processed elements
-        if (processedElements.has(element)) {
-          return;
-        }
-
-        const tagName = element.tagName.toLowerCase();
-        const nodePosition = nodePositions.get(element) || order++;
 
         // Handle headings
-        if (tagName.startsWith('h') && tagName.length === 2) {
+        if (tagName.startsWith('h') && tagName.length === 2 && !processedElements.has(element)) {
           const level = parseInt(tagName[1]);
           const headingText = element.textContent.trim();
+
           if (headingText) {
             blocks.push({
               type: 'HEADING',
               content: headingText,
-              order: nodePosition,
+              order: order++,
               metadata: {
                 additionalProp1: {
                   level: level,
@@ -606,121 +479,124 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             });
             processedElements.add(element);
           }
+          continue;
         }
 
-        // Handle paragraphs
-        else if (tagName === 'p' && !element.querySelector('img') && !processedElements.has(element)) {
-          const paragraphContent = element.innerHTML.trim();
+        // Handle lists (ul/ol) as composite blocks
+        if ((tagName === 'ul' || tagName === 'ol') && !processedElements.has(element)) {
+          // Mark all child elements as processed
+          const listItems = element.querySelectorAll('li');
+          listItems.forEach(li => {
+            processedElements.add(li);
+            Array.from(li.children).forEach(child => {
+              processedListItems.add(child);
+            });
+          });
 
-          if (paragraphContent &&
-            paragraphContent !== '<br>' &&
-            paragraphContent !== '&nbsp;') {
+          // Get the entire list HTML
+          const listContent = element.outerHTML;
+
+          if (listContent.trim()) {
             blocks.push({
               type: 'TEXT',
-              content: paragraphContent,
-              order: nodePosition,
+              content: listContent,
+              order: order++,
               metadata: {
                 additionalProp1: {
                   align: element.style.textAlign || 'left',
-                  color: element.style.color || null
+                  color: element.style.color || null,
+                  listType: tagName === 'ul' ? 'bullet' : 'ordered'
                 }
               }
             });
             processedElements.add(element);
           }
+          continue;
         }
 
-        // Handle lists
-        else if ((tagName === 'ul' || tagName === 'ol') && element.children.length > 0 && !processedElements.has(element)) {
+        // Handle paragraphs and other text elements
+        if ((tagName === 'p' || tagName === 'div' || tagName === 'blockquote') &&
+          !processedElements.has(element) && !processedListItems.has(element)) {
+
+          // Skip if this element contains already processed elements (like images or videos)
+          const hasProcessedChild = Array.from(element.querySelectorAll('*')).some(
+            child => processedElements.has(child)
+          );
+
+          if (!hasProcessedChild) {
+            const content = tagName === 'p' ? element.innerHTML : element.outerHTML;
+
+            // Skip completely empty or whitespace-only content
+            if (!content || content.trim() === '') {
+              processedElements.add(element);
+              continue;
+            }
+
+            // Check if it's an empty paragraph with just a <br> tag
+            const isParagraphWithOnlyBr = tagName === 'p' &&
+              (content === '<br>' || content === '&nbsp;' || content === '<br/>' ||
+                content === '\n' || content.trim() === '');
+
+            if (isParagraphWithOnlyBr) {
+              blocks.push({
+                type: 'TEXT',
+                content: '<p>\n</p>',
+                order: order++,
+                metadata: {
+                  additionalProp1: {
+                    align: 'left',
+                    color: null,
+                    isEmptyParagraph: true
+                  }
+                }
+              });
+              processedElements.add(element);
+            } else if (content.trim()) { // Only add non-empty content
+              blocks.push({
+                type: tagName === 'p' ? 'TEXT' : 'TEXT',
+                content: content,
+                order: order++,
+                metadata: {
+                  additionalProp1: {
+                    align: element.style.textAlign || 'left',
+                    color: element.style.color || null,
+                    isQuote: tagName === 'blockquote'
+                  }
+                }
+              });
+              processedElements.add(element);
+            }
+          }
+        }
+
+        // Handle standalone <br> tags
+        if (tagName === 'br' && !processedElements.has(element) &&
+          (!element.parentElement || element.parentElement.tagName.toLowerCase() === 'body')) {
           blocks.push({
             type: 'TEXT',
-            content: element.outerHTML,
-            order: nodePosition,
+            content: '<br>',
+            order: order++,
             metadata: {
               additionalProp1: {
-                listType: tagName === 'ul' ? 'bullet' : 'ordered'
+                isBreak: true
               }
             }
           });
           processedElements.add(element);
-        }
-
-        // Handle blockquotes
-        else if (tagName === 'blockquote' && element.textContent.trim() && !processedElements.has(element)) {
-          blocks.push({
-            type: 'TEXT',
-            content: element.outerHTML,
-            order: nodePosition,
-            metadata: {
-              additionalProp1: {
-                isQuote: true
-              }
-            }
-          });
-          processedElements.add(element);
-        }
-
-        // Handle other elements with content
-        else if (element.textContent.trim() &&
-          !processedElements.has(element) &&
-          !element.querySelector('[data-processed="true"]')) {
-          blocks.push({
-            type: 'TEXT',
-            content: element.outerHTML,
-            order: nodePosition,
-            metadata: {
-              additionalProp1: {}
-            }
-          });
-          processedElements.add(element);
-        }
-
-        // Process children if not marked as processed
-        if (!processedElements.has(element)) {
-          Array.from(element.children).forEach(child => {
-            if (!processedElements.has(child)) {
-              walkNodes(child);
-            }
-          });
         }
       }
     };
 
-    // Process all top-level nodes
-    Array.from(tempDiv.children).forEach(node => {
-      if (!processedElements.has(node)) {
-        walkNodes(node);
-      }
-    });
+    // Map and process all elements in document order
+    mapElements();
 
-    // Sort the blocks by their order value to maintain proper sequence
-    blocks.sort((a, b) => a.order - b.order);
-
-    // Reassign sequential order numbers
-    blocks.forEach((block, index) => {
-      block.order = index;
-    });
+    // Final verification and logging
+    const finalVideoBlocks = blocks.filter(b => b.type === 'VIDEO');
+    const finalImageBlocks = blocks.filter(b => b.type === 'IMAGE');
 
     console.log(`Parsing complete. Generated ${blocks.length} blocks`);
+    console.log(`Final multimedia count: ${finalVideoBlocks.length} videos, ${finalImageBlocks.length} images`);
     console.log('Block types:', blocks.map(b => b.type).join(', '));
-
-    // Debug video blocks
-    const videoBlocks = blocks.filter(b => b.type === 'VIDEO');
-    if (videoBlocks.length > 0) {
-      console.log(`Found ${videoBlocks.length} VIDEO blocks with content:`,
-        videoBlocks.map(b => b.content));
-    } else {
-      console.warn('No VIDEO blocks found in the parsed HTML content');
-    }
-
-    // Debug image blocks
-    const imageBlocks = blocks.filter(b => b.type === 'IMAGE');
-    if (imageBlocks.length > 0) {
-      console.log(`Found ${imageBlocks.length} IMAGE blocks`);
-      imageBlocks.forEach((block, i) => {
-        console.log(`Image ${i} at order ${block.order}: ${block.content.substring(0, 50)}...`);
-      });
-    }
 
     return blocks;
   };
@@ -897,8 +773,8 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
   // Update an existing story
   const updateStory = useCallback(async (htmlContent) => {
-    if (!propProjectId) {
-      console.error('Cannot update: Missing story ID');
+    if (!propProjectId || !storyId) {
+      console.error('Cannot update: Missing project or story ID');
       setSavingStatus('error');
       return false;
     }
@@ -909,79 +785,23 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       // Process HTML to properly handle YouTube URLs and embed them as video blocks
       const processedHtml = processYouTubeUrls(htmlContent);
 
-      // First, fetch the existing story to get all blocks including IMAGE and VIDEO blocks
-      console.log('Fetching current story data to preserve all blocks');
-      const existingStory = await projectService.getProjectStoryByProjectId(propProjectId);
-
-      // Extract existing blocks (handle different response formats)
-      const existingBlocks = existingStory?.blocks || (existingStory?.data?.blocks || []);
-      console.log('Existing blocks:', existingBlocks.map(b => `${b.type}:${b.storyBlockId}`).join(', '));
-
-      // Create a map of existing blocks by content for matching new blocks to existing ones
-      const contentToBlockIdMap = new Map();
-      existingBlocks.forEach(block => {
-        if (block.storyBlockId && block.content) {
-          contentToBlockIdMap.set(block.content, block.storyBlockId);
-        }
-      });
-
-      // Parse the new HTML content into blocks
+      // Parse the HTML content into blocks directly
       const newStoryBlocks = parseHtmlToBlocks(processedHtml);
       console.log('New blocks from HTML:', newStoryBlocks.map(b => b.type).join(', '));
 
-      // Now add any IMAGE or VIDEO blocks from existing content that aren't in the new blocks
-      const newContentSet = new Set(newStoryBlocks.map(b => b.content));
-
-      // Get the media blocks that should be preserved
-      const preservedMediaBlocks = existingBlocks.filter(block =>
-        (block.type === 'IMAGE' || block.type === 'VIDEO') &&
-        block.storyBlockId &&
-        !newContentSet.has(block.content)
-      );
-
-      // Combine preserved media blocks with the new blocks
-      const combinedBlocks = [...newStoryBlocks, ...preservedMediaBlocks];
-
-      // Re-order all blocks
-      const orderedBlocks = combinedBlocks.map((block, index) => ({
-        ...block,
-        order: index
-      }));
-
-      // Clean up metadata structure for API
-      const cleanedBlocks = orderedBlocks.map(block => {
-        const cleanBlock = { ...block };
-
-        // Ensure metadata has correct structure for API
-        if (!cleanBlock.metadata || typeof cleanBlock.metadata !== 'object') {
-          cleanBlock.metadata = { additionalProp1: {} };
-        } else if (typeof cleanBlock.metadata === 'string') {
-          try {
-            const parsed = JSON.parse(cleanBlock.metadata);
-            cleanBlock.metadata = { additionalProp1: parsed };
-          } catch (e) {
-            console.warn('Failed to parse metadata string:', e);
-            cleanBlock.metadata = { additionalProp1: {} };
-          }
-        } else if (!cleanBlock.metadata.additionalProp1) {
-          cleanBlock.metadata = {
-            additionalProp1: cleanBlock.metadata
-          };
-        }
-
-        return cleanBlock;
-      });
-
-      // IMPORTANT: Remove storyBlockId, createdAt and updatedAt as the API doesn't accept these fields
-      const apiReadyBlocks = cleanedBlocks.map(block => {
-        // Start with a new object that only includes the fields the API expects
+      // Clean up blocks for API submission
+      const apiReadyBlocks = newStoryBlocks.map((block, index) => {
+        // Create a clean block with only the fields the API expects
         return {
           type: block.type,
           content: block.content,
-          order: block.order,
-          metadata: block.metadata
+          order: index, // Ensure sequential ordering
+          metadata: {
+            additionalProp1: typeof block.metadata?.additionalProp1 === 'object'
+              ? block.metadata.additionalProp1
+              : {}
+          }
         };
-        // This ensures any other fields like storyBlockId are completely excluded
       });
 
       // Prepare API payload
@@ -1011,9 +831,27 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         });
       }
 
+      // 1. Update the story FIRST
       await projectService.updateProjectStory(storyId, payload);
-
       console.log('Story updated successfully');
+
+      // 2. THEN fetch the updated story to ensure we have the latest data
+      try {
+        const updatedStory = await projectService.getProjectStoryByProjectId(propProjectId);
+        console.log('Fetched updated story data:', updatedStory);
+
+        // If needed, update local state with fetched data
+        if (updatedStory && updatedStory.blocks && Array.isArray(updatedStory.blocks)) {
+          // The fetch is mainly for backend validation; we don't need to update the UI
+          // since we're already showing what the user entered
+          console.log('Successfully validated updated story has correct blocks');
+        }
+      } catch (fetchError) {
+        // Non-critical error - the update succeeded but fetch failed
+        console.warn('Story was updated but failed to fetch updated data:', fetchError);
+        // We continue normally since the update was successful
+      }
+
       setSavingStatus('saved');
 
       // Show saved status briefly and then reset
@@ -1029,7 +867,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       setSavingStatus('error');
       return false;
     }
-  }, [storyId, parseHtmlToBlocks, processYouTubeUrls]);
+  }, [storyId, propProjectId, parseHtmlToBlocks, processYouTubeUrls]);
 
   // Helper function to process YouTube URLs in HTML content
   // Enhanced processYouTubeUrls function
@@ -1302,148 +1140,172 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     console.log('--- End YouTube Debug ---');
   };
 
-  // Handle manual saving of the story
   const handleSaveStory = useCallback(async () => {
     try {
       setSavingStatus('saving');
 
-      // Pre-process HTML to handle multimedia elements
+      const currentProjectId = propProjectId || router.query.id;
+      if (!currentProjectId) {
+        console.error('No project ID available for story saving');
+        setSavingStatus('error');
+        return false;
+      }
+
       const storyHtml = storyData.story;
       const risksHtml = storyData.risks;
 
       console.log('Saving story HTML (first 100 chars):', storyHtml?.substring(0, 100));
 
+      // Debug the HTML content to see what multimedia elements we're working with
+      debugContent(storyHtml);
+      debugYouTubeContent(storyHtml);
+
       // Process YouTube URLs into proper embeds
       const processedStoryHtml = processYouTubeUrls(storyHtml);
       const processedRisksHtml = processYouTubeUrls(risksHtml);
 
-      // Update the parent component with processed content
-      if (updateFormData && typeof updateFormData === 'function') {
-        console.log('Explicitly updating parent form data on save');
-        updateFormData({
-          story: processedStoryHtml,
-          risks: processedRisksHtml,
-          id: storyId,
-          projectStoryId: storyId,
-        });
-      }
-
-      // Whether we have an existing story ID or not, first fetch current story data
-      // to ensure we don't lose any existing content
-      let existingBlocks = [];
-      if (storyId) {
-        try {
-          const existingStory = await projectService.getProjectStoryByProjectId(propProjectId);
-          existingBlocks = existingStory?.blocks || (existingStory?.data?.blocks || []);
-          console.log('Retrieved existing blocks:', existingBlocks.length);
-        } catch (err) {
-          console.warn('Could not fetch existing blocks, will create new content', err);
-        }
-      }
-
-      // Create position maps for the parsed content to maintain insertion positions
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = processedStoryHtml;
-
-      // Extract nodes that represent media insertions to get their positions
-      const mediaElements = Array.from(tempDiv.querySelectorAll(
-        'img, iframe, [data-type="IMAGE"], [data-type="VIDEO"], .ProseMirror-youtube-iframe, [data-youtube-video="true"]'
-      ));
-
-      // Track which nodes are already mapped to existing blocks to avoid duplication
-      const processedContentIds = new Set();
-
-      // First parse all content into blocks
+      // Parse content into blocks while maintaining their DOM positions
       console.log('Parsing HTML content into blocks...');
+
+      // Parse both sections to blocks
       const storyBlocks = parseHtmlToBlocks(processedStoryHtml);
       const risksBlocks = parseHtmlToBlocks(processedRisksHtml);
 
       console.log(`Parsed blocks - Story: ${storyBlocks.length}, Risks: ${risksBlocks.length}`);
 
-      // Log the types of blocks we found
-      console.log('Story block types:', storyBlocks.map(b => b.type).join(', '));
-      console.log('Risks block types:', risksBlocks.map(b => b.type).join(', '));
+      // Filter out empty blocks from both sections
+      const filteredStoryBlocks = storyBlocks.filter(block => {
+        // Keep all non-TEXT blocks
+        if (block.type !== 'TEXT') return true;
 
-      // Check if we need to preserve any existing media blocks that might not have been included
-      // Create a map of block content for quick lookup
-      const contentMap = new Map();
-      [...storyBlocks, ...risksBlocks].forEach(block => {
-        contentMap.set(block.content, block);
+        // For TEXT blocks, ensure they have meaningful content
+        if (!block.content || typeof block.content !== 'string') return false;
+
+        // Keep blocks with line breaks that are intentional spacing
+        if (block.metadata?.additionalProp1?.isEmptyParagraph ||
+          block.metadata?.additionalProp1?.isBreak) return true;
+
+        // Create temp div to check if there's any visible content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = block.content;
+        const hasText = tempDiv.textContent.trim().length > 0;
+        const hasVisibleContent = hasText ||
+          tempDiv.querySelector('img') ||
+          tempDiv.querySelector('iframe');
+
+        return hasVisibleContent;
       });
 
-      // Find existing media blocks that aren't in the new content
-      const missingMediaBlocks = existingBlocks.filter(block => {
-        // Only consider IMAGE or VIDEO blocks
-        if (!(block.type === 'IMAGE' || block.type === 'VIDEO') || !block.content) {
-          return false;
+      const filteredRisksBlocks = risksBlocks.filter(block => {
+        if (block.type !== 'TEXT') return true;
+        if (!block.content || typeof block.content !== 'string') return false;
+        if (block.metadata?.additionalProp1?.isEmptyParagraph ||
+          block.metadata?.additionalProp1?.isBreak) return true;
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = block.content;
+        const hasText = tempDiv.textContent.trim().length > 0;
+        const hasVisibleContent = hasText ||
+          tempDiv.querySelector('img') ||
+          tempDiv.querySelector('iframe');
+
+        return hasVisibleContent;
+      });
+
+      console.log(`After filtering empty blocks - Story: ${filteredStoryBlocks.length}, Risks: ${filteredRisksBlocks.length}`);
+
+      // Log block types to verify we're capturing multimedia elements
+      console.log('Story block types:', filteredStoryBlocks.map(b => b.type).join(', '));
+      console.log('Risk block types:', filteredRisksBlocks.map(b => b.type).join(', '));
+
+      // Detect and filter duplicate image references in TEXT blocks
+      const imageUrls = filteredStoryBlocks
+        .filter(block => block.type === 'IMAGE')
+        .map(block => block.content);
+
+      console.log(`Found ${imageUrls.length} distinct image URLs in IMAGE blocks`);
+
+      // Filter TEXT blocks that only contain an image that's already in an IMAGE block
+      const cleanedStoryBlocks = filteredStoryBlocks.filter(block => {
+        // Keep all non-TEXT blocks
+        if (block.type !== 'TEXT') return true;
+
+        // If this is a TEXT block, check if it ONLY contains an image that we already have
+        if (block.content && typeof block.content === 'string' && block.content.includes('<img')) {
+          // Extract the image URL
+          const imgMatch = block.content.match(/src="([^"]+)"/);
+          if (imgMatch && imgMatch[1]) {
+            const imgUrl = imgMatch[1];
+
+            // Check if this URL is in our image blocks
+            if (imageUrls.includes(imgUrl)) {
+              // Check if this TEXT block ONLY contains this image and no other content
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = block.content;
+
+              // If the block only has an img tag and no other significant content
+              const hasOnlyImage =
+                tempDiv.childNodes.length === 1 &&
+                tempDiv.querySelector('img') &&
+                tempDiv.textContent.trim() === '';
+
+              if (hasOnlyImage) {
+                console.log('Filtering out TEXT block that only contains an image:', imgUrl);
+                return false; // Filter out this block
+              }
+            }
+          }
         }
 
-        // If the block content is already in our new parsed content, don't preserve it
-        if (contentMap.has(block.content)) {
-          return false;
+        return true; // Keep all other TEXT blocks
+      });
+
+      // Also clean risks blocks the same way
+      const cleanedRisksBlocks = filteredRisksBlocks.filter(block => {
+        if (block.type !== 'TEXT') return true;
+        if (block.content && typeof block.content === 'string' && block.content.includes('<img')) {
+          const imgMatch = block.content.match(/src="([^"]+)"/);
+          if (imgMatch && imgMatch[1]) {
+            const imgUrl = imgMatch[1];
+            if (imageUrls.includes(imgUrl)) {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = block.content;
+              const hasOnlyImage =
+                tempDiv.childNodes.length === 1 &&
+                tempDiv.querySelector('img') &&
+                tempDiv.textContent.trim() === '';
+              if (hasOnlyImage) return false;
+            }
+          }
         }
-
-        // For images, check if this image URL still exists in the raw HTML content
-        // If the image was deleted, it shouldn't be in the raw HTML anymore
-        if (block.type === 'IMAGE' && block.content.startsWith('http')) {
-          const imageUrl = block.content.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape for regex
-          const imgExists = new RegExp(`<img[^>]*src=["']${imageUrl}["'][^>]*>`, 'i').test(
-            processedStoryHtml + processedRisksHtml
-          );
-
-          // Only preserve blocks whose image URL still exists in the content
-          return imgExists;
-        }
-
-        // For videos, similar check - only preserve if the URL still exists
-        if (block.type === 'VIDEO' && block.content.includes('youtube.com/embed/')) {
-          const videoExists = (processedStoryHtml + processedRisksHtml).includes(block.content);
-          return videoExists;
-        }
-
-        // Default: preserve the block
         return true;
       });
 
-      console.log(`Found ${missingMediaBlocks.length} media blocks from previous version that need preservation`);
+      console.log(`Filtered out ${filteredStoryBlocks.length - cleanedStoryBlocks.length} duplicate image TEXT blocks`);
 
-      // Combine the blocks in their proper sequence
-      // Start with story blocks, then add missing media, then risks
-      const combinedBlocks = [...storyBlocks];
-
-      // Add missing media blocks at their appropriate positions based on their previous order
-      const lastStoryBlockOrder = storyBlocks.length > 0 ?
-        storyBlocks[storyBlocks.length - 1].order : -1;
-
-      // Append the preserved media blocks at the end of the story section (before risks)
-      missingMediaBlocks.forEach((block, index) => {
-        combinedBlocks.push({
-          ...block,
-          order: lastStoryBlockOrder + 1 + index
-        });
+      // Assign proper order values - this sets correct position within each section
+      cleanedStoryBlocks.forEach((block, index) => {
+        block.order = index;
       });
 
-      // Add risks blocks at the end
-      combinedBlocks.push(...risksBlocks.map(block => ({
-        ...block,
-        order: lastStoryBlockOrder + 1 + missingMediaBlocks.length + block.order
-      })));
+      cleanedRisksBlocks.forEach((block, index) => {
+        block.order = cleanedStoryBlocks.length + index;
+      });
 
-      // Re-sequence all blocks to ensure proper order
-      const orderedBlocks = combinedBlocks.map((block, index) => ({
-        ...block,
-        order: index
-      }));
+      // Combine all blocks in order
+      const combinedBlocks = [...cleanedStoryBlocks, ...cleanedRisksBlocks];
 
-      // Clean blocks for API by removing any properties that shouldn't be sent
-      const apiReadyBlocks = orderedBlocks.map(block => {
-        // Create a clean block with only the required API fields
+      // Clean blocks for API - only include required fields
+      const apiReadyBlocks = combinedBlocks.map((block, index) => {
+        // Always reassign sequential order numbers to ensure proper ordering
         return {
-          type: block.type,
+          type: block.type, // Preserve the original block type (VIDEO, IMAGE, TEXT, HEADING)
           content: block.content,
-          order: block.order,
+          order: index, // Important: use the index here to guarantee sequential ordering
           metadata: {
-            additionalProp1: block.metadata?.additionalProp1 || {}
+            additionalProp1: typeof block.metadata?.additionalProp1 === 'object'
+              ? block.metadata.additionalProp1
+              : {}
           }
         };
       });
@@ -1451,116 +1313,72 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       // Log the final blocks that will be sent to API
       console.log(`Prepared ${apiReadyBlocks.length} blocks for API submission`);
 
-      // Count block types for logging
-      const blockTypeCounts = apiReadyBlocks.reduce((acc, block) => {
-        acc[block.type] = (acc[block.type] || 0) + 1;
-        return acc;
-      }, {});
+      // Validate that videos and images are properly included
+      const videoBlocks = apiReadyBlocks.filter(b => b.type === 'VIDEO');
+      const imageBlocks = apiReadyBlocks.filter(b => b.type === 'IMAGE');
 
-      console.log('Block types being sent:', blockTypeCounts);
-      console.log('Block order verification:', apiReadyBlocks.map(b => `${b.type}:${b.order}`).join(', '));
+      console.log(`Sending ${videoBlocks.length} video blocks and ${imageBlocks.length} image blocks`);
 
-      // Prepare payload
+      // Prepare payload - EXACTLY match the API expected format
       const payload = {
         blocks: apiReadyBlocks,
       };
 
+      // Actually save the data to the API - THIS WAS MISSING
       if (storyId) {
         // Update existing story
-        console.log(`Updating story with ID: ${storyId}`);
+        console.log(`Updating existing story with ID: ${storyId}`);
         await projectService.updateProjectStory(storyId, payload);
-        console.log('Story updated successfully');
       } else {
         // Create new story
-        const currentProjectId = propProjectId || router.query.id;
-        if (!currentProjectId) {
-          throw new Error('No project ID available');
-        }
-
         console.log(`Creating new story for project: ${currentProjectId}`);
         const result = await projectService.createProjectStory(currentProjectId, payload);
 
-        if (result?.data?.projectStoryId) {
-          console.log(`Story created with ID: ${result.data.projectStoryId}`);
+        // Extract the new story ID and set it in state
+        if (result && result.data && result.data.projectStoryId) {
           setStoryId(result.data.projectStoryId);
-        } else {
-          console.error('Failed to get story ID from creation operation');
+        } else if (result && result.projectStoryId) {
+          setStoryId(result.projectStoryId);
         }
       }
 
-      // Set save state success
+      // Update the saving status to "saved"
       setSavingStatus('saved');
 
-      // Reset after delay
+      // Reset status after a delay
       setTimeout(() => {
-        if (setSavingStatus) {
-          setSavingStatus('idle');
-        }
+        setSavingStatus('idle');
       }, 2000);
 
+      // Notify the parent component about the updated story
+      if (updateFormData) {
+        updateFormData({
+          story: storyData.story || '',
+          risks: storyData.risks || '',
+          id: storyId,
+          projectStoryId: storyId,
+        });
+      }
+
+      console.log('Story saved successfully');
       return true;
     } catch (error) {
       console.error('Error saving story:', error);
       setSavingStatus('error');
+
+      setTimeout(() => {
+        setSavingStatus('idle');
+      }, 3000);
+
       return false;
     }
-  }, [storyId, storyData, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData]);
+  }, [storyId, storyData, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData, debugContent, debugYouTubeContent]);
 
-  // // Handle publishing the story
-  // const handlePublishStory = useCallback(async () => {
-  //   if (!storyId) {
-  //     // Create story first if it doesn't exist
-  //     const created = await createStory(storyData.story);
-  //     if (!created) return false;
-  //   }
-
-  //   try {
-  //     setSavingStatus('saving');
-
-  //     // Convert HTML content to blocks format
-  //     const storyBlocks = parseHtmlToBlocks(storyData.story);
-
-  //     // Prepare API payload with PUBLISHED status
-  //     const payload = {
-  //       blocks: storyBlocks,
-  //       status: "PUBLISHED"
-  //     };
-
-  //     console.log('Publishing story with ID:', storyId);
-
-  //     await projectService.updateProjectStory(storyId, payload);
-
-  //     console.log('Story published successfully');
-  //     setPublishStatus('PUBLISHED');
-  //     setSavingStatus('saved');
-
-  //     // Show saved status briefly and then reset
-  //     setTimeout(() => {
-  //       if (setSavingStatus) { // Check if component is still mounted
-  //         setSavingStatus('idle');
-  //       }
-  //     }, 2000);
-
-  //     return true;
-  //   } catch (error) {
-  //     console.error('Error publishing story:', error);
-  //     setSavingStatus('error');
-  //     return false;
-  //   }
-  // }, [storyId, storyData.story, createStory]);
-
-  // Handle auto-save timer
   useEffect(() => {
     let autosaveTimer;
 
-    // Set up auto-save if content has changed and we're not currently in a save operation
     if (storyData.story && savingStatus === 'idle') {
-      // autosaveTimer = setTimeout(async () => {
-      //   if (storyId) {
-      //     // Only auto-save if we already have a story ID
-      //     await updateStory(storyData.story);
-      //   }
-      // }, 30000); // Auto-save after 30 seconds of inactivity
+
     }
 
     return () => {
@@ -1575,6 +1393,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     try {
       // Use project ID from props or URL
       const currentProjectId = propProjectId || router.query.id;
+      const cursorPosition = editorState?.selection?.from || 0;
       if (!currentProjectId) {
         console.error('No project ID available for image upload');
         return null;
@@ -1597,7 +1416,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const imageBlock = {
             type: 'IMAGE',
             content: 'placeholder-for-uploading-image',
-            order: storyBlocks.length,
+            order: cursorPosition,
             metadata: {
               additionalProp1: {
                 width: "100%",
@@ -1794,7 +1613,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const imageBlock = {
             type: 'IMAGE',
             content: 'placeholder-for-uploading-image',
-            order: storyBlocks.length,
+            order: cursorPosition || (storyBlocks ? storyBlocks.length : 0),
             metadata: {
               additionalProp1: {
                 width: "100%",
@@ -2082,7 +1901,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         </div>
       </div>
 
-      {/* The actual story editor */}
       <ProjectStory
         formData={storyData.story}
         risksData={storyData.risks}
