@@ -48,7 +48,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     const [showForm, setShowForm] = useState(false);
     const [currentItem, setCurrentItem] = useState({ name: '', image: null, imagePreview: null });
     const [showPhaseFilter, setShowPhaseFilter] = useState(false);
-    const [selectedPhase, setSelectedPhase] = useState(phases?.length > 0 ? phases[0].id : null);
+    const [selectedPhase, setSelectedPhase] = useState(null);
     const fileInputRef = useRef(null);
     const milestoneFileInputRef = useRef(null);
 
@@ -301,13 +301,42 @@ export default function RewardInformation({ formData, updateFormData, projectDat
 
     const isPhaseEditable = (phaseId) => {
         if (!phaseId) return false;
-        
-        const phase = projectData.phases.find(p => 
-            p.id === phaseId || 
+
+        const phase = projectData.phases.find(p =>
+            p.id === phaseId ||
             p.id === parseInt(phaseId)
         );
-        
+
         return phase && phase.status === 'PLAN';
+    };
+
+    const validateMilestoneAmount = (price, phaseId) => {
+        // Find the target phase
+        const targetPhase = projectData.phases.find(p =>
+            p.id === phaseId || p.id === parseInt(phaseId)
+        );
+
+        if (!targetPhase) {
+            return {
+                isValid: false,
+                message: 'Selected phase not found'
+            };
+        }
+
+        const phaseGoal = parseFloat(targetPhase.fundingGoal || targetPhase.targetAmount || 0);
+        const milestonePrice = parseFloat(price || 0);
+
+        // Calculate maximum allowed (20% of phase goal)
+        const maxAllowed = phaseGoal * 0.2;
+
+        if (milestonePrice > maxAllowed) {
+            return {
+                isValid: false,
+                message: `A single milestone cannot exceed 20% (${formatCurrency(maxAllowed)}) of the phase's total funding goal (${formatCurrency(phaseGoal)})`
+            };
+        }
+
+        return { isValid: true };
     };
 
     // Add a new milestone
@@ -317,10 +346,15 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             return;
         }
 
-        // Get existing milestones for this phase
-        const phaseMilestones = milestones.filter(m => m.phaseId === currentMilestone.phaseId);
+        // Validate amount doesn't exceed 20% of phase goal
+        const amountValidation = validateMilestoneAmount(currentMilestone.price, currentMilestone.phaseId);
+        if (!amountValidation.isValid) {
+            setError(amountValidation.message);
+            return;
+        }
 
-        // Calculate total of existing milestones
+        // Existing milestone validation code...
+        const phaseMilestones = milestones.filter(m => m.phaseId === currentMilestone.phaseId);
         const existingMilestonesTotal = phaseMilestones.reduce((total, m) => {
             return total + parseFloat(m.price || 0);
         }, 0);
@@ -405,6 +439,14 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         setError(null);
 
         try {
+            // Validate amount doesn't exceed 20% of phase goal
+            const amountValidation = validateMilestoneAmount(updatedData.price, updatedData.phaseId || currentMilestone.phaseId);
+            if (!amountValidation.isValid) {
+                setError(amountValidation.message);
+                setLoading(false);
+                return;
+            }
+
             // Find the current milestone to get its phase ID and current price
             const currentMilestone = milestones.find(m => m.id === milestoneId);
             if (!currentMilestone) {
@@ -567,6 +609,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         );
 
         const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
+        const maxAllowed = phaseGoal * 0.2;
 
         // Calculate remaining budget
         const remaining = phaseGoal - totalAllocated;
@@ -583,10 +626,13 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             adjustedRemaining = remaining - currentPrice;
         }
 
+        // Add information about the 20% limit
+        const limitInfo = `Maximum single milestone amount: ${formatCurrency(maxAllowed)} (20% of phase goal)`;
+
         if (Math.abs(adjustedRemaining) < 0.01) {
-            return `This phase's budget of ${formatCurrency(phaseGoal)} is fully allocated.`;
+            return `${limitInfo}. This phase's budget of ${formatCurrency(phaseGoal)} is fully allocated.`;
         } else if (adjustedRemaining < 0) {
-            return `Warning: You're exceeding the phase budget by ${formatCurrency(Math.abs(adjustedRemaining))}`;
+            return `Warning: You're exceeding the phase budget by ${formatCurrency(Math.abs(adjustedRemaining))}. ${limitInfo}`;
         } else {
             // When editing a milestone, show the phase total and already allocated
             if (isCurrentMilestoneForThisPhase && currentMilestone.id) {
@@ -600,10 +646,10 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 // Calculate what's available for this milestone
                 const availableForThisMilestone = phaseGoal - otherMilestonesTotal;
 
-                return `Available for this milestone: ${formatCurrency(availableForThisMilestone)} of ${formatCurrency(phaseGoal)}`;
+                return `${limitInfo}. Available for this milestone: ${formatCurrency(availableForThisMilestone)} of ${formatCurrency(phaseGoal)}`;
             } else {
                 // For new milestone or when not editing
-                return `Remaining budget to allocate for this phase: ${formatCurrency(adjustedRemaining)} of ${formatCurrency(phaseGoal)}`;
+                return `${limitInfo}. Remaining budget to allocate: ${formatCurrency(adjustedRemaining)} of ${formatCurrency(phaseGoal)}`;
             }
         }
     };
@@ -847,35 +893,35 @@ export default function RewardInformation({ formData, updateFormData, projectDat
 
     // Handle milestone form changes
     const handleMilestoneChange = (e) => {
-    const { name, value } = e.target;
+        const { name, value } = e.target;
 
-    setCurrentMilestone(prev => ({
-        ...prev,
-        [name]: value
-    }));
+        setCurrentMilestone(prev => ({
+            ...prev,
+            [name]: value
+        }));
 
-    // Check if selecting a phase that's not in PLAN status
-    if (name === 'phaseId' && value) {
-        const selectedPhase = projectData.phases.find(p => 
-            p.id === value || p.id === parseInt(value)
-        );
-        
-        if (selectedPhase && selectedPhase.status !== 'PLAN') {
-            setError('You can only add or edit milestones for phases with PLAN status.');
-        } else {
-            // Clear any existing phase selection errors
-            if (error && error.includes('phases with PLAN status')) {
-                setError(null);
+        // Check if selecting a phase that's not in PLAN status
+        if (name === 'phaseId' && value) {
+            const selectedPhase = projectData.phases.find(p =>
+                p.id === value || p.id === parseInt(value)
+            );
+
+            if (selectedPhase && selectedPhase.status !== 'PLAN') {
+                setError('You can only add or edit milestones for phases with PLAN status.');
+            } else {
+                // Clear any existing phase selection errors
+                if (error && error.includes('phases with PLAN status')) {
+                    setError(null);
+                }
             }
         }
-    }
 
-    if (name === 'price' || name === 'phaseId') {
-        setTimeout(() => {
-            setShowMilestoneForm(show => show ? true : true);
-        }, 0);
-    }
-};
+        if (name === 'price' || name === 'phaseId') {
+            setTimeout(() => {
+                setShowMilestoneForm(show => show ? true : true);
+            }, 0);
+        }
+    };
 
     // Handle milestone item form changes
     const handleMilestoneItemChange = (e) => {
@@ -1020,8 +1066,20 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             }
         }
 
-        // All phases (or selected phase) are fully funded
         return true;
+    };
+
+    const isPriceExceeding20Percent = () => {
+        if (!currentMilestone.phaseId || !currentMilestone.price) return false;
+
+        const phase = phases.find(p => p.id === currentMilestone.phaseId || p.id === parseInt(currentMilestone.phaseId));
+        if (!phase) return false;
+
+        const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
+        const maxAllowed = phaseGoal * 0.2;
+        const currentPrice = parseFloat(currentMilestone.price);
+
+        return currentPrice > maxAllowed;
     };
 
     return (
@@ -1056,7 +1114,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                             <svg className="mr-2 -ml-0.5 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
                             </svg>
-                            {phases.find(p => p.id === selectedPhase)?.name || 'Select Phase'}
+                            {selectedPhase ? (phases.find(p => p.id === selectedPhase)?.name || 'Select Phase') : 'Select Phase'}
                         </button>
 
                         {showPhaseFilter && (
@@ -1142,16 +1200,25 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                 </div>
             ) : (
                 <>
-                    {filteredMilestones.length === 0 ? (
+                    {!selectedPhase ? (
+                        // Display message when no phase is selected
+                        <div className="text-center py-8 bg-gray-50 rounded-md border border-dashed border-gray-300">
+                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">No phase selected</h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Please select a phase from the dropdown menu above to view or add milestones.
+                            </p>
+                        </div>
+                    ) : filteredMilestones.length === 0 ? (
                         <div className="text-center py-8 bg-gray-50 rounded-md border border-dashed border-gray-300">
                             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             <h3 className="mt-2 text-sm font-medium text-gray-900">No milestones yet</h3>
                             <p className="mt-1 text-sm text-gray-500">
-                                {selectedPhase !== 'all'
-                                    ? 'No milestones for this phase. Add your first milestone for this phase.'
-                                    : 'Get started by creating your first milestone.'}
+                                No milestones for this phase. Add your first milestone for this phase.
                             </p>
                             <div className="mt-6">
                                 <button
@@ -1499,14 +1566,22 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                             name="price"
                                             value={currentMilestone.price}
                                             onChange={handleMilestoneChange}
-                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 pl-7 pr-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            className={`mt-1 block w-full border ${isPriceExceeding20Percent() ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                                } rounded-md shadow-sm py-2 pl-7 pr-3 focus:outline-none sm:text-sm`}
                                             placeholder="0.00"
                                             step="0.01"
                                             min="0"
                                             required
                                         />
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">Enter the budget or cost for this milestone.</p>
+                                    {isPriceExceeding20Percent() && (
+                                        <p className="mt-1 text-xs text-red-600">
+                                            Price exceeds 20% of the phase budget limit.
+                                        </p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Enter the budget or cost for this milestone. Maximum 20% of phase total.
+                                    </p>
                                 </div>
 
                                 <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">

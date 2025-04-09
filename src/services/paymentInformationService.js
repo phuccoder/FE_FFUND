@@ -59,6 +59,52 @@ export const paymentInfoService = {
         }
     },
 
+    updateOnboardingLink: async (paymentId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(`${API_BASE_URL}/project-payment-information/${paymentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+            if (response.status === 204) {
+                return { success: true };
+            }
+
+            // Handle non-JSON responses
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status} ${response.statusText}`);
+                }
+                return { success: true, message: "Operation completed successfully" };
+            }
+
+            if (!response.ok) {
+                try {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Failed with status: ${response.status}`);
+                } catch (jsonError) {
+                    throw new Error(`Failed with status: ${response.status} ${response.statusText}`);
+                }
+            }
+
+            // Try to parse JSON, but handle cases where it might not be JSON
+            try {
+                const result = await response.json();
+                return result;
+            } catch (jsonError) {
+                console.warn("Response wasn't valid JSON, returning success");
+                return { success: true };
+            }
+        } catch (error) {
+            console.error('Error creating Stripe onboarding link:', error);
+            throw error;
+        }
+    },
+
     /**
      * Verify the onboarded Stripe account and update status
      * @param {string} paymentInfoId - The payment info ID to verify

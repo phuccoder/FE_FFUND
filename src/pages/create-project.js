@@ -21,6 +21,7 @@ function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     termsAgreed: false,
     basicInfo: {
@@ -627,12 +628,6 @@ function CreateProject() {
       return;
     }
 
-    // Validate that all required sections are complete
-    if (!validateForm()) {
-      alert("Please complete all required sections before submitting.");
-      return;
-    }
-
     // Get the project ID
     const projectId = formData.projectId || formData.basicInfo?.projectId;
 
@@ -667,7 +662,53 @@ function CreateProject() {
 
     } catch (error) {
       console.error('Error submitting project:', error);
-      alert(`Failed to submit project: ${error.message || 'Unknown error'}`);
+
+      // Extract error message from response if available
+      let errorMessage = 'Unknown error';
+
+      try {
+        // If error has a response with JSON data
+        if (error.response) {
+          // Try to parse the response data if it's a string
+          let responseData = error.response.data;
+          if (typeof responseData === 'string') {
+            try {
+              responseData = JSON.parse(responseData);
+            } catch (e) {
+              // If it can't be parsed as JSON, use it as is
+            }
+          }
+
+          // Check possible locations for error message
+          if (responseData.message) {
+            errorMessage = responseData.message;
+          } else if (responseData.error) {
+            errorMessage = responseData.error;
+          } else if (responseData.errors && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+            // Handle array of errors like in some REST APIs
+            errorMessage = responseData.errors.map(err => err.message || err).join(', ');
+          } else if (error.response.status === 400) {
+            errorMessage = 'Bad request: Please check your project details';
+          } else if (error.response.status === 401) {
+            errorMessage = 'Authentication required: Please log in again';
+          } else if (error.response.status === 403) {
+            errorMessage = 'You do not have permission to submit this project';
+          } else if (error.response.status === 404) {
+            errorMessage = 'Project not found: Please refresh and try again';
+          } else if (error.response.status >= 500) {
+            errorMessage = 'Server error: Please try again later';
+          }
+        } else if (error.message) {
+          // If error is a simple message
+          errorMessage = error.message;
+        }
+      } catch (parsingError) {
+        console.error('Error parsing error response:', parsingError);
+        // Fallback to original error handling
+        errorMessage = error.message || 'An unexpected error occurred';
+      }
+
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -823,7 +864,21 @@ function CreateProject() {
                     </button>
                   )}
                 </div>
-
+                {error && (
+                  <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-red-800">Error</h3>
+                        <p className="text-sm text-red-700 mt-1">{error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-10">
                   <ProjectCreationChecklist formData={formData} sections={sections} />
                 </div>
