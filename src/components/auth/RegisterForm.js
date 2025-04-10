@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 export const RegisterForm = () => {
@@ -23,13 +23,24 @@ export const RegisterForm = () => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      toast.error('Passwords do not match', {
+        position: "top-right",
+        autoClose: 5000,
+      });
       return;
     }
     setError('');
     setIsLoading(true);
 
-    // Loại bỏ các trường không cần thiết dựa trên vai trò
-    const { confirmPassword, role, studentCode, exeClass, fptFacility, ...dataToSubmit } = formData;
+    // Create a new object for submission instead of destructuring
+    const dataToSubmit = {
+      fullName: formData.fullName,
+      username: formData.username,
+      password: formData.password,
+      phone: formData.phone
+    };
+
+    // Add founder-specific fields only if the role is FOUNDER
     if (activeRole === 'FOUNDER') {
       dataToSubmit.studentCode = formData.studentCode;
       dataToSubmit.exeClass = formData.exeClass;
@@ -60,22 +71,62 @@ export const RegisterForm = () => {
           draggable: true,
         });
 
+        // Clear form data on success
+        setFormData({
+          fullName: '',
+          username: '',
+          password: '',
+          confirmPassword: '',
+          phone: '',
+          studentCode: '',
+          exeClass: 'EXE201',
+          fptFacility: 'CAN_THO',
+        });
+
+        // Optional: Redirect after short delay
         setTimeout(() => {
           router.push('/login-register');
         }, 3000);
+
       } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Registration failed. Please try again.', {
-          position: 'top-right',
-          autoClose: 5000,
-        });
+        // Handle error response with better error extraction
+        try {
+          const errorData = await response.json();
+          const errorMessage = errorData.message ||
+            errorData.error ||
+            'Registration failed. Please try again.';
+
+          // Display the error message
+          toast.error(errorMessage, {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+
+          setError(errorMessage);
+        } catch (jsonError) {
+          toast.error(`Registration failed: ${response.statusText}`, {
+            position: "top-right",
+            autoClose: 5000,
+          });
+          setError(`Registration failed: ${response.statusText}`);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('Network error. Please check your connection and try again.', {
-        position: 'top-right',
+      const errorMessage = 'Network error. Please check your connection and try again.';
+      toast.error(errorMessage, {
+        position: "top-right",
         autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
       });
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +136,6 @@ export const RegisterForm = () => {
     setActiveRole(role);
     setFormData({
       ...formData,
-      role: role.toUpperCase(),
       studentCode: role === 'FOUNDER' ? '' : undefined,
       exeClass: role === 'FOUNDER' ? 'EXE201' : undefined,
       fptFacility: role === 'FOUNDER' ? 'CAN_THO' : undefined,
@@ -94,17 +144,34 @@ export const RegisterForm = () => {
 
   return (
     <div className="flex min-h-screen bg-orange-100 p-10">
+      {/* Important: Keep the ToastContainer here for notifications to show */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+
       <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="w-full p-6">
           <div className="max-w-md mx-auto">
-            {error && <div className="mb-4 text-red-500 text-sm">{error}</div>}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-md">
+                {error}
+              </div>
+            )}
 
             <div className="flex space-x-4 mb-8">
               <button
                 type="button"
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeRole === 'FOUNDER'
-                    ? 'bg-yellow-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 onClick={() => handleRoleChange('FOUNDER')}
               >
@@ -113,8 +180,8 @@ export const RegisterForm = () => {
               <button
                 type="button"
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeRole === 'INVESTOR'
-                    ? 'bg-yellow-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 onClick={() => handleRoleChange('INVESTOR')}
               >
@@ -159,6 +226,7 @@ export const RegisterForm = () => {
                 />
               </div>
 
+              {/* Additional founder-specific fields */}
               {activeRole === 'FOUNDER' && (
                 <>
                   <div>

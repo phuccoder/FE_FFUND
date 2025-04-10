@@ -37,6 +37,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       revenueProof: formData?.optional?.revenueProof || null,
       visionStrategy: formData?.optional?.visionStrategy || null
     },
+    projectId: projectId,
     ...formData
   });
 
@@ -45,6 +46,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
   const [isLoading, setIsLoading] = useState(false);
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [documentUrls, setDocumentUrls] = useState({});
+  const [generalError, setGeneralError] = useState('');
 
   // Load existing documents when editing a project
   useEffect(() => {
@@ -53,6 +55,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
 
       try {
         setIsLoading(true);
+        setGeneralError('');
         const documents = await projectService.getProjectDocumentsByProjectId(projectId);
         setExistingDocuments(Array.isArray(documents) ? documents : []);
 
@@ -93,9 +96,16 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
         }
       } catch (error) {
         console.error('Failed to load existing documents:', error);
+        const errorMessage = error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Failed to load existing documents. Please try again.';
+
+        setGeneralError(errorMessage);
+
         setUploadStatus(prev => ({
           ...prev,
-          general: { error: 'Failed to load existing documents. Please try again.' }
+          general: { error: errorMessage }
         }));
       } finally {
         setIsLoading(false);
@@ -174,9 +184,26 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       }));
     } catch (error) {
       console.error(`Error uploading ${fieldName} document:`, error);
+      // Enhanced error extraction
+      let errorMessage;
+
+      if (error.response?.data) {
+        // Extract message from API response
+        errorMessage = error.response.data.message ||
+          error.response.data.error ||
+          error.response.data.detail ||
+          `Upload failed: ${error.response.status} ${error.response.statusText}`;
+      } else if (error.message) {
+        // Use error message directly
+        errorMessage = error.message;
+      } else {
+        // Fallback for unknown errors
+        errorMessage = `Upload failed: ${fieldName} document could not be processed`;
+      }
+
       setUploadStatus(prev => ({
         ...prev,
-        [fieldName]: { error: `Upload failed: ${error.message || 'Unknown error'}` }
+        [fieldName]: { error: errorMessage }
       }));
     }
   };
@@ -185,6 +212,32 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
     const file = e.target.files[0];
     if (file) {
       if (category === 'mandatory' || category === 'optional') {
+        // Check file size (limit to 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          setUploadStatus(prev => ({
+            ...prev,
+            [fieldName]: { error: "File size exceeds 10MB limit. Please upload a smaller file." }
+          }));
+          return;
+        }
+
+        // Check file type
+        const allowedTypes = [
+          'application/pdf', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'image/jpeg', 'image/png'
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+          setUploadStatus(prev => ({
+            ...prev,
+            [fieldName]: { error: "Invalid file type. Please upload a PDF, Word, Excel, PowerPoint, or image document." }
+          }));
+          return;
+        }
+
         // Update form state immediately for UI feedback
         setForm({
           ...form,
@@ -226,19 +279,30 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
         }
       }
 
-      alert('Opening document...');
+      setGeneralError('');
+      // Fetch the document URL
+      try {
+        const documentData = await projectService.getProjectDocumentById(documentId);
 
-      const response = await fetch(`/api/documents/${documentId}`);
-      const data = await response.json();
-
-      if (data && data.documentUrl) {
-        window.open(data.documentUrl, '_blank');
-      } else {
-        throw new Error('Document URL not found');
+        if (documentData && documentData.documentUrl) {
+          window.open(documentData.documentUrl, '_blank');
+        } else {
+          throw new Error('Document URL not found');
+        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Unable to retrieve document URL';
+        setGeneralError(errorMessage);
       }
     } catch (error) {
       console.error('Error opening document:', error);
-      alert('Unable to open document at this time');
+      const errorMessage = error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Unable to open document at this time';
+      setGeneralError(errorMessage);
     }
   };
 
@@ -252,6 +316,7 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
     const isUploaded = status.success || (fileSelected && fileSelected.uploaded);
     const hasError = status.error;
     const documentId = documentUrls[fieldName] || (fileSelected && fileSelected.documentId);
+
 
     return (
       <div className="space-y-2">
