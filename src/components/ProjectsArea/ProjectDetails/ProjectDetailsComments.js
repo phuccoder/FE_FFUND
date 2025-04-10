@@ -21,6 +21,7 @@ import {
   Card,
   notification
 } from 'antd';
+import { tokenManager } from '@/utils/tokenManager';
 
 const { TextArea } = Input;
 const { getProjectComments, commentProject, replyComment, updateComment, deleteComment, getCommentReplies } = likeCommentProjectService;
@@ -258,7 +259,7 @@ const CommentItem = ({ comment, onReply, onEdit, onDelete, isReply = false }) =>
   );
 };
 
-const ProjectDetailsComments = ({ getClassName, project, isAuthenticated }) => {
+const ProjectDetailsComments = ({ getClassName, project }) => {
   const { id: projectId } = project;
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -288,7 +289,7 @@ const ProjectDetailsComments = ({ getClassName, project, isAuthenticated }) => {
   }, [projectId, page]);
 
   const handleSubmitComment = async () => {
-    if (!isAuthenticated) {
+    if (tokenManager.getValidToken() === null) {
       notification.warning({
         message: 'Authentication Required',
         description: 'You must be logged or registered in to comment on this project.',

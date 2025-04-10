@@ -45,21 +45,6 @@ export default function TransactionFilter({ filters, onFilterChange }) {
               placeholder="Investor name"
             />
           </div>
-          
-          <div>
-            <label htmlFor="projectTitle" className="block text-sm font-medium text-gray-700 mb-1">
-              Project Title
-            </label>
-            <input
-              type="text"
-              id="projectTitle"
-              name="projectTitle"
-              value={localFilters.projectTitle}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Project title"
-            />
-          </div>
         </div>
         
         <div className="mt-4 flex justify-end space-x-3">
