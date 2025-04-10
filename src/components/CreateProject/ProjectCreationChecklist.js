@@ -150,18 +150,18 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       case 'story': {
         // Enhanced project story evaluation with content blocks analysis
         const projectStory = data.projectStory || {};
-
+      
         // Check if projectStory is a string or an object with story/risks properties
         let story = '';
         let risks = '';
-
+      
         if (typeof projectStory === 'string') {
           story = projectStory;
         } else if (typeof projectStory === 'object') {
           story = projectStory.story || '';
           risks = projectStory.risks || '';
         }
-
+      
         // Debug what we're analyzing
         console.log('ProjectCreationChecklist: analyzing story data', {
           hasProjectStory: !!projectStory,
@@ -170,19 +170,18 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           storyType: typeof story,
           risksType: typeof risks
         });
-
+      
         // If no story content, return 0
         if ((!story || typeof story !== 'string' || story.trim().length === 0) &&
           (!risks || typeof risks !== 'string' || risks.trim().length === 0)) {
           console.log('ProjectCreationChecklist: no story content found');
           return 0;
         }
-
+      
         // Parse the HTML content to analyze structure and elements
         const parseAndAnalyzeStory = () => {
           try {
             if (typeof window === 'undefined') {
-              // Server-side rendering fallback
               const storyLength = (story || '').length + (risks || '').length;
               // Basic length check - adjusted for 5000 character limit
               if (storyLength > 3000) return 80;
@@ -191,43 +190,41 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
               return 10;
             }
 
-            // Client-side rich analysis
-            // Create temp divs for both story and risks
             const storyDiv = document.createElement('div');
             storyDiv.innerHTML = story || '';
             const risksDiv = document.createElement('div');
             risksDiv.innerHTML = risks || '';
-
+      
             // Extract plain text from both sections
             const storyText = storyDiv.textContent || '';
             const risksText = risksDiv.textContent || '';
-
+      
             console.log('Story analysis - story chars:', storyText.length, 'risks chars:', risksText.length);
-
+      
             // Check if main story is missing
             if (storyText.length < 200) {
               return Math.min(30, Math.round(storyText.length / 50));
             }
-
+      
             // Check if risks section is missing
             if (risksText.length < 100) {
               // Penalize missing risks section - cap at 60%
               return Math.min(60, Math.round((storyText.length / MAX_STORY_CHARS) * 80));
             }
-
+      
             // Count different elements in story
             const images = storyDiv.querySelectorAll('img').length;
             const headings = storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length;
             const paragraphs = storyDiv.querySelectorAll('p').length;
             const lists = storyDiv.querySelectorAll('ul, ol').length;
             const videos = storyDiv.querySelectorAll('.ProseMirror-youtube-iframe, iframe, [data-youtube-video], [data-type="VIDEO"]').length;
-
+      
             console.log('Story elements - images:', images, 'headings:', headings,
               'paragraphs:', paragraphs, 'lists:', lists, 'videos:', videos);
-
+      
             // Calculate base score from content length and completeness
             let score = 0;
-
+      
             // Story content scoring (max: 70 points)
             if (storyText.length > 3000) score += 35;
             else if (storyText.length > 1500) score += 25;
@@ -235,22 +232,21 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             else if (storyText.length > 300) score += 8;
             else score += 4;
 
-            // Risks section scoring (max: 30 points)
             if (risksText.length > 1000) score += 30;
             else if (risksText.length > 500) score += 25;
             else if (risksText.length > 200) score += 15;
             else if (risksText.length > 100) score += 10;
             else score += 5;
-
+      
             // Content variety scoring (bonus points up to 30)
             if (headings > 0) score += Math.min(headings * 3, 10); // Up to 10 points for headings
             if (images > 0) score += Math.min(images * 5, 20); // Up to 20 points for images
             if (paragraphs > 2) score += Math.min((paragraphs - 2) * 2, 10); // Up to 10 points for paragraphs
             if (lists > 0) score += Math.min(lists * 3, 9); // Up to 9 points for lists
             if (videos > 0) score += Math.min(videos * 4, 15); // Up to 15 points for videos
-
+      
             console.log('Story final score:', score);
-
+      
             return Math.min(score, 100);
           } catch (error) {
             console.error('Error analyzing story content:', error);
@@ -262,7 +258,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             return 10;
           }
         };
-
+      
         const score = parseAndAnalyzeStory();
         console.log('ProjectCreationChecklist: story final score', score);
         return score;
