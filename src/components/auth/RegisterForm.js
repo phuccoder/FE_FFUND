@@ -12,7 +12,9 @@ export const RegisterForm = () => {
     password: '',
     confirmPassword: '',
     phone: '',
-    role: 'FOUNDER',
+    studentCode: '',
+    exeClass: 'EXE201',
+    fptFacility: 'CAN_THO',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,43 +27,53 @@ export const RegisterForm = () => {
     }
     setError('');
     setIsLoading(true);
-    const { confirmPassword, ...dataToSubmit } = formData;
+
+    // Loại bỏ các trường không cần thiết dựa trên vai trò
+    const { confirmPassword, role, studentCode, exeClass, fptFacility, ...dataToSubmit } = formData;
+    if (activeRole === 'FOUNDER') {
+      dataToSubmit.studentCode = formData.studentCode;
+      dataToSubmit.exeClass = formData.exeClass;
+      dataToSubmit.fptFacility = formData.fptFacility;
+    }
+
     try {
-      const response = await fetch('https://quanbeo.duckdns.org/api/v1/auth/register', {
+      const apiUrl =
+        activeRole === 'FOUNDER'
+          ? 'https://quanbeo.duckdns.org/api/v1/auth/register/founder'
+          : 'https://quanbeo.duckdns.org/api/v1/auth/register';
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(dataToSubmit),
       });
-      
+
       if (response.ok) {
-        // Show success notification
         toast.success('Registration successful! Please check your email for verification instructions.', {
-          position: "top-right",
+          position: 'top-right',
           autoClose: 5000,
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: true,
           draggable: true,
         });
-        
-        // Delayed redirect to give user time to see the toast
+
         setTimeout(() => {
           router.push('/login-register');
         }, 3000);
       } else {
-        // Handle error response
         const errorData = await response.json();
         toast.error(errorData.message || 'Registration failed. Please try again.', {
-          position: "top-right",
+          position: 'top-right',
           autoClose: 5000,
         });
       }
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('Network error. Please check your connection and try again.', {
-        position: "top-right",
+        position: 'top-right',
         autoClose: 5000,
       });
     } finally {
@@ -71,7 +83,13 @@ export const RegisterForm = () => {
 
   const handleRoleChange = (role) => {
     setActiveRole(role);
-    setFormData({ ...formData, role: role.toUpperCase() });
+    setFormData({
+      ...formData,
+      role: role.toUpperCase(),
+      studentCode: role === 'FOUNDER' ? '' : undefined,
+      exeClass: role === 'FOUNDER' ? 'EXE201' : undefined,
+      fptFacility: role === 'FOUNDER' ? 'CAN_THO' : undefined,
+    });
   };
 
   return (
@@ -79,35 +97,31 @@ export const RegisterForm = () => {
       <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="w-full p-6">
           <div className="max-w-md mx-auto">
-            {error && (
-              <div className="mb-4 text-red-500 text-sm">{error}</div>
-            )}
-            
+            {error && <div className="mb-4 text-red-500 text-sm">{error}</div>}
+
             <div className="flex space-x-4 mb-8">
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  activeRole === 'FOUNDER'
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeRole === 'FOUNDER'
                     ? 'bg-yellow-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
                 onClick={() => handleRoleChange('FOUNDER')}
               >
                 Founder
               </button>
               <button
                 type="button"
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  activeRole === 'INVESTOR'
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${activeRole === 'INVESTOR'
                     ? 'bg-yellow-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
                 onClick={() => handleRoleChange('INVESTOR')}
               >
                 Investor
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
@@ -116,11 +130,11 @@ export const RegisterForm = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Enter your full name"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input
@@ -128,11 +142,11 @@ export const RegisterForm = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Enter your email"
                   value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                 <input
@@ -140,11 +154,56 @@ export const RegisterForm = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Enter your phone number"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   required
                 />
               </div>
-              
+
+              {activeRole === 'FOUNDER' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Student Code</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                      placeholder="Enter your student code"
+                      value={formData.studentCode}
+                      onChange={(e) => setFormData({ ...formData, studentCode: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">EXE Class</label>
+                    <select
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                      value={formData.exeClass}
+                      onChange={(e) => setFormData({ ...formData, exeClass: e.target.value })}
+                      required
+                    >
+                      <option value="EXE201">EXE201</option>
+                      <option value="EXE403">EXE403</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">FPT Facility</label>
+                    <select
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
+                      value={formData.fptFacility}
+                      onChange={(e) => setFormData({ ...formData, fptFacility: e.target.value })}
+                      required
+                    >
+                      <option value="CAN_THO">CAN THO</option>
+                      <option value="DA_NANG">DA NANG</option>
+                      <option value="HA_NOI">HA NOI</option>
+                      <option value="HO_CHI_MINH">HO CHI MINH</option>
+                      <option value="QUY_NHON">QUY NHON</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                 <input
@@ -152,11 +211,11 @@ export const RegisterForm = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Create a password"
                   value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
                 <input
@@ -164,11 +223,11 @@ export const RegisterForm = () => {
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
-                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
                 />
               </div>
-              
+
               <button
                 type="submit"
                 className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-yellow-400"
