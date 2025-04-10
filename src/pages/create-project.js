@@ -563,11 +563,7 @@ function CreateProject() {
           !categoryValue ||
           !subCategoryValue ||
           !basicInfo.shortDescription ||
-          !locationValue ||
-          !basicInfo.projectUrl ||
-          !basicInfo.mainSocialMediaUrl ||
-          !basicInfo.projectVideoDemo ||
-          basicInfo.isClassPotential === undefined
+          !locationValue  
         ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;
@@ -583,12 +579,12 @@ function CreateProject() {
       }
 
       // If going from project story to founder profile section, check if project story is complete
-      if (currentSection === 4) {
-        if (!isProjectStoryComplete()) {
-          alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
-          return;
-        }
-      }
+      // if (currentSection === 4) {
+      //   if (!isProjectStoryComplete()) {
+      //     alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
+      //     return;
+      //   }
+      // }
 
       setCurrentSection(currentSection + 1);
       window.scrollTo(0, 0);
@@ -604,10 +600,10 @@ function CreateProject() {
 
   const goToSection = (index) => {
     // Block navigation to sections beyond the first two if they're not complete
-    if (index > 1 && !isInitialSectionsComplete()) {
-      alert("Please complete the Rules & Terms and Basic Information sections first.");
-      return;
-    }
+    // if (index > 1 && !isInitialSectionsComplete()) {
+    //   alert("Please complete the Rules & Terms and Basic Information sections first.");
+    //   return;
+    // }
 
     // If trying to jump to rewards section, check if phases exist
     if (index === 3 && currentSection < 3) { // Index of rewards section
