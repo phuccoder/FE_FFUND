@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'http://localhost:8080/api/v1'; // Replace with your actual API base URL
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1'; // Replace with your actual API base URL
 const SUBMIT_REPORT_ENDPOINT = (projectId, type) => `${API_BASE_URL}/report-project/${projectId}?type=${type}`;
 const UPLOAD_ATTACHMENT_ENDPOINT = (reportId) => `${API_BASE_URL}/report-project/upload/${reportId}`;
 const GET_REPORT_BY_USER_ENDPOINT = `${API_BASE_URL}/report-project/user`;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/router";
 
 const SingleProject = ({ project = {} }) => {
@@ -18,7 +18,49 @@ const SingleProject = ({ project = {} }) => {
   // Get team information
   const teamName = team?.teamName || "Unknown Team";
   const teamLeader = team?.teamMembers?.find((member) => member.teamRole === "LEADER");
-  const leaderAvatar = teamLeader?.memberAvatar || "https://via.placeholder.com/40";
+  const leaderAvatar = teamLeader?.memberAvatar || "";
+
+  // Generate avatar color and initials based on team name
+  const generateAvatar = useMemo(() => {
+    // Create a simple hash from the team name to generate a consistent color
+    const getColorFromName = (name) => {
+      const colors = [
+        "#4F46E5", // indigo
+        "#10B981", // emerald
+        "#EC4899", // pink
+        "#F59E0B", // amber
+        "#6366F1", // indigo
+        "#8B5CF6", // violet
+        "#06B6D4", // cyan
+        "#F97316", // orange
+        "#84CC16", // lime
+      ];
+
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    // Get initials from name (up to 2 characters)
+    const getInitials = (name) => {
+      if (!name || name === "Unknown Team") return "UT";
+
+      const words = name.split(" ");
+      if (words.length === 1) {
+        return name.substring(0, 2).toUpperCase();
+      }
+
+      return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    };
+
+    const bgColor = getColorFromName(teamName);
+    const initials = getInitials(teamName);
+
+    return { bgColor, initials };
+  }, [teamName]);
 
   const calculateDaysLeft = () => {
     if (!currentPhase?.endDate) return 0;
@@ -94,11 +136,20 @@ const SingleProject = ({ project = {} }) => {
       <div className="p-5 flex-grow flex flex-col">
         {/* Team info and title */}
         <div className="flex items-center mb-3">
-          <img
-            src={leaderAvatar}
-            alt="Team Leader"
-            className="w-8 h-8 rounded-full mr-2 object-cover border-2 border-green-500"
-          />
+          {leaderAvatar ? (
+            <img
+              src={leaderAvatar}
+              alt="Team Leader"
+              className="w-8 h-8 rounded-full mr-2 object-cover border-2 border-green-500"
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full mr-2 flex items-center justify-center text-white text-xs font-bold border-2 border-green-500"
+              style={{ backgroundColor: generateAvatar.bgColor }}
+            >
+              {generateAvatar.initials}
+            </div>
+          )}
           <div>
             <h3
               className="text-xl font-bold text-gray-800 hover:text-green-600"
