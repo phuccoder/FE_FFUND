@@ -97,6 +97,7 @@ const RequestManager = () => {
     };
 
     return (
+        <>
         <Layout>
             <Header />
             <PageTitle title="Request/Report Management" />
@@ -299,6 +300,7 @@ const RequestManager = () => {
                 </Modal>
             </div>
         </Layout>
+        </>
     );
 };
 
