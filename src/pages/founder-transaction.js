@@ -22,27 +22,57 @@ function FounderTransaction() {
     const [error, setError] = useState(null);
     const [filters, setFilters] = useState({
         investorName: '',
-        projectTitle: ''
+        projectTitle: '',
+        projectId: null
     });
     const [sort, setSort] = useState('');
-    const [summaryData, setSummaryData] = useState({
-        totalProfit: 0,
+    const [statistics, setStatistics] = useState({
         totalAmount: 0,
+        totalStripeFee: 0,
         totalPlatformFee: 0,
-        totalStripeFee: 0
+        totalProfit: 0,
+        totalInvestor: 0,
+        totalTransaction: 0
     });
+
+    // Create a mapping of project titles to IDs
+    const [projectsMapping, setProjectsMapping] = useState({});
 
     // Fetch paginated transactions and update pagination info
     useEffect(() => {
         fetchTransactions();
     }, [pagination.currentPage, filters, sort]);
 
-    // Calculate summary data whenever pagination info changes or filters change
+    // Fetch transaction statistics when filters change
     useEffect(() => {
-        if (pagination.totalPages > 0) {
-            fetchAllTransactionsForSummary();
+        fetchTransactionStatistics(filters.projectId);
+    }, [filters.projectId]);
+
+    // Initial load of statistics with no project filter
+    useEffect(() => {
+        fetchTransactionStatistics(null);
+    }, []);
+
+    const fetchTransactionStatistics = async (projectId) => {
+        try {
+            setSummaryLoading(true);
+            const statistics = await transactionService.getTransactionStatistics(projectId);
+            setStatistics(statistics);
+        } catch (err) {
+            console.error('Error fetching transaction statistics:', err);
+            // Set default values if the API call fails
+            setStatistics({
+                totalAmount: 0,
+                totalStripeFee: 0,
+                totalPlatformFee: 0,
+                totalProfit: 0,
+                totalInvestor: 0,
+                totalTransaction: 0
+            });
+        } finally {
+            setSummaryLoading(false);
         }
-    }, [pagination.totalPages, filters]);
+    };
 
     const fetchTransactions = async () => {
         try {
@@ -54,13 +84,27 @@ function FounderTransaction() {
                 filters
             );
 
-            setTransactions(result.content);
+            const transactionsData = result.content || [];
+            setTransactions(transactionsData);
             setPagination({
                 currentPage: result.currentPage,
                 totalPages: result.totalPages,
                 pageSize: result.pageSize,
                 totalElements: result.totalElements
             });
+
+            // Update project mapping
+            const newProjectsMapping = {};
+            transactionsData.forEach(transaction => {
+                if (transaction.projectTitle && transaction.projectId) {
+                    newProjectsMapping[transaction.projectTitle] = transaction.projectId;
+                }
+            });
+            setProjectsMapping(prevMapping => ({
+                ...prevMapping,
+                ...newProjectsMapping
+            }));
+
         } catch (err) {
             setError('Error fetching transaction data: ' + err.message);
             console.error(err);
@@ -69,96 +113,18 @@ function FounderTransaction() {
         }
     };
 
-    const fetchAllTransactionsForSummary = async () => {
-        try {
-            setSummaryLoading(true);
-            
-            if (pagination.totalPages <= 1) {
-                const summary = calculateSummaryFromTransactions(transactions);
-                setSummaryData(summary);
-                setSummaryLoading(false);
-                return;
-            }
-            
-            const pagePromises = [];
-            const maxPages = pagination.totalPages;
-
-            const MAX_PAGES_TO_FETCH = 5;
-            const pagesToFetch = Math.min(maxPages, MAX_PAGES_TO_FETCH);
-            
-            for (let i = 0; i < pagesToFetch; i++) {
-                pagePromises.push(
-                    transactionService.getTransactionsByFounder(
-                        i, 
-                        pagination.pageSize,
-                        sort,
-                        filters
-                    )
-                );
-            }
-            
-            // Wait for all pages to load
-            const pagesData = await Promise.all(pagePromises);
-            
-            // Combine all transactions from all pages
-            let allTransactions = [];
-            pagesData.forEach(pageData => {
-                if (pageData.content && pageData.content.length > 0) {
-                    allTransactions = [...allTransactions, ...pageData.content];
-                }
-            });
-            
-            // Check if we need to estimate for the remaining pages
-            let summary = calculateSummaryFromTransactions(allTransactions);
-            
-            // If we couldn't fetch all pages, estimate the remainder
-            if (pagesToFetch < maxPages) {
-                const fetchedTransactionsCount = allTransactions.length;
-                const totalTransactionsEstimate = pagination.totalElements;
-                const remainingPortion = (totalTransactionsEstimate - fetchedTransactionsCount) / fetchedTransactionsCount;
-                
-                // Scale up the summary by the remaining portion
-                summary = {
-                    totalProfit: summary.totalProfit * (1 + remainingPortion),
-                    totalAmount: summary.totalAmount * (1 + remainingPortion),
-                    totalPlatformFee: summary.totalPlatformFee * (1 + remainingPortion),
-                    totalStripeFee: summary.totalStripeFee * (1 + remainingPortion)
-                };
-            }
-            
-            setSummaryData(summary);
-        } catch (err) {
-            console.error('Error calculating summary data:', err);
-            // Fall back to current page data if calculation fails
-            const pageSummary = calculateSummaryFromTransactions(transactions);
-            setSummaryData(pageSummary);
-        } finally {
-            setSummaryLoading(false);
-        }
-    };
-
-    // Helper function to calculate summary from an array of transactions
-    const calculateSummaryFromTransactions = (transactionsArray) => {
-        if (!transactionsArray || transactionsArray.length === 0) {
-            return { totalProfit: 0, totalAmount: 0, totalPlatformFee: 0, totalStripeFee: 0 };
-        }
-        
-        return transactionsArray.reduce((acc, transaction) => {
-            return {
-                totalProfit: acc.totalProfit + transaction.profit,
-                totalAmount: acc.totalAmount + transaction.amount,
-                totalPlatformFee: acc.totalPlatformFee + transaction.platformFee,
-                totalStripeFee: acc.totalStripeFee + transaction.stripeFee
-            };
-        }, { totalProfit: 0, totalAmount: 0, totalPlatformFee: 0, totalStripeFee: 0 });
-    };
-
     const handlePageChange = (page) => {
         setPagination(prev => ({ ...prev, currentPage: page }));
     };
 
     const handleFilterChange = (newFilters) => {
-        setFilters(newFilters);
+        // Get the project ID based on the selected project title
+        const projectId = newFilters.projectTitle ? projectsMapping[newFilters.projectTitle] : null;
+
+        setFilters({
+            ...newFilters,
+            projectId
+        });
         setPagination(prev => ({ ...prev, currentPage: 0 })); // Reset to first page on filter change
     };
 
@@ -177,9 +143,15 @@ function FounderTransaction() {
                 onFilterChange={handleFilterChange}
             />
 
-            <TransactionSummary 
-                summaryData={summaryData} 
-            />
+            {summaryLoading ? (
+                <div className="flex justify-center my-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500">
+                        <span className="sr-only">Loading statistics...</span>
+                    </div>
+                </div>
+            ) : (
+                <TransactionSummary statistics={statistics} />
+            )}
 
             {loading ? (
                 <div className="flex justify-center my-8">
