@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRootContext } from "@/context/context";
 import SearchIcon from "./SearchIcon";
 import Social from "./Social";
-import { ChevronDown, LogOut, User, FileText, Users, ClipboardList, Mail, Bell } from "lucide-react";
+import { ChevronDown, LogOut, User, FileText, Users, ClipboardList, Mail, Bell, Container } from "lucide-react";
 import { authenticate } from "src/services/authenticate";
 import Link from "../Reuseable/Link";
 import NotificationDropdown from "@/components/Notifications/NotificationDropdown";
@@ -11,11 +11,11 @@ import { FaMoneyBill } from "react-icons/fa";
 const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' },
-    { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' }
+    { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' },
+    { label: 'Investment Reward', icon: Container, href: '/investment-reward' }
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },

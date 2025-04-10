@@ -6,14 +6,14 @@ import banner2 from "../../public/assets/images/shape/banner-line-2.png";
 export const bannerSlider = [
   {
     id: 1,
-    bg: "banner-bg-1.jpg",
+    bg: "banner-bg-h3.png",
     text: "Raising Money Has Never Been So Easy",
     title: "Crowdfunding Platforms",
     banner,
   },
   {
     id: 2,
-    bg: "banner-bg-2.jpg",
+    bg: "banner-bg.png",
     text: "Raising Money Has Never Been So Easy",
     title: "Crowdfunding Platforms",
     banner,

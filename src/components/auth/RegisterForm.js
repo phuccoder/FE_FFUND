@@ -60,11 +60,10 @@ export const RegisterForm = () => {
         },
         body: JSON.stringify(dataToSubmit),
       });
-      
+
       if (response.ok) {
-        // Show success notification
         toast.success('Registration successful! Please check your email for verification instructions.', {
-          position: "top-right",
+          position: 'top-right',
           autoClose: 5000,
           hideProgressBar: false,
           closeOnClick: true,
