@@ -11,12 +11,11 @@ import { FaMoneyBill } from "react-icons/fa";
 const MENU_ITEMS = {
   FOUNDER: [
     { label: 'Profile', icon: User, href: '/profile' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Project', icon: FileText, href: '/edit-project' },
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' },
     { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' },
-    { label: 'Manage Investment Reward', icon: Container, href: '/investment-reward' }
+    { label: 'Investment Reward', icon: Container, href: '/investment-reward' }
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
