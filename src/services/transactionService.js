@@ -127,5 +127,38 @@ export const transactionService = {
             console.error('Error fetching founder transactions:', error);
             throw error;
         }
-    }
+    },
+
+    getTransactionStatistics: async (projectId = null) => {
+        try {
+            const token = await tokenManager.getValidToken();
+
+            const url = buildUrl(`${API_BASE_URL}/transactions/statistic`, {
+                projectId: projectId || undefined,
+            });
+
+            console.log('Fetching transaction statistics from URL:', url);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', response.status, errorText);
+                throw new Error(`Failed to fetch transaction statistics: ${response.status} ${response.statusText}`);
+            }
+
+            const responseData = await response.json();
+
+            return responseData.data || {};
+        } catch (error) {
+            console.error('Error fetching transaction statistics:', error);
+            throw error;
+        }
+    },
 };
