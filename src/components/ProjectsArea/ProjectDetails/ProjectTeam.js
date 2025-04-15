@@ -106,14 +106,14 @@ const ProjectTeam = ({ getClassName, project }) => {
                       <td className="px-6 py-3 font-semibold text-black">Email</td>
                       <td className="px-6 py-3">{selectedMember.email}</td>
                     </tr>
-                    <tr>
+                    {/* <tr>
                       <td className="px-6 py-3 font-semibold text-black">FFund Profile</td>
                       <td className="px-6 py-3">
-                        <a href={selectedMember.userFfundLink} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-800">
-                          View Profile
+                        <a href={selectedMember.studentPortfolio} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-800">
+                          View CV
                         </a>
                       </td>
-                    </tr>
+                    </tr> */}
                     <tr>
                       <td className="px-6 py-3 font-semibold text-black">Student Class</td>
                       <td className="px-6 py-3">{selectedMember.studentClass}</td>
