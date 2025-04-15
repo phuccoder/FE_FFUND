@@ -18,10 +18,27 @@ function TransactionsPage() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [projectsList, setProjectsList] = useState([]);
-    const [filters, setFilters] = useState({ status: '', project: '' });
+    const [projectIdMapping, setProjectIdMapping] = useState({});
+    const [filters, setFilters] = useState({ status: '', project: '', projectId: null });
     const [sortBy, setSortBy] = useState('+id'); // Default sort by ID ascending
+    const [statistics, setStatistics] = useState({});
+    const [isLoadingStats, setIsLoadingStats] = useState(true);
 
     const pageSize = 10;
+
+    // Load transaction statistics
+    const loadTransactionStatistics = async (projectId = null) => {
+        try {
+            setIsLoadingStats(true);
+            const statsData = await transactionService.getTransactionStatistics(projectId);
+            setStatistics(statsData);
+        } catch (err) {
+            console.error('Failed to load transaction statistics:', err);
+            // Don't set error state here to avoid blocking the whole page
+        } finally {
+            setIsLoadingStats(false);
+        }
+    };
 
     // Load transactions from the API
     const loadTransactions = async (page, sort) => {
@@ -30,13 +47,24 @@ function TransactionsPage() {
             const response = await transactionService.getTransactionsByInvestor(page, pageSize, sort);
 
             if (response) {
-                setTransactions(response.content || []);
-                setFilteredTransactions(response.content || []);
+                const transactionsData = response.content || [];
+                setTransactions(transactionsData);
+                setFilteredTransactions(transactionsData);
                 setTotalPages(response.totalPages || 1);
 
-                // Extract unique project names for filter dropdown
-                const projects = [...new Set((response.content || []).map(t => t.projectTitle))];
+                // Create project title to ID mapping and extract unique project names
+                const projectsMap = {};
+                const projects = [];
+
+                transactionsData.forEach(t => {
+                    if (t.projectTitle && !projectsMap[t.projectTitle]) {
+                        projectsMap[t.projectTitle] = t.projectId;
+                        projects.push(t.projectTitle);
+                    }
+                });
+
                 setProjectsList(projects);
+                setProjectIdMapping(projectsMap);
             }
         } catch (err) {
             console.error('Failed to load transactions:', err);
@@ -49,6 +77,7 @@ function TransactionsPage() {
     // Load initial data
     useEffect(() => {
         loadTransactions(currentPage, sortBy);
+        loadTransactionStatistics(null); // Load statistics for all projects initially
     }, [currentPage, sortBy]);
 
     // Handle page change
@@ -71,6 +100,9 @@ function TransactionsPage() {
         }
 
         setFilteredTransactions(filtered);
+
+        // Update statistics based on selected project
+        loadTransactionStatistics(newFilters.projectId);
     };
 
     // Handle sort change
@@ -79,7 +111,7 @@ function TransactionsPage() {
         if (field !== 'id' && field !== 'amount') {
             return;
         }
-        
+
         // If already sorting by this field, toggle direction
         if (sortBy === `+${field}`) {
             setSortBy(`-${field}`);
@@ -96,13 +128,6 @@ function TransactionsPage() {
         return '';
     };
 
-    // Calculate total paid amount for summary
-    const calculateTotalPaid = () => {
-        return filteredTransactions
-            .filter(t => t.status === 'PAID')
-            .reduce((total, t) => total + (t.amount || 0), 0);
-    };
-
     return (
         <Layout>
             <Header />
@@ -113,38 +138,36 @@ function TransactionsPage() {
                 <TransactionFilter
                     onFilterChange={handleFilterChange}
                     projects={projectsList}
+                    projectMapping={projectIdMapping}
                 />
 
                 <div className="mb-6">
-                    <TransactionSummary
-                        totalTransactions={filteredTransactions.length}
-                        totalPaid={calculateTotalPaid()}
-                    />
+                    {isLoadingStats ? (
+                        <div className="text-center py-4">Loading statistics...</div>
+                    ) : (
+                        <TransactionSummary statistics={statistics} />
+                    )}
                 </div>
 
-                {/* Sorting Controls - Removed status sorting */}
+                {/* Sorting Controls */}
                 <div className="mb-4 flex flex-wrap gap-2">
                     <span className="text-sm font-medium text-gray-700 my-auto">Sort by:</span>
 
                     <button
                         onClick={() => handleSortChange('id')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                            sortBy.includes('id') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                        } hover:bg-blue-50`}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md ${sortBy.includes('id') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                            } hover:bg-blue-50`}
                     >
                         ID {getSortIndicator('id')}
                     </button>
 
                     <button
                         onClick={() => handleSortChange('amount')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md ${
-                            sortBy.includes('amount') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                        } hover:bg-blue-50`}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md ${sortBy.includes('amount') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                            } hover:bg-blue-50`}
                     >
                         Amount {getSortIndicator('amount')}
                     </button>
-                    
-                    {/* Status filter is still available in the TransactionFilter component */}
                 </div>
 
                 {isLoading ? (

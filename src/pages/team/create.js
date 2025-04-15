@@ -47,7 +47,7 @@ const CreateTeamPage = () => {
     if (searchingIndex === null) return;
 
     const searchEmail = teamData.memberEmails[searchingIndex];
-    
+
     const searchFounders = async () => {
       // Only search if we have at least 1 character
       if (searchEmail && searchEmail.trim().length >= 1) {
@@ -65,7 +65,7 @@ const CreateTeamPage = () => {
 
           // Filter out emails that are already in the team
           const currentEmails = teamData.memberEmails.filter(email => email.trim() !== "");
-          const filteredResults = result.data.filter(founder => 
+          const filteredResults = result.data.filter(founder =>
             !currentEmails.includes(founder.email.toLowerCase())
           );
 
@@ -120,34 +120,41 @@ const CreateTeamPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Remove empty email fields
     const filteredEmails = teamData.memberEmails.filter(email => email.trim() !== "");
-    
+
     // Create and log the request body
     const requestBody = {
       teamName: teamData.teamName,
       teamDescription: teamData.teamDescription,
       memberEmails: filteredEmails
     };
-    
+
     console.log('Creating team with request body:', requestBody);
-    
+
     try {
       setLoading(true);
-      
+
       // Make the API call
       const response = await createTeam(
         teamData.teamName,
         teamData.teamDescription,
         filteredEmails
       );
-      
+
       // Log the response
       console.log('Team creation response:', response);
-      
+
+      // Save team role to localStorage - the creator automatically becomes LEADER
+      localStorage.setItem('teamRole', 'LEADER');
+      console.log('Team role set in localStorage: LEADER');
+
+      // Dispatch storage event to notify other components about the auth state change
+      window.dispatchEvent(new Event('storage'));
+
       // Show success toast
-      toast.success("Team created successfully!", {
+      toast.success("Team created successfully! You are now the team leader.", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
@@ -155,22 +162,22 @@ const CreateTeamPage = () => {
         pauseOnHover: true,
         draggable: true
       });
-      
+
       // Reset form
       setTeamData({
         teamName: "",
         teamDescription: "",
         memberEmails: [""]
       });
-      
+
       // Redirect after successful creation
       setTimeout(() => {
         router.push("/team-members");
       }, 2000);
-      
+
     } catch (err) {
       console.error('Team creation error:', err);
-      
+
       // Show error toast
       toast.error(`Failed to create team: ${err.message}`, {
         position: "top-right",
@@ -180,7 +187,7 @@ const CreateTeamPage = () => {
         pauseOnHover: true,
         draggable: true
       });
-      
+
     } finally {
       setLoading(false);
     }
@@ -188,6 +195,7 @@ const CreateTeamPage = () => {
 
   return (
     <Layout>
+      <ToastContainer />
       <Header />
       <PageTitle title="Create Team" />
       <Container className="py-5">
@@ -211,7 +219,7 @@ const CreateTeamPage = () => {
                       className="border-orange focus:ring-orange-500"
                     />
                   </Form.Group>
-                  
+
                   <Form.Group className="mb-3">
                     <Form.Label>Team Description</Form.Label>
                     <Form.Control
@@ -224,7 +232,7 @@ const CreateTeamPage = () => {
                       required
                     />
                   </Form.Group>
-                  
+
                   <div className="mb-3">
                     <Form.Label>Invite Team Members</Form.Label>
                     {teamData.memberEmails.map((email, index) => (
@@ -238,7 +246,7 @@ const CreateTeamPage = () => {
                               placeholder="Enter member email"
                               autoComplete="off"
                             />
-                            
+
                             {searchingIndex === index && searching && (
                               <div className="position-absolute" style={{ right: '10px', top: '10px' }}>
                                 <Spinner animation="border" size="sm" style={{ color: '#FF8C00' }} />
@@ -249,7 +257,7 @@ const CreateTeamPage = () => {
                               <div
                                 className="position-absolute w-100 shadow-sm bg-white rounded border"
                                 style={{
-                                  zIndex: 1050,
+                                  zIndex: 9999, // Increased z-index to ensure it stays above other components
                                   maxHeight: '200px',
                                   overflowY: 'auto',
                                   top: 'calc(100% + 5px)',
@@ -294,8 +302,8 @@ const CreateTeamPage = () => {
                           </div>
                         </Col>
                         <Col xs="auto">
-                          <Button 
-                            variant="outline-danger" 
+                          <Button
+                            variant="outline-danger"
                             size="sm"
                             onClick={() => removeEmailField(index)}
                             disabled={teamData.memberEmails.length === 1}
@@ -305,10 +313,10 @@ const CreateTeamPage = () => {
                         </Col>
                       </Row>
                     ))}
-                    
-                    <Button 
-                      variant="outline-warning" 
-                      size="sm" 
+
+                    <Button
+                      variant="outline-warning"
+                      size="sm"
                       onClick={addEmailField}
                       className="mt-2"
                       style={{ borderColor: "#FF8C00", color: "#FF8C00" }}
@@ -316,10 +324,10 @@ const CreateTeamPage = () => {
                       + Add Another Email
                     </Button>
                   </div>
-                  
+
                   <div className="d-grid mt-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       size="lg"
                       disabled={loading}
                       style={{ backgroundColor: "#FF8C00", borderColor: "#FF8C00" }}
@@ -338,7 +346,7 @@ const CreateTeamPage = () => {
   );
 };
 
-export default function CreateTeam(){
+export default function CreateTeam() {
   return (
     <ProtectedRoute requiredRoles={['FOUNDER']}>
       <CreateTeamPage />

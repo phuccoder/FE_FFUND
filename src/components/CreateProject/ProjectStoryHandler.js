@@ -13,6 +13,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   const [fetchAttempted, setFetchAttempted] = useState(false); // Track if we've attempted to fetch
   const lastUpdateRef = React.useRef(Date.now());
   const router = useRouter();
+  const [hasChanges, setHasChanges] = useState(false);
 
   // Get project ID either from props or URL
   useEffect(() => {
@@ -169,18 +170,22 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             // If the TEXT block ONLY contains an image (and no other significant content)
             // and there's an IMAGE block with the same URL, skip it
             if (imgUrl && sortedBlocks.some(b => b.type === 'IMAGE' && b.content === imgUrl)) {
+              // Check if TEXT block contains ONLY this image and no other content
               const tempDiv = document.createElement('div');
               tempDiv.innerHTML = content;
 
-              // Remove img tags to see if there's other content
-              const imgTags = tempDiv.querySelectorAll('img');
-              imgTags.forEach(img => img.remove());
+              // Remove all img tags
+              const allImages = tempDiv.querySelectorAll('img');
+              allImages.forEach(img => img.remove());
 
-              // If there's no substantial content beyond the image
-              if (!tempDiv.textContent.trim()) {
+              // If no substantial text content remains, skip this TEXT block entirely
+              const remainingText = tempDiv.textContent.trim();
+              if (!remainingText) {
                 console.log('Skipping TEXT block that only contains an image matching an IMAGE block');
-                break; // Skip this block
+                break;
               }
+
+              processedImageUrls.add(imgUrl)
             }
           }
 
@@ -459,6 +464,9 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           continue;
         }
 
+
+
+
         // Handle headings
         if (tagName.startsWith('h') && tagName.length === 2 && !processedElements.has(element)) {
           const level = parseInt(tagName[1]);
@@ -518,12 +526,31 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         if ((tagName === 'p' || tagName === 'div' || tagName === 'blockquote') &&
           !processedElements.has(element) && !processedListItems.has(element)) {
 
+          // IMPORTANT FIX: Skip if paragraph only contains an already processed image
+          const containsOnlyProcessedImage = () => {
+            const images = element.querySelectorAll('img');
+            if (images.length === 1 && processedImageSrcs.has(images[0].src)) {
+              // Check if paragraph only contains this image and no significant text
+              const tempEl = element.cloneNode(true);
+              Array.from(tempEl.querySelectorAll('img')).forEach(img => img.remove());
+              return tempEl.textContent.trim() === '';
+            }
+            return false;
+          };
+
+          if (containsOnlyProcessedImage()) {
+            processedElements.add(element);
+            continue;
+          }
+
           // Skip if this element contains already processed elements (like images or videos)
           const hasProcessedChild = Array.from(element.querySelectorAll('*')).some(
             child => processedElements.has(child)
           );
 
-          if (!hasProcessedChild) {
+          const hasTextContent = element.textContent && element.textContent.trim().length > 0;
+
+          if (!hasProcessedChild || hasTextContent) {
             const content = tagName === 'p' ? element.innerHTML : element.outerHTML;
 
             // Skip completely empty or whitespace-only content
@@ -1008,6 +1035,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               risks: storyData.risks || '',
               id: storyId,
               projectStoryId: storyId,
+              projectId: propProjectId
             });
           }, 500);
 
@@ -1027,6 +1055,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
     setStoryData(prevData => {
       // Compare if anything actually changed to prevent unnecessary updates
+      const hasContentChanged = data.story !== prevData.story || data.risks !== prevData.risks;
+
+      if (hasContentChanged) {
+        setHasChanges(true);
+      }
+
       if (data.story === prevData.story && data.risks === prevData.risks) {
         return prevData; // Return same object reference to prevent re-render
       }
@@ -1037,6 +1071,42 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       return data;
     });
   }, []);
+
+  useEffect(() => {
+    if (savingStatus === 'saved') {
+      setHasChanges(false);
+    }
+  }, [savingStatus]);
+
+  useEffect(() => {
+    // Update parent form data with minimal delay for real-time checklist updates
+    if (!loading && storyData.story && updateFormData) {
+      // Use the ref to track if we need to update
+      const now = Date.now();
+      // Only update if sufficient time has passed (at least 500ms)
+      if (now - lastUpdateRef.current < 500) {
+        return; // Skip updates that are too frequent
+      }
+
+      // Create a debounced update function
+      const updateParent = () => {
+        if (updateFormData && typeof updateFormData === 'function') {
+          lastUpdateRef.current = now; // Update the timestamp
+          updateFormData({
+            story: storyData.story || '',
+            risks: storyData.risks || '',
+            id: storyId,
+            projectStoryId: storyId,
+            projectId: propProjectId
+          });
+        }
+      };
+
+      // Use a longer delay to avoid too many updates
+      const timer = setTimeout(updateParent, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [storyData.story, storyData.risks, storyId, propProjectId, loading]);
 
   // Enhanced debug function to help troubleshoot content issues
   const debugContent = (html) => {
@@ -1173,27 +1243,66 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
       console.log(`Parsed blocks - Story: ${storyBlocks.length}, Risks: ${risksBlocks.length}`);
 
-      // Filter out empty blocks from both sections
+      // CRITICAL FIX #1: Preserve the original blocks before filtering
+      let preservedStoryText = [];
+      let preservedRisksText = [];
+
+      // Store all TEXT blocks with actual text content to ensure we don't lose them
+      storyBlocks.forEach(block => {
+        if (block.type === 'TEXT') {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = block.content;
+
+          // Check if there's any actual text content (not just whitespace)
+          const actualText = tempDiv.textContent.trim();
+
+          // If this block has actual text content, preserve it
+          if (actualText.length > 0) {
+            preservedStoryText.push(block);
+          }
+        }
+      });
+
+      risksBlocks.forEach(block => {
+        if (block.type === 'TEXT') {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = block.content;
+          const actualText = tempDiv.textContent.trim();
+
+          if (actualText.length > 0) {
+            preservedRisksText.push(block);
+          }
+        }
+      });
+
+      console.log(`Preserved ${preservedStoryText.length} story text blocks with content`);
+      console.log(`Preserved ${preservedRisksText.length} risks text blocks with content`);
+
+      // Filter out empty blocks from both sections (keep non-text blocks and text blocks with content)
       const filteredStoryBlocks = storyBlocks.filter(block => {
-        // Keep all non-TEXT blocks
+        // Always keep non-TEXT blocks (images, videos, headings)
         if (block.type !== 'TEXT') return true;
 
-        // For TEXT blocks, ensure they have meaningful content
-        if (!block.content || typeof block.content !== 'string') return false;
+        // For TEXT blocks, we need more careful checks
+        if (!block.content) return false;
 
         // Keep blocks with line breaks that are intentional spacing
         if (block.metadata?.additionalProp1?.isEmptyParagraph ||
           block.metadata?.additionalProp1?.isBreak) return true;
 
-        // Create temp div to check if there's any visible content
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = block.content;
-        const hasText = tempDiv.textContent.trim().length > 0;
-        const hasVisibleContent = hasText ||
-          tempDiv.querySelector('img') ||
-          tempDiv.querySelector('iframe');
+        // Check HTML content
+        if (typeof block.content === 'string') {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = block.content;
 
-        return hasVisibleContent;
+          // Check if there's any text content or media elements
+          const textContent = tempDiv.textContent.trim();
+          const hasMediaElements = tempDiv.querySelector('img, iframe, video');
+
+          return textContent.length > 0 || hasMediaElements;
+        }
+
+        return false;
       });
 
       const filteredRisksBlocks = risksBlocks.filter(block => {
@@ -1205,83 +1314,136 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = block.content;
         const hasText = tempDiv.textContent.trim().length > 0;
-        const hasVisibleContent = hasText ||
-          tempDiv.querySelector('img') ||
-          tempDiv.querySelector('iframe');
+        const hasMediaElements = tempDiv.querySelector('img, iframe, video');
 
-        return hasVisibleContent;
+        return hasText || hasMediaElements;
       });
 
-      console.log(`After filtering empty blocks - Story: ${filteredStoryBlocks.length}, Risks: ${filteredRisksBlocks.length}`);
+      // Get all image URLs from IMAGE blocks for duplicate detection
+      const imageBlocks = filteredStoryBlocks.filter(block => block.type === 'IMAGE');
+      const imageUrls = imageBlocks.map(block => block.content);
 
-      // Log block types to verify we're capturing multimedia elements
-      console.log('Story block types:', filteredStoryBlocks.map(b => b.type).join(', '));
-      console.log('Risk block types:', filteredRisksBlocks.map(b => b.type).join(', '));
-
-      // Detect and filter duplicate image references in TEXT blocks
-      const imageUrls = filteredStoryBlocks
-        .filter(block => block.type === 'IMAGE')
-        .map(block => block.content);
-
-      console.log(`Found ${imageUrls.length} distinct image URLs in IMAGE blocks`);
-
-      // Filter TEXT blocks that only contain an image that's already in an IMAGE block
+      // Apply duplicate image detection, but ONLY for blocks that ACTUALLY contain images
       const cleanedStoryBlocks = filteredStoryBlocks.filter(block => {
         // Keep all non-TEXT blocks
         if (block.type !== 'TEXT') return true;
 
-        // If this is a TEXT block, check if it ONLY contains an image that we already have
-        if (block.content && typeof block.content === 'string' && block.content.includes('<img')) {
-          // Extract the image URL
-          const imgMatch = block.content.match(/src="([^"]+)"/);
-          if (imgMatch && imgMatch[1]) {
-            const imgUrl = imgMatch[1];
+        // CRITICAL FIX #2: Check if block actually contains an image before applying duplicate logic
+        if (block.content && block.content.includes('<img')) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = block.content;
 
-            // Check if this URL is in our image blocks
-            if (imageUrls.includes(imgUrl)) {
-              // Check if this TEXT block ONLY contains this image and no other content
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = block.content;
+          // Get text content (excluding images)
+          const textOnlyClone = tempDiv.cloneNode(true);
+          Array.from(textOnlyClone.querySelectorAll('img')).forEach(img => img.remove());
+          const textContent = textOnlyClone.textContent.trim();
 
-              // If the block only has an img tag and no other significant content
-              const hasOnlyImage =
-                tempDiv.childNodes.length === 1 &&
-                tempDiv.querySelector('img') &&
-                tempDiv.textContent.trim() === '';
+          // Get all images in this TEXT block
+          const images = tempDiv.querySelectorAll('img');
 
-              if (hasOnlyImage) {
-                console.log('Filtering out TEXT block that only contains an image:', imgUrl);
-                return false; // Filter out this block
+          // Only apply duplicate detection if this block ONLY contains images (no text)
+          // AND all those images exist in IMAGE blocks
+          if (images.length > 0 && textContent.length === 0) {
+            let allImagesExistElsewhere = true;
+
+            for (const img of images) {
+              const imgSrc = img.getAttribute('src');
+              if (!imageUrls.includes(imgSrc)) {
+                allImagesExistElsewhere = false;
+                break;
               }
             }
-          }
-        }
 
-        return true; // Keep all other TEXT blocks
-      });
-
-      // Also clean risks blocks the same way
-      const cleanedRisksBlocks = filteredRisksBlocks.filter(block => {
-        if (block.type !== 'TEXT') return true;
-        if (block.content && typeof block.content === 'string' && block.content.includes('<img')) {
-          const imgMatch = block.content.match(/src="([^"]+)"/);
-          if (imgMatch && imgMatch[1]) {
-            const imgUrl = imgMatch[1];
-            if (imageUrls.includes(imgUrl)) {
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = block.content;
-              const hasOnlyImage =
-                tempDiv.childNodes.length === 1 &&
-                tempDiv.querySelector('img') &&
-                tempDiv.textContent.trim() === '';
-              if (hasOnlyImage) return false;
+            // Filter out ONLY if this TEXT block contains ONLY images that exist elsewhere
+            if (allImagesExistElsewhere) {
+              return false;
             }
           }
         }
+
+        // By default, keep TEXT blocks
         return true;
       });
 
-      console.log(`Filtered out ${filteredStoryBlocks.length - cleanedStoryBlocks.length} duplicate image TEXT blocks`);
+      // Apply same logic to risks blocks
+      const cleanedRisksBlocks = filteredRisksBlocks.filter(block => {
+        if (block.type !== 'TEXT') return true;
+
+        if (block.content && block.content.includes('<img')) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = block.content;
+
+          const textOnlyClone = tempDiv.cloneNode(true);
+          Array.from(textOnlyClone.querySelectorAll('img')).forEach(img => img.remove());
+          const textContent = textOnlyClone.textContent.trim();
+
+          const images = tempDiv.querySelectorAll('img');
+
+          if (images.length > 0 && textContent.length === 0) {
+            let allImagesExistElsewhere = true;
+
+            for (const img of images) {
+              const imgSrc = img.getAttribute('src');
+              if (!imageUrls.includes(imgSrc)) {
+                allImagesExistElsewhere = false;
+                break;
+              }
+            }
+
+            if (allImagesExistElsewhere) {
+              return false;
+            }
+          }
+        }
+
+        return true;
+      });
+
+      // CRITICAL FIX #3: Check if any text blocks with real content were lost and restore them
+      // Build sets of IDs to check what's missing
+      const getBlockId = (block) => {
+        return block.content.substring(0, 50); // Use content as a crude ID
+      };
+
+      const cleanedIds = new Set(cleanedStoryBlocks
+        .filter(b => b.type === 'TEXT')
+        .map(getBlockId));
+
+      const preservedIds = new Set(preservedStoryText.map(getBlockId));
+
+      // Check if any preserved text blocks are missing from cleaned blocks
+      for (const block of preservedStoryText) {
+        const blockId = getBlockId(block);
+        if (!cleanedIds.has(blockId)) {
+          console.log('Restoring missing text block:', block.content.substring(0, 50));
+          cleanedStoryBlocks.push(block);
+        }
+      }
+
+      // Do the same for risks blocks
+      const cleanedRisksIds = new Set(cleanedRisksBlocks
+        .filter(b => b.type === 'TEXT')
+        .map(getBlockId));
+
+      const preservedRisksIds = new Set(preservedRisksText.map(getBlockId));
+
+      for (const block of preservedRisksText) {
+        const blockId = getBlockId(block);
+        if (!cleanedRisksIds.has(blockId)) {
+          console.log('Restoring missing risks text block:', block.content.substring(0, 50));
+          cleanedRisksBlocks.push(block);
+        }
+      }
+
+      // Sort the blocks by their original order since we might have added blocks
+      cleanedStoryBlocks.sort((a, b) => a.order - b.order);
+      cleanedRisksBlocks.sort((a, b) => a.order - b.order);
+
+      console.log(`After full processing - Story: ${cleanedStoryBlocks.length}, Risks: ${cleanedRisksBlocks.length}`);
+
+      // Log block types to verify we're capturing multimedia elements
+      console.log('Story block types:', cleanedStoryBlocks.map(b => b.type).join(', '));
+      console.log('Risk block types:', cleanedRisksBlocks.map(b => b.type).join(', '));
 
       // Assign proper order values - this sets correct position within each section
       cleanedStoryBlocks.forEach((block, index) => {
@@ -1310,31 +1472,30 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         };
       });
 
-      // Log the final blocks that will be sent to API
+      // Log final blocks and prepare API payload
       console.log(`Prepared ${apiReadyBlocks.length} blocks for API submission`);
 
-      // Validate that videos and images are properly included
-      const videoBlocks = apiReadyBlocks.filter(b => b.type === 'VIDEO');
-      const imageBlocks = apiReadyBlocks.filter(b => b.type === 'IMAGE');
+      // Count blocks by type for final verification
+      const textBlocks = apiReadyBlocks.filter(b => b.type === 'TEXT').length;
+      const headingBlocks = apiReadyBlocks.filter(b => b.type === 'HEADING').length;
+      const videoBlocks = apiReadyBlocks.filter(b => b.type === 'VIDEO').length;
+      const finalImageBlocks = apiReadyBlocks.filter(b => b.type === 'IMAGE').length;
 
-      console.log(`Sending ${videoBlocks.length} video blocks and ${imageBlocks.length} image blocks`);
+      console.log(`Final blocks: ${textBlocks} text, ${headingBlocks} heading, ${videoBlocks} video, ${finalImageBlocks} image`);
 
       // Prepare payload - EXACTLY match the API expected format
       const payload = {
         blocks: apiReadyBlocks,
       };
 
-      // Actually save the data to the API - THIS WAS MISSING
+      // Save to API
       if (storyId) {
-        // Update existing story
         console.log(`Updating existing story with ID: ${storyId}`);
         await projectService.updateProjectStory(storyId, payload);
       } else {
-        // Create new story
         console.log(`Creating new story for project: ${currentProjectId}`);
         const result = await projectService.createProjectStory(currentProjectId, payload);
 
-        // Extract the new story ID and set it in state
         if (result && result.data && result.data.projectStoryId) {
           setStoryId(result.data.projectStoryId);
         } else if (result && result.projectStoryId) {
@@ -1342,21 +1503,18 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         }
       }
 
-      // Update the saving status to "saved"
       setSavingStatus('saved');
-
-      // Reset status after a delay
       setTimeout(() => {
         setSavingStatus('idle');
       }, 2000);
 
-      // Notify the parent component about the updated story
       if (updateFormData) {
         updateFormData({
           story: storyData.story || '',
           risks: storyData.risks || '',
           id: storyId,
           projectStoryId: storyId,
+          projectId: propProjectId
         });
       }
 
@@ -1609,16 +1767,18 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const currentEditorContent = storyData.story || '<h1>Project Story</h1><p>Tell your story here...</p>';
           const storyBlocks = parseHtmlToBlocks(currentEditorContent);
 
-          // Add a placeholder image block
+          // Add a placeholder image block AT THE END of the story blocks
+          const uniqueId = `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
           const imageBlock = {
             type: 'IMAGE',
-            content: 'placeholder-for-uploading-image',
-            order: cursorPosition || (storyBlocks ? storyBlocks.length : 0),
+            content: `placeholder-for-uploading-image-${uniqueId}`,
+            order: storyBlocks.length, // Ensure it goes at the end
             metadata: {
               additionalProp1: {
                 width: "100%",
                 class: "story-image",
-                alt: file.name || "Project image"
+                alt: file.name || "Project image",
+                uniqueId: uniqueId // Adding uniqueId to ensure we can find it later
               }
             }
           };
@@ -1652,14 +1812,18 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
           console.log(`Retrieved ${retrievedBlocks.length} blocks from newly created story`);
 
-          // Find the placeholder image block
+          // Find the placeholder block we just created - look for our unique ID
           const placeholderBlock = retrievedBlocks.find(block =>
             block.type === 'IMAGE' &&
-            (block.content === 'placeholder-for-uploading-image' || block.content === 'string')
+            (block.content === `placeholder-for-uploading-image-${uniqueId}` ||
+              (block.metadata &&
+                typeof block.metadata === 'object' &&
+                block.metadata.additionalProp1 &&
+                block.metadata.additionalProp1.uniqueId === uniqueId))
           );
 
           if (!placeholderBlock || !placeholderBlock.storyBlockId) {
-            throw new Error('Could not find placeholder image block in story');
+            throw new Error('Could not find image placeholder block in story');
           }
 
           console.log('Found placeholder image block with ID:', placeholderBlock.storyBlockId);
@@ -1668,41 +1832,151 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           console.log('Uploading image to block ID:', placeholderBlock.storyBlockId);
           const uploadResult = await projectService.uploadStoryImage(placeholderBlock.storyBlockId, file);
 
-          // Step 5: Return the image URL
+          // Step 5: Get the image URL
+          let uploadedImageUrl = null;
           if (typeof uploadResult === 'string' && uploadResult.startsWith('http')) {
             console.log('Received URL from upload:', uploadResult);
-            return uploadResult;
+            uploadedImageUrl = uploadResult;
           }
-
           // Handle object response with URL
-          if (uploadResult && typeof uploadResult === 'object') {
+          else if (uploadResult && typeof uploadResult === 'object') {
             // Check common URL patterns
             if (uploadResult.url && typeof uploadResult.url === 'string') {
-              return uploadResult.url;
+              uploadedImageUrl = uploadResult.url;
             }
-
-            if (uploadResult.data && uploadResult.data.url) {
-              return uploadResult.data.url;
+            else if (uploadResult.data && uploadResult.data.url) {
+              uploadedImageUrl = uploadResult.data.url;
             }
-
-            if (uploadResult.content && typeof uploadResult.content === 'string' &&
+            else if (uploadResult.content && typeof uploadResult.content === 'string' &&
               uploadResult.content.startsWith('http')) {
-              return uploadResult.content;
+              uploadedImageUrl = uploadResult.content;
             }
           }
 
-          // If still no URL, check the story again
-          console.log('No direct URL in response, checking updated story');
-          const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
-          const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
+          // If no URL found yet, check the story again
+          if (!uploadedImageUrl) {
+            console.log('No direct URL in response, checking updated story');
+            const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+            const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
 
-          const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
-          if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
-            updatedBlock.content.startsWith('http')) {
-            return updatedBlock.content;
+            const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
+            if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
+              updatedBlock.content.startsWith('http')) {
+              uploadedImageUrl = updatedBlock.content;
+            }
           }
 
-          throw new Error('Could not find image URL after upload');
+          // If we still don't have a URL, throw an error
+          if (!uploadedImageUrl) {
+            throw new Error('Could not find image URL after upload');
+          }
+
+          // Now, instead of filtering out the placeholder, let's keep ONLY the IMAGE block
+          // and remove ANY duplicates that might appear in TEXT blocks
+          const storyToCleanup = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const blocksToCleanup = storyToCleanup.blocks ||
+            (storyToCleanup.data && storyToCleanup.data.blocks) || [];
+
+          // Find our newly created image block with the actual image URL
+          const actualImageBlock = blocksToCleanup.find(block =>
+            block.storyBlockId === placeholderBlock.storyBlockId &&
+            block.type === 'IMAGE' &&
+            block.content.startsWith('http')
+          );
+
+          if (!actualImageBlock) {
+            console.error('Could not find the uploaded image block');
+            return uploadedImageUrl; // Return the URL but don't attempt cleanup
+          }
+
+          // Process each TEXT block to remove any instances of this same image
+          const cleanBlocks = blocksToCleanup.map(block => {
+            // If it's not a TEXT block, keep as is
+            if (block.type !== 'TEXT') {
+              return {
+                type: block.type,
+                content: block.content,
+                order: block.order,
+                metadata: {
+                  additionalProp1:
+                    (block.metadata && block.metadata.additionalProp1) ||
+                    (typeof block.metadata === 'object' ? block.metadata : {})
+                }
+              };
+            }
+
+            // For TEXT blocks, check if they contain the image
+            if (block.content && block.content.includes(uploadedImageUrl)) {
+              // Create a temporary element to handle the HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = block.content;
+
+              // Find all images with our uploaded URL
+              const duplicateImages = Array.from(tempDiv.querySelectorAll(`img[src="${uploadedImageUrl}"]`));
+
+              // Remove all instances of this image from the TEXT block
+              duplicateImages.forEach(img => {
+                // If the image is the only content in a paragraph, remove the whole paragraph
+                const paragraphParent = img.closest('p');
+                if (paragraphParent) {
+                  const paragraphClone = paragraphParent.cloneNode(true);
+                  paragraphClone.querySelector(`img[src="${uploadedImageUrl}"]`).remove();
+
+                  // If paragraph is now empty (or just whitespace), remove the whole paragraph
+                  if (paragraphClone.textContent.trim() === '') {
+                    paragraphParent.remove();
+                  } else {
+                    // Otherwise just remove the image
+                    img.remove();
+                  }
+                } else {
+                  // No paragraph parent, just remove the image
+                  img.remove();
+                }
+              });
+
+              // Return cleaned TEXT block
+              return {
+                type: block.type,
+                content: tempDiv.innerHTML,
+                order: block.order,
+                metadata: {
+                  additionalProp1:
+                    (block.metadata && block.metadata.additionalProp1) ||
+                    (typeof block.metadata === 'object' ? block.metadata : {})
+                }
+              };
+            }
+
+            // No image found, return the block as is
+            return {
+              type: block.type,
+              content: block.content,
+              order: block.order,
+              metadata: {
+                additionalProp1:
+                  (block.metadata && block.metadata.additionalProp1) ||
+                  (typeof block.metadata === 'object' ? block.metadata : {})
+              }
+            };
+          });
+
+          // Filter out empty TEXT blocks after cleanup
+          const finalCleanBlocks = cleanBlocks.filter(block => {
+            if (block.type !== 'TEXT') return true;
+
+            // Check if TEXT block is now empty
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = block.content;
+            return tempDiv.textContent.trim() !== '' || tempDiv.querySelectorAll('img').length > 0;
+          });
+
+          // Update the story without duplicates
+          console.log('Cleaning up by removing duplicate images from TEXT blocks');
+          await projectService.updateProjectStory(newStoryId, { blocks: finalCleanBlocks });
+
+          // Return the URL to be inserted by the editor normally
+          return uploadedImageUrl;
         } catch (error) {
           console.error('Error in create-then-upload flow:', error);
           return null;
@@ -1712,25 +1986,29 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
         console.log('Using existing story ID for upload:', targetStoryId);
 
         try {
+          // Add a unique ID to help us track this specific image upload
+          const uniqueId = `img-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
           // Step 1: Add a placeholder image block to the existing story
           const existingStory = await projectService.getProjectStoryByProjectId(currentProjectId);
           const existingBlocks = existingStory?.blocks ||
             (existingStory?.data && existingStory.data.blocks) || [];
 
-          // Determine highest order for new block
+          // Determine highest order for new block - ensure it goes at the very end
           const highestOrder = existingBlocks.length > 0 ?
             Math.max(...existingBlocks.map(b => b.order || 0)) + 1 : 0;
 
-          // Create placeholder image block
+          // Create placeholder image block with a unique ID
           const imageBlock = {
             type: 'IMAGE',
-            content: 'placeholder-for-uploading-image',
-            order: highestOrder,
+            content: `placeholder-for-uploading-image-${uniqueId}`,
+            order: highestOrder, // Put at the end
             metadata: {
               additionalProp1: {
                 width: "100%",
                 class: "story-image",
-                alt: file.name || "Project image"
+                alt: file.name || "Project image",
+                uniqueId: uniqueId // Add this to ensure uniqueness
               }
             }
           };
@@ -1759,11 +2037,17 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const updatedBlocks2 = updatedStory?.blocks ||
             (updatedStory?.data && updatedStory.data.blocks) || [];
 
-          // Find the placeholder block
+          // Find the placeholder block - look specifically for our unique content
           const placeholderBlock = updatedBlocks2.find(block =>
             block.type === 'IMAGE' &&
-            (block.content === 'placeholder-for-uploading-image' || block.content === 'string') &&
-            block.order === highestOrder
+            ((block.content === `placeholder-for-uploading-image-${uniqueId}`) ||
+              (block.metadata &&
+                typeof block.metadata === 'string' &&
+                block.metadata.includes(uniqueId)) ||
+              (block.metadata &&
+                typeof block.metadata === 'object' &&
+                block.metadata.additionalProp1 &&
+                block.metadata.additionalProp1.uniqueId === uniqueId))
           );
 
           if (!placeholderBlock || !placeholderBlock.storyBlockId) {
@@ -1773,26 +2057,128 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           // Upload image to the placeholder block
           const uploadResult = await projectService.uploadStoryImage(placeholderBlock.storyBlockId, file);
 
-          // Return the URL from result
+          // Get the URL from result
+          let uploadedImageUrl = null;
           if (typeof uploadResult === 'string' && uploadResult.startsWith('http')) {
-            return uploadResult;
+            uploadedImageUrl = uploadResult;
+          }
+          else if (uploadResult && typeof uploadResult === 'object' && uploadResult.url) {
+            uploadedImageUrl = uploadResult.url;
+          }
+          else if (uploadResult && typeof uploadResult === 'object' && uploadResult.content &&
+            uploadResult.content.startsWith('http')) {
+            uploadedImageUrl = uploadResult.content;
           }
 
-          if (uploadResult && typeof uploadResult === 'object' && uploadResult.url) {
-            return uploadResult.url;
+          // If no URL yet, check updated story
+          if (!uploadedImageUrl) {
+            const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+            const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
+
+            const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
+            if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
+              updatedBlock.content.startsWith('http')) {
+              uploadedImageUrl = updatedBlock.content;
+            }
           }
 
-          // Check updated story if no direct URL
-          const finalStory = await projectService.getProjectStoryByProjectId(currentProjectId);
-          const finalBlocks = finalStory.blocks || (finalStory.data && finalStory.data.blocks) || [];
-
-          const updatedBlock = finalBlocks.find(b => b.storyBlockId === placeholderBlock.storyBlockId);
-          if (updatedBlock && updatedBlock.content && typeof updatedBlock.content === 'string' &&
-            updatedBlock.content.startsWith('http')) {
-            return updatedBlock.content;
+          if (!uploadedImageUrl) {
+            throw new Error('Could not get image URL after upload');
           }
 
-          throw new Error('Could not get image URL after upload');
+          // Get the story blocks again to clean up any potential duplicates
+          const storyToCleanup = await projectService.getProjectStoryByProjectId(currentProjectId);
+          const blocksToCleanup = storyToCleanup.blocks ||
+            (storyToCleanup.data && storyToCleanup.data.blocks) || [];
+
+          // Process TEXT blocks to remove any instances of this same image
+          const cleanedBlocks = blocksToCleanup.map(block => {
+            // If it's not a TEXT block, keep as is
+            if (block.type !== 'TEXT') {
+              return {
+                type: block.type,
+                content: block.content,
+                order: block.order,
+                metadata: {
+                  additionalProp1:
+                    (block.metadata && block.metadata.additionalProp1) ||
+                    (typeof block.metadata === 'object' ? block.metadata : {})
+                }
+              };
+            }
+
+            // For TEXT blocks, check if they contain the image
+            if (block.content && block.content.includes(uploadedImageUrl)) {
+              // Create a temporary element to handle the HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = block.content;
+
+              // Find all images with our uploaded URL
+              const duplicateImages = Array.from(tempDiv.querySelectorAll(`img[src="${uploadedImageUrl}"]`));
+
+              // Remove all instances of this image from the TEXT block
+              duplicateImages.forEach(img => {
+                // If the image is the only content in a paragraph, remove the whole paragraph
+                const paragraphParent = img.closest('p');
+                if (paragraphParent) {
+                  const paragraphClone = paragraphParent.cloneNode(true);
+                  paragraphClone.querySelector(`img[src="${uploadedImageUrl}"]`).remove();
+
+                  // If paragraph is now empty (or just whitespace), remove the whole paragraph
+                  if (paragraphClone.textContent.trim() === '') {
+                    paragraphParent.remove();
+                  } else {
+                    // Otherwise just remove the image
+                    img.remove();
+                  }
+                } else {
+                  // No paragraph parent, just remove the image
+                  img.remove();
+                }
+              });
+
+              // Return cleaned TEXT block
+              return {
+                type: block.type,
+                content: tempDiv.innerHTML,
+                order: block.order,
+                metadata: {
+                  additionalProp1:
+                    (block.metadata && block.metadata.additionalProp1) ||
+                    (typeof block.metadata === 'object' ? block.metadata : {})
+                }
+              };
+            }
+
+            // No image found, return the block as is
+            return {
+              type: block.type,
+              content: block.content,
+              order: block.order,
+              metadata: {
+                additionalProp1:
+                  (block.metadata && block.metadata.additionalProp1) ||
+                  (typeof block.metadata === 'object' ? block.metadata : {})
+              }
+            };
+          });
+
+          // Filter out any empty TEXT blocks after cleanup
+          const finalCleanBlocks = cleanedBlocks.filter(block => {
+            if (block.type !== 'TEXT') return true;
+
+            // Check if TEXT block is now empty
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = block.content;
+            return tempDiv.textContent.trim() !== '' || tempDiv.querySelectorAll('img').length > 0;
+          });
+
+          // Update the story with cleaned blocks
+          console.log('Cleaning up by removing duplicate images from TEXT blocks');
+          await projectService.updateProjectStory(targetStoryId, { blocks: finalCleanBlocks });
+
+          // Return the URL to be inserted by the editor
+          return uploadedImageUrl;
         } catch (error) {
           console.error('Error updating existing story with image:', error);
           return null;
@@ -1889,12 +2275,17 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       <div className="flex justify-between items-center bg-white p-3 border border-gray-200 rounded-md shadow-sm">
         <div className="flex items-center space-x-2">
           <StatusBadge />
+          {hasChanges && (
+            <span className="text-xs text-yellow-600">
+              You have unsaved changes
+            </span>
+          )}
         </div>
         <div className="flex space-x-2">
           <button
             onClick={handleSaveStory}
-            disabled={savingStatus === 'saving'}
-            className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            disabled={savingStatus === 'saving' || !hasChanges}
+            className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {storyId ? 'Save Changes' : 'Create Story'}
           </button>

@@ -1,28 +1,66 @@
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/router";
 
 const SingleProject = ({ project = {} }) => {
-  const [showVideo, setShowVideo] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-
   const {
     id,
     title,
     description,
     projectImage,
-    projectVideoDemo,
     totalTargetAmount,
     isClassPotential,
     location,
     team = {},
     category = {},
-    currentPhase = null, 
+    currentPhase = null,
   } = project;
 
   // Get team information
   const teamName = team?.teamName || "Unknown Team";
   const teamLeader = team?.teamMembers?.find((member) => member.teamRole === "LEADER");
-  const leaderAvatar = teamLeader?.memberAvatar || "https://via.placeholder.com/40";
+  const leaderAvatar = teamLeader?.memberAvatar || "";
+
+  // Generate avatar color and initials based on team name
+  const generateAvatar = useMemo(() => {
+    // Create a simple hash from the team name to generate a consistent color
+    const getColorFromName = (name) => {
+      const colors = [
+        "#4F46E5", // indigo
+        "#10B981", // emerald
+        "#EC4899", // pink
+        "#F59E0B", // amber
+        "#6366F1", // indigo
+        "#8B5CF6", // violet
+        "#06B6D4", // cyan
+        "#F97316", // orange
+        "#84CC16", // lime
+      ];
+
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    // Get initials from name (up to 2 characters)
+    const getInitials = (name) => {
+      if (!name || name === "Unknown Team") return "UT";
+
+      const words = name.split(" ");
+      if (words.length === 1) {
+        return name.substring(0, 2).toUpperCase();
+      }
+
+      return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+    };
+
+    const bgColor = getColorFromName(teamName);
+    const initials = getInitials(teamName);
+
+    return { bgColor, initials };
+  }, [teamName]);
 
   const calculateDaysLeft = () => {
     if (!currentPhase?.endDate) return 0;
@@ -54,34 +92,26 @@ const SingleProject = ({ project = {} }) => {
     window.dispatchEvent(new Event("storage"));
   };
 
+  // Limit description to 2 lines
+  const truncatedDescription =
+    description?.length > 100 ? `${description.substring(0, 100)}...` : description;
+
   return (
     <div
-      className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
-      onMouseEnter={() => setShowDetails(true)}
-      onMouseLeave={() => setShowDetails(false)}
+      className="bg-white rounded-lg overflow-hidden shadow-md hover:border-green-400 hover:border-2 cursor-pointer h-full flex flex-col"
+      onClick={handleClick}
+      style={{ transition: 'border 0.2s ease' }}
     >
-      {/* Project Image/Video Container */}
-      <div
-        className="relative cursor-pointer h-56 bg-gray-200 overflow-hidden"
-        onMouseEnter={() => setShowVideo(true)}
-        onMouseLeave={() => setShowVideo(false)}
-        onClick={handleClick}
-      >
-        {showVideo && projectVideoDemo ? (
-          <iframe
-            src={`${projectVideoDemo}?autoplay=1&mute=1`}
-            className="w-full h-full object-cover"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          ></iframe>
-        ) : (
-          <img
-            src={projectImage || "https://via.placeholder.com/600x400"}
-            alt={title}
-            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-          />
-        )}
+      {/* Project Image */}
+      <div className="relative h-56 bg-gray-200 overflow-hidden">
+        <img
+          src={projectImage || "https://via.placeholder.com/600x400"}
+          alt={title}
+          className="w-full h-full object-cover"
+        />
+
+        {/* Hover Overlay Effect */}
+        <div className="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity duration-300"></div>
 
         {/* Category badge */}
         <div className="absolute top-4 left-4 z-10">
@@ -103,18 +133,27 @@ const SingleProject = ({ project = {} }) => {
       </div>
 
       {/* Project Content */}
-      <div className="p-5">
+      <div className="p-5 flex-grow flex flex-col">
         {/* Team info and title */}
         <div className="flex items-center mb-3">
-          <img
-            src={leaderAvatar}
-            alt="Team Leader"
-            className="w-8 h-8 rounded-full mr-2 object-cover border-2 border-green-500"
-          />
+          {leaderAvatar ? (
+            <img
+              src={leaderAvatar}
+              alt="Team Leader"
+              className="w-8 h-8 rounded-full mr-2 object-cover border-2 border-green-500"
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full mr-2 flex items-center justify-center text-white text-xs font-bold border-2 border-green-500"
+              style={{ backgroundColor: generateAvatar.bgColor }}
+            >
+              {generateAvatar.initials}
+            </div>
+          )}
           <div>
             <h3
-              className="text-xl font-bold text-gray-800 cursor-pointer hover:text-green-600 transition-colors duration-300"
-              onClick={handleClick}
+              className="text-xl font-bold text-gray-800 hover:text-green-600"
+              style={{ transition: 'color 0.2s ease' }}
             >
               {title || "Untitled Project"}
             </h3>
@@ -137,20 +176,17 @@ const SingleProject = ({ project = {} }) => {
           </div>
         </div>
 
-        {/* Popup details on hover */}
-        {showDetails && (
-          <div className="mt-4 pt-4 border-t border-gray-100 transition-all duration-300">
-            <p className="text-sm text-gray-600 mb-3">{description}</p>
-            <div className="flex flex-wrap gap-2">
-              <span className="bg-gray-100 text-gray-800 py-1 px-3 text-xs font-medium rounded-full">
-                {category?.name || "Uncategorized"}
-              </span>
-              <span className="bg-gray-100 text-gray-800 py-1 px-3 text-xs font-medium rounded-full">
-                {location?.replace(/_/g, " ") || "Unknown Location"}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Description - Fixed height and line clamp */}
+        <div className="mb-3 h-12 overflow-hidden">
+          <p className="text-sm text-gray-600 line-clamp-2">{truncatedDescription}</p>
+        </div>
+
+        {/* Location */}
+        <div className="flex flex-wrap gap-2 mt-auto">
+          <span className="bg-gray-100 text-gray-800 py-1 px-3 text-xs font-medium rounded-full">
+            {location?.replace(/_/g, " ") || "Unknown Location"}
+          </span>
+        </div>
       </div>
     </div>
   );

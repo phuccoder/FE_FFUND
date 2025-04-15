@@ -15,6 +15,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       });
     }
   }, [formData.paymentInfo]);
+
   const calculateSectionCompletion = (section) => {
     // Ensure formData exists
     const data = formData || {};
@@ -34,10 +35,12 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
         // Count completed fields - initialize to 0
         let completed = 0;
-        const total = 10;
+        // MODIFIED: Only count required fields in total
+        const total = 6; // Reduced from 10, only counting required fields
 
         // Check each field with improved value detection
         const checks = {
+          // Required fields
           title: !!basicInfo.title,
           category: !!(categoryValue && (
             (Array.isArray(categoryValue) && categoryValue.length > 0) ||
@@ -49,24 +52,26 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           )),
           shortDescription: !!basicInfo.shortDescription,
           location: !!locationValue,
+          isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false,
+
+          // Optional fields - don't count these in percentage
           projectUrl: !!basicInfo.projectUrl,
           mainSocialMediaUrl: !!basicInfo.mainSocialMediaUrl,
           projectVideoDemo: !!basicInfo.projectVideoDemo,
-          // FIXED: Only count as complete if explicitly set by the user to true
-          isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false,
           projectImage: !!basicInfo.projectImage
         };
 
-        // Count completed fields
-        Object.values(checks).forEach(value => {
-          if (value) completed++;
+        // Count only required fields for completion percentage
+        const requiredFields = ['title', 'category', 'subCategory', 'shortDescription', 'location', 'isClassPotential'];
+        requiredFields.forEach(field => {
+          if (checks[field]) completed++;
         });
-        const allFieldsComplete = Object.values(checks).every(Boolean);
-        const percentage = allFieldsComplete ? 100 : Math.round((completed / total) * 100);
+
+        // Check if all required fields are complete
+        const allRequiredFieldsComplete = requiredFields.every(field => checks[field]);
+        const percentage = allRequiredFieldsComplete ? 100 : Math.round((completed / total) * 100);
         return percentage;
       }
-
-      // Modified section to handle simplified funding phases structure
 
       // In the calculateSectionCompletion function, modify the fundraising case:
       case 'fundraising': {
@@ -97,6 +102,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         const phases = fundraisingInfo.phases || [];
         const rewards = data.rewardInfo || [];
 
+        // If there are no phases or rewards, return 0
         if (!rewards.length || !phases.length) {
           return 0;
         }
@@ -116,76 +122,29 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         );
 
         // Calculate phase coverage (what percentage of phases have at least one reward)
-        const phaseCoverage = phaseIds.filter(id => phasesWithRewards.has(id)).length / phaseIds.length;
+        const phasesCovered = phaseIds.filter(id => phasesWithRewards.has(id)).length;
+        const phaseCoverage = phaseIds.length > 0 ? phasesCovered / phaseIds.length : 0;
 
-        // Check for complete reward fields
-        let completedRewardFields = 0;
-        let totalRewardFields = 0;
+        // Calculate reward completeness percentage based on phase coverage
+        // If all phases have at least one reward, that's 80% complete
+        // The remaining 20% is for reward quality (items, images, etc.)
+        let rewardPercentage = Math.round(phaseCoverage * 80);
 
-        // Count valid rewards
-        let validRewardsCount = 0;
+        // Check if rewards have full details (title, description, amount)
+        const completeRewards = rewards.filter(reward =>
+          reward && reward.title && reward.description && reward.amount && reward.phaseId
+        ).length;
 
-        // Process each reward
-        rewards.forEach(reward => {
-          if (!reward) return;
+        // Bonus for having complete rewards with items
+        const rewardsWithItems = rewards.filter(reward =>
+          reward && reward.items && Array.isArray(reward.items) && reward.items.length > 0
+        ).length;
 
-          // Track if this is a valid reward with all required fields
-          let isValidReward = true;
+        // Add up to 20% bonus for complete rewards with items
+        const qualityBonus = Math.min(20, Math.round((rewardsWithItems / Math.max(1, rewards.length)) * 20));
 
-          // Required fields validation
-          const requiredFields = ['title', 'description', 'amount', 'estimatedDelivery', 'phaseId'];
-          requiredFields.forEach(field => {
-            totalRewardFields++;
-            if (reward[field]) {
-              completedRewardFields++;
-            } else {
-              isValidReward = false;
-            }
-          });
-
-          // Check for items with names and images
-          if (Array.isArray(reward.items)) {
-            // Empty items array is valid (not all rewards need items)
-            if (reward.items.length > 0) {
-              reward.items.forEach(item => {
-                // Item name is required if items exist
-                totalRewardFields++;
-                if (item && item.name) {
-                  completedRewardFields++;
-                } else {
-                  isValidReward = false;
-                }
-
-                // Image is not required but gives bonus points
-                if (item && item.image) {
-                  completedRewardFields++;
-                  totalRewardFields++;
-                }
-              });
-            }
-          }
-
-          // Count this as a valid reward if all required fields are present
-          if (isValidReward) {
-            validRewardsCount++;
-          }
-        });
-
-        // Calculate field completion percentage
-        const fieldCompletionPercentage = totalRewardFields > 0
-          ? (completedRewardFields / totalRewardFields) * 100
-          : 0;
-
-        // Calculate reward completeness based on both phase coverage and field completion
-        // Give more weight to having rewards for all phases (70%) and less to field completion (30%)
-        const rewardPercentage = Math.round((phaseCoverage * 70) + (fieldCompletionPercentage * 0.3));
-
-        // If at least one valid reward exists and all phases have rewards, ensure minimum 50% completion
-        if (validRewardsCount > 0 && phaseCoverage === 1) {
-          return Math.max(rewardPercentage, 50);
-        }
-
-        return rewardPercentage;
+        // Final percentage 
+        return Math.min(100, rewardPercentage + qualityBonus);
       }
 
       case 'story': {
@@ -243,20 +202,17 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             const storyText = storyDiv.textContent || '';
             const risksText = risksDiv.textContent || '';
 
-            const storyCharCount = storyText.length;
-            const risksCharCount = risksText.length;
-
-            console.log('Story analysis - story chars:', storyCharCount, 'risks chars:', risksCharCount);
+            console.log('Story analysis - story chars:', storyText.length, 'risks chars:', risksText.length);
 
             // Check if main story is missing
-            if (storyCharCount < 200) {
-              return Math.min(30, Math.round(storyCharCount / 50));
+            if (storyText.length < 200) {
+              return Math.min(30, Math.round(storyText.length / 50));
             }
 
             // Check if risks section is missing
-            if (risksCharCount < 100) {
+            if (risksText.length < 100) {
               // Penalize missing risks section - cap at 60%
-              return Math.min(60, Math.round((storyCharCount / MAX_STORY_CHARS) * 80));
+              return Math.min(60, Math.round((storyText.length / MAX_STORY_CHARS) * 80));
             }
 
             // Count different elements in story
@@ -273,17 +229,17 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             let score = 0;
 
             // Story content scoring (max: 70 points)
-            if (storyCharCount > 3000) score += 35;
-            else if (storyCharCount > 1500) score += 25;
-            else if (storyCharCount > 800) score += 15;
-            else if (storyCharCount > 300) score += 8;
+            if (storyText.length > 3000) score += 35;
+            else if (storyText.length > 1500) score += 25;
+            else if (storyText.length > 800) score += 15;
+            else if (storyText.length > 300) score += 8;
             else score += 4;
 
             // Risks section scoring (max: 30 points)
-            if (risksCharCount > 1000) score += 30;
-            else if (risksCharCount > 500) score += 25;
-            else if (risksCharCount > 200) score += 15;
-            else if (risksCharCount > 100) score += 10;
+            if (risksText.length > 1000) score += 30;
+            else if (risksText.length > 500) score += 25;
+            else if (risksText.length > 200) score += 15;
+            else if (risksText.length > 100) score += 10;
             else score += 5;
 
             // Content variety scoring (bonus points up to 30)
@@ -315,28 +271,28 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       case 'founder': {
         // Extract founder profile data from all possible structures
         const founderProfile = data.founderProfile || data;
-        
+
         // Check for founder data in different locations and formats
         const userInfo = founderProfile.userInfo || founderProfile.user || founderProfile;
-        
+
         // Check for user information in all possible field names
         const fullName = userInfo.fullName || userInfo.name || '';
         const email = userInfo.email || '';
         const phone = userInfo.phone || userInfo.phoneNumber || '';
-        
+
         // Get team information
         const team = founderProfile.team || [];
-        
+
         // Check for student info in all possible locations
         const studentInfo = founderProfile.studentInfo || userInfo.studentInfo || {};
-        
+
         // Track if student has any valid info fields
         const hasStudentInfo = studentInfo && Object.values(studentInfo).some(val => !!val);
-      
+
         // Calculate completion score with adjusted required fields
         let completed = 0;
         const total = 4; // Required fields (reduced from 5, removing bio requirement)
-      
+
         // Check each field and log for debugging
         console.log("Founder Profile Validation:", {
           fullName: !!fullName,
@@ -345,24 +301,24 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
           hasStudentInfo: hasStudentInfo,
           teamMembers: team.length
         });
-      
+
         if (fullName) completed++;
         if (email) completed++;
-        if (phone) completed++; 
-      
+        if (phone) completed++;
+
         if (hasStudentInfo) {
           completed++;
         }
-      
+
         let teamBonus = 0;
         if (team && Array.isArray(team) && team.length > 0) {
-          teamBonus = 0.5; 
+          teamBonus = 0.5;
         }
-      
+
         // Calculate percentage with bonus
         const basePercentage = Math.round(((completed) / total) * 100);
         const bonusPercentage = Math.min(100, basePercentage + (teamBonus * 20)); // Add up to 20% for team
-        
+
         return bonusPercentage;
       }
 
@@ -379,15 +335,6 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         if (mandatory.businessPlan) completed++;
         if (mandatory.marketResearch) completed++;
         if (mandatory.financialInformation) completed++;
-
-        // Bonus points for optional documents
-        const optionalTotal = 3;
-        const optionalValues = typeof optional === 'object' ? Object.values(optional) : [];
-        const optionalCompleted = optionalValues.filter(doc => doc).length;
-
-        // Weigh optional documents less than mandatory ones
-        completed += (optionalCompleted / optionalTotal) * 0.5;
-        total += 0.5;
 
         return Math.round((completed / total) * 100);
       }
@@ -433,7 +380,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
     const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.location_id;
     const subCategoryValue = basicInfo.subCategoryIds || basicInfo.subCategory || basicInfo.sub_category_ids;
 
-    // Explicitly check each field
+    // Explicitly check only required fields
     const checks = {
       title: !!basicInfo.title,
       category: !!(categoryValue && (
@@ -446,13 +393,10 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       )),
       shortDescription: !!basicInfo.shortDescription,
       location: !!locationValue,
-      projectUrl: !!basicInfo.projectUrl,
-      mainSocialMediaUrl: !!basicInfo.mainSocialMediaUrl,
-      projectVideoDemo: !!basicInfo.projectVideoDemo,
-
       isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false
     };
 
+    // Only check required fields for completion
     return Object.values(checks).every(Boolean);
   };
 
@@ -1077,12 +1021,10 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       <div className="mt-6 pt-4 border-t border-gray-200">
         <h4 className="text-sm font-medium text-gray-700">Submission Requirements</h4>
         <ul className="mt-2 space-y-1 text-xs text-gray-500 list-disc pl-5">
-          <li>All sections must be 100% complete before submission</li>
-          <li>Each phase must have at least one associated reward</li>
+          <li>Each phase should have at least one associated reward</li>
           <li>Each reward should include descriptive items with images</li>
-          <li>Project story must include multiple content blocks and be under {MAX_STORY_CHARS.toLocaleString()} characters</li>
-          <li>All mandatory documents must be uploaded</li>
-          <li>Stripe account must be connected and verified to receive payments</li>
+          <li>Project story must be under {MAX_STORY_CHARS.toLocaleString()} characters</li>
+          <li>Stripe account must be connected to receive payments</li>
         </ul>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Col, Container, Row } from "react-bootstrap";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { likeCommentProjectService } from "../../../services/likeCommentProjectService";
 import { toast } from "react-toastify";
+import { tokenManager } from "@/utils/tokenManager";
 
 const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   const [likeCount, setLikeCount] = useState(0);
@@ -54,22 +55,37 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
   };
 
   const handleLikeToggle = async () => {
-    if (!isAuthenticated) {
+    if (tokenManager.getValidToken() === null) {
       toast.warning("You must log in to like this project.");
+      return;
+    }
+
+    if (!project?.id) {
+      console.error("Project ID is missing. Cannot like/unlike the project.");
       return;
     }
 
     try {
       if (isLiked) {
-        await likeCommentProjectService.unlikeProject(project.id);
-        setLikeCount((prev) => Math.max(0, prev - 1));
+        const response = await likeCommentProjectService.unlikeProject(project.id);
+        if (response.status === 200) {
+          setLikeCount((prev) => Math.max(0, prev - 1));
+          setIsLiked(false);
+        } else {
+          console.error("Failed to unlike the project:", response);
+        }
       } else {
-        await likeCommentProjectService.likeProject(project.id);
-        setLikeCount((prev) => prev + 1);
+        const response = await likeCommentProjectService.likeProject(project.id);
+        if (response.status === 200) {
+          setLikeCount((prev) => prev + 1);
+          setIsLiked(true);
+        } else {
+          console.error("Failed to like the project:", response);
+        }
       }
-      setIsLiked(!isLiked);
     } catch (error) {
       console.error("Error liking/unliking project:", error);
+      toast.error("An error occurred while processing your request.");
     }
   };
 
