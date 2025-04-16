@@ -1,0 +1,18 @@
+{
+  "name": "autotest_ffund",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "autotest_ffund": "file:",
+    "dotenv": "^16.5.0",
+    "googleapis": "^148.0.0",
+    "selenium-webdriver": "^4.31.0"
+  }
+}
