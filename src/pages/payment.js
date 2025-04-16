@@ -52,7 +52,8 @@ export default function Payment() {
                 setProject(projectData);
             } catch (err) {
                 console.error("Failed to fetch project:", err);
-                setError("Failed to load project data. Please try again.");
+                const message = err?.response?.data?.message || "Failed to load project data. Please try again.";
+                setError(message);
             } finally {
                 setLoading(false);
             }

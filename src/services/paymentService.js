@@ -92,8 +92,15 @@ const paymentInformationService = {
                 },
                 body: JSON.stringify(paymentInfo),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "An error occurred while processing the payment.");
+            }
+
             const data = await response.json();
             return data;
+            
             } catch (error) {
                 console.error('Error in createPaymentInfoForMilestone:', error);
                 throw error;
