@@ -1,0 +1,9 @@
+2025/04/15-22:27:39.020 222c Reusing MANIFEST d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\IndexedDB\https_mail.google.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/04/15-22:27:39.020 222c Recovering log #11
+2025/04/15-22:27:39.024 222c Reusing old log d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\IndexedDB\https_mail.google.com_0.indexeddb.leveldb/000011.log 
+2025/04/15-22:27:42.900 24a0 Compacting 1@1 + 1@2 files
+2025/04/15-22:27:42.915 24a0 Generated table #14@1: 204 keys, 782700 bytes
+2025/04/15-22:27:42.915 24a0 Compacted 1@1 + 1@2 files => 782700 bytes
+2025/04/15-22:27:42.918 24a0 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/04/15-22:27:42.918 24a0 Delete type=2 #10
+2025/04/15-22:27:42.919 24a0 Delete type=2 #12
