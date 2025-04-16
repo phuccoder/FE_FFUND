@@ -1,3 +1,2 @@
-2025/04/15-22:26:37.865 858 Reusing MANIFEST d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Local Storage\leveldb/MANIFEST-000001
-2025/04/15-22:26:37.879 858 Recovering log #3
-2025/04/15-22:26:37.885 858 Reusing old log d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Local Storage\leveldb/000003.log 
+2025/04/16-19:39:10.494 b258 Creating DB d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Local Storage\leveldb since it was missing.
+2025/04/16-19:39:10.549 b258 Reusing MANIFEST d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Local Storage\leveldb/MANIFEST-000001

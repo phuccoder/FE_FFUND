@@ -1,7 +1,7 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 // API endpoints
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'http://localhost:8080/api/v1';
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const PROJECT_CREATE_ENDPOINT = `${API_BASE_URL}/project`;
