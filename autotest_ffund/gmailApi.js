@@ -66,13 +66,12 @@ function listMessages(auth) {
             console.log('Messages:');
             messages.forEach((message) => {
                 console.log(`- ${message.id}`);
-                getMessage(auth, message.id); // Lấy nội dung email
+                getMessage(auth, message.id);
             });
         }
     );
 }
 
-// Lấy nội dung chi tiết của email
 function getMessage(auth, messageId) {
     const gmail = google.gmail({ version: 'v1', auth });
     gmail.users.messages.get(
@@ -91,20 +90,17 @@ function getMessage(auth, messageId) {
 async function getVerificationLink() {
     const TOKEN_PATH = 'token.json';
 
-    // Tạo OAuth2 client
     const oAuth2Client = new google.auth.OAuth2(
         process.env.CLIENT_ID,
         process.env.CLIENT_SECRET,
         'http://localhost'
     );
 
-    // Đọc token từ tệp
     const token = JSON.parse(fs.readFileSync(TOKEN_PATH));
     oAuth2Client.setCredentials(token);
 
     const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
 
-    // Tìm email có tiêu đề chứa "Verify Email"
     const res = await gmail.users.messages.list({
         userId: 'me',
         q: 'subject:Verify Email',
@@ -123,11 +119,9 @@ async function getVerificationLink() {
 
     let emailBody = '';
 
-    // Kiểm tra nếu body nằm trong payload.body.data
     if (message.data.payload.body && message.data.payload.body.data) {
         emailBody = Buffer.from(message.data.payload.body.data, 'base64').toString('utf-8');
     } else if (message.data.payload.parts) {
-        // Nếu body nằm trong payload.parts
         for (const part of message.data.payload.parts) {
             if (part.body && part.body.data) {
                 emailBody = Buffer.from(part.body.data, 'base64').toString('utf-8');
@@ -141,7 +135,6 @@ async function getVerificationLink() {
         return null;
     }
 
-    // Tìm liên kết xác nhận trong nội dung email
     const verificationLink = emailBody.match(/https?:\/\/[^\s]+/);
     if (verificationLink) {
         return verificationLink[0];
@@ -151,5 +144,4 @@ async function getVerificationLink() {
     }
 }
 module.exports = { authorize, getVerificationLink };
-// Chạy chương trình
 authorize(listMessages);
