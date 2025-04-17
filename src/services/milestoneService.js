@@ -26,17 +26,40 @@ export const milestoneService = {
                 },
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return empty array for non-JSON success responses
+                return [];
             }
             
-            return await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
             
         } catch (error) {
             console.error('Failed to get milestones by phase id:', error);
             throw error;
         }
-    },  
+    },
+    
     /**
      * Get a milestone by id
      * @param {number} milestoneId
@@ -55,17 +78,40 @@ export const milestoneService = {
                 },
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return null for non-JSON success responses
+                return null;
             }
-
-            return await response.json();
-
+            
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
+            
         } catch (error) {
             console.error('Failed to get milestone by id:', error);
             throw error;
         }
     },
+    
     /**
      * Create a milestone for a phase
      * @param {number} phaseId
@@ -84,18 +130,41 @@ export const milestoneService = {
                 },
                 body: JSON.stringify(milestoneData)
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return success object for non-JSON success responses
+                return { success: true, message: "Milestone created successfully" };
             }
-
-            return await response.json();
-
+            
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
+            
         } catch (error) {
             console.error('Failed to create milestone for phase:', error);
             throw error;
         }
     },
+    
     /**
      * Update a milestone
      * @param {number} milestoneId
@@ -114,18 +183,41 @@ export const milestoneService = {
                 },
                 body: JSON.stringify(milestoneData)
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return success object for non-JSON success responses
+                return { success: true, message: "Milestone updated successfully" };
             }
-
-            return await response.json();
-
+            
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
+            
         } catch (error) {
             console.error('Failed to update milestone:', error);
             throw error;
         }
     },
+    
     /**
      * Delete a milestone
      * @param {number} milestoneId
@@ -142,13 +234,35 @@ export const milestoneService = {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return success object for non-JSON success responses
+                return { success: true, message: "Milestone deleted successfully" };
             }
-
-            return response;
-
+            
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
+            
         } catch (error) {
             console.error('Failed to delete milestone:', error);
             throw error;

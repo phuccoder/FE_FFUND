@@ -92,21 +92,22 @@ export const RegisterForm = () => {
         // Handle error response with better error extraction
         try {
           const errorData = await response.json();
+          // Make sure errorData.message or errorData.error is a string
           const errorMessage = errorData.message ||
             errorData.error ||
             'Registration failed. Please try again.';
 
-          // Display the error message
-          toast.error(errorMessage, {
+          // If errorData.message or errorData.error might be objects, convert them to strings
+          const errorMessageString = typeof errorMessage === 'object'
+            ? JSON.stringify(errorMessage)
+            : errorMessage;
+
+          toast.error(errorMessageString, {
             position: "top-right",
             autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
           });
 
-          setError(errorMessage);
+          setError(errorMessageString);
         } catch (jsonError) {
           toast.error(`Registration failed: ${response.statusText}`, {
             position: "top-right",

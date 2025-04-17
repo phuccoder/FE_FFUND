@@ -110,7 +110,31 @@ const InviteTeamMembersPage = () => {
             await refreshTeam();
         } catch (err) {
             console.error('Invitation error:', err);
-            toast.error(`Failed to send invitation: ${err.message || "Unknown error"}`);
+
+            // Extract the actual error message from various possible error formats
+            let errorMessage = "Unknown error";
+
+            if (err.message) {
+                // Try to parse the error message if it contains JSON
+                if (err.message.includes('{') && err.message.includes('}')) {
+                    try {
+                        // Extract the JSON part from the error message
+                        const jsonStr = err.message.substring(err.message.indexOf('{'), err.message.lastIndexOf('}') + 1);
+                        const errorObj = JSON.parse(jsonStr);
+
+                        // Display only the actual error message, not the status code
+                        errorMessage = errorObj.error || errorObj.message || "Request failed";
+                    } catch (parseError) {
+                        // If JSON parsing fails, use the original message
+                        errorMessage = err.message;
+                    }
+                } else {
+                    errorMessage = err.message;
+                }
+            }
+
+            // Display a clean error message to the user
+            toast.error(`Failed to send invitation: ${errorMessage}`);
         } finally {
             setInviting(false);
         }

@@ -90,7 +90,7 @@ function ProfilePage() {
                                     <Tab.Pane eventKey="request-report">
                                         <RequestManager />
                                     </Tab.Pane>
-                                    {userRole === 'FOUNDER' && (
+                                    {userRole === 'INVESTOR' && (
                                         <Tab.Pane eventKey="address">
                                             <UserAddressManager />
                                         </Tab.Pane>
