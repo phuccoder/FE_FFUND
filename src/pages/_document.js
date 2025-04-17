@@ -4,16 +4,12 @@ class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const originalRenderPage = ctx.renderPage;
 
-    // Run the React rendering logic synchronously
     ctx.renderPage = () =>
       originalRenderPage({
-        // Useful for wrapping the whole react tree
         enhanceApp: (App) => App,
-        // Useful for wrapping in a per-page basis
         enhanceComponent: (Component) => Component,
       });
 
-    // Run the parent `getInitialProps`, it now includes the custom `renderPage`
     const initialProps = await Document.getInitialProps(ctx);
 
     return initialProps;
@@ -23,8 +19,9 @@ class MyDocument extends Document {
     return (
       <Html lang="en">
         <Head>
-          <link rel="icon" href="favicon.ico" />
-          <link rel="shortcut icon" href="favicon.ico" type="image/png" />
+          {/* Sử dụng ảnh logo.jpg làm favicon */}
+          <link rel="icon" href="/assets/images/logo.jpg" type="image/jpeg" />
+          <link rel="shortcut icon" href="/assets/images/logo.jpg" type="image/jpeg" />
 
           <meta httpEquiv="x-ua-compatible" content="ie=edge" />
           <meta name="description" content="" />
