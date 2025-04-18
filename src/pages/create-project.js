@@ -121,6 +121,19 @@ function CreateProject() {
     };
   }, []);
 
+  useEffect(() => {
+    // Check if we should redirect to payment section
+    const shouldRedirectToPayment = localStorage.getItem('redirectToPaymentSection');
+    if (shouldRedirectToPayment === 'true') {
+      const paymentSectionIndex = sections.findIndex(section => section.id === 'payment');
+      if (paymentSectionIndex !== -1) {
+        setCurrentSection(paymentSectionIndex);
+        // Clear the flag after navigation
+        localStorage.removeItem('redirectToPaymentSection');
+      }
+    }
+  }, []);
+
   // Define loadProjectData outside useEffect
   const loadProjectData = async () => {
     console.log("Loading project data...");
@@ -563,7 +576,7 @@ function CreateProject() {
           !categoryValue ||
           !subCategoryValue ||
           !basicInfo.shortDescription ||
-          !locationValue  
+          !locationValue
         ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;

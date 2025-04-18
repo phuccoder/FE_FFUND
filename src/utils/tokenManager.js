@@ -1,3 +1,4 @@
+import { jwtDecode } from 'jwt-decode';
 import { authenticate } from '../services/authenticate';
 
 class TokenManager {

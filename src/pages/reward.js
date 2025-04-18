@@ -457,8 +457,6 @@ function RewardPage() {
                     setSelectedAddress(null);
                 }
             }
-
-            toast.success("Address deleted successfully");
             await handleRefreshAddresses();
             return true;
         } catch (err) {

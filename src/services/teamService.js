@@ -110,7 +110,7 @@ export const createTeam = async (teamName, teamDescription, memberEmails = []) =
       console.log("Team created successfully:", data);
       return data;
     } else {
-      throw new Error(data.message || `Failed to create team (${response.status})`);
+      throw new Error(data.error || `Failed to create team (${response.error})`);
     }
   } catch (error) {
     console.error("Error in createTeam:", error);

@@ -24,7 +24,8 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const isLastPhaseCompleted = form.phases?.length > 0 && form.phases[form.phases.length - 1].status === 'COMPLETED';
-
+  const [editingPhase, setEditingPhase] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   // Add debugging logs
   useEffect(() => {
     console.log("Current form state:", form);
@@ -449,6 +450,65 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
+  const updatePhase = async () => {
+    console.log("updatePhase function called", {
+      currentPhase,
+      editingPhase,
+      projectId
+    });
+
+    if (!currentPhase.fundingGoal || !currentPhase.startDate) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate minimum duration
+    if (parseInt(currentPhase.duration) < 14) {
+      setError('Phase duration must be at least 14 days');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      // Map to API expected format
+      const phaseData = {
+        targetAmount: parseFloat(currentPhase.fundingGoal),
+        startDate: currentPhase.startDate,
+        endDate: currentPhase.endDate
+      };
+
+      console.log("Sending updated phase data to API:", phaseData);
+
+      // Update the phase using the API
+      const result = await projectService.updateProjectPhase(editingPhase.id, phaseData);
+
+      setSuccess('Phase updated successfully!');
+      console.log("Phase update result:", result);
+
+      // Refetch to get the updated data from the server
+      await fetchProjectPhases();
+
+      // Reset the form and editing state
+      setCurrentPhase({
+        fundingGoal: '',
+        duration: 30,
+        startDate: '',
+        endDate: '',
+      });
+      setEditingPhase(null);
+      setIsEditing(false);
+      setShowPhaseForm(false);
+    } catch (err) {
+      console.error('Error updating phase:', err);
+      setError('Failed to update phase: ' + (err.message || 'Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Updated removePhase function
   const removePhase = async (phaseId) => {
     try {
@@ -504,6 +564,21 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     } finally {
       setLoading(false);
     }
+  };
+
+  const editPhase = (phase) => {
+    setEditingPhase(phase);
+    setCurrentPhase({
+      id: phase.id,
+      fundingGoal: phase.fundingGoal,
+      duration: phase.duration,
+      startDate: phase.startDate,
+      endDate: phase.endDate,
+      phaseNumber: phase.phaseNumber,
+      status: phase.status
+    });
+    setIsEditing(true);
+    setShowPhaseForm(true);
   };
 
   const calculateTotalFunding = () => {
@@ -645,14 +720,24 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                       </span>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removePhase(phase.id)}
-                    disabled={loading}
-                    className="text-red-600 hover:text-red-900 text-sm disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => editPhase(phase)}
+                      disabled={loading}
+                      className="text-blue-600 hover:text-blue-900 text-sm mr-3 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removePhase(phase.id)}
+                      disabled={loading}
+                      className="text-red-600 hover:text-red-900 text-sm disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
@@ -696,7 +781,9 @@ export default function FundraisingInformation({ formData, updateFormData, proje
           </div>
         ) : (
           <div className="mt-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h3 className="text-md font-medium text-gray-900 mb-4">Add New Funding Phase</h3>
+            <h3 className="text-md font-medium text-gray-900 mb-4">
+              {isEditing ? 'Edit Funding Phase' : 'Add New Funding Phase'}
+            </h3>
             <div className="space-y-4">
               <div>
                 <label htmlFor="phaseFundingGoal" className="block text-sm font-medium text-gray-700">
@@ -787,20 +874,42 @@ export default function FundraisingInformation({ formData, updateFormData, proje
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowPhaseForm(false)}
+                  onClick={() => {
+                    setShowPhaseForm(false);
+                    setIsEditing(false);
+                    setEditingPhase(null);
+                    setCurrentPhase({
+                      fundingGoal: '',
+                      duration: 30,
+                      startDate: '',
+                      endDate: '',
+                    });
+                  }}
                   disabled={loading}
                   className="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={addPhase}
-                  disabled={loading || !currentPhase.fundingGoal || !currentPhase.startDate}
-                  className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Adding...' : 'Add Phase'}
-                </button>
+
+                {isEditing ? (
+                  <button
+                    type="button"
+                    onClick={updatePhase}
+                    disabled={loading || !currentPhase.fundingGoal || !currentPhase.startDate}
+                    className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Updating...' : 'Update Phase'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={addPhase}
+                    disabled={loading || !currentPhase.fundingGoal || !currentPhase.startDate}
+                    className="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Adding...' : 'Add Phase'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
