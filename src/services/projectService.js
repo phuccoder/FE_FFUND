@@ -1,7 +1,7 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 // API endpoints
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const PROJECT_CREATE_ENDPOINT = `${API_BASE_URL}/project`;
@@ -11,7 +11,7 @@ const PROJECT_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project/get-by-id/${id}`
 const PROJECT_CREATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_UPDATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
-const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder`;
+const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/current`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/guest/project/${id}`;
