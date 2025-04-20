@@ -19,7 +19,6 @@ const About = () => {
       <FunFacts className="fun-facts-about-area" />
       <NextBigThing className="next-big-thing-about-area" />
       <TeamMainArea className="about-team-main-area" />
-      <TogetherArea className="together-3-area" />
       <TestimonialsArea />
       <BrandAreaTwo />
     </Layout>

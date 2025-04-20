@@ -12,11 +12,8 @@ export default function BasicProfileInfo() {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
-    username: '',
-    telephoneNumber: '',
-    identifyNumber: '',
-    userInformation: '',
-    userFfundLinkSuffix: ''
+    email: '',
+    telephoneNumber: ''
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -30,11 +27,8 @@ export default function BasicProfileInfo() {
         setUser(userData);
         setFormData({
           fullName: userData.fullName || '',
-          username: userData.email || '',
-          telephoneNumber: userData.telephoneNumber || '',
-          identifyNumber: userData.identifyNumber || '',
-          userInformation: userData.userInformation || '',
-          userFfundLinkSuffix: userData.userFfundLink ? userData.userFfundLink.replace('https://FFund/profile/', '') : ''
+          email: userData.email || '',
+          telephoneNumber: userData.telephoneNumber || ''
         });
         setLoading(false);
       } catch (error) {
@@ -73,11 +67,8 @@ export default function BasicProfileInfo() {
 
       const requestBody = {
         fullName: formData.fullName,
-        username: formData.username,
-        telephoneNumber: formData.telephoneNumber,
-        identifyNumber: formData.identifyNumber,
-        userInformation: formData.userInformation,
-        userFfundLink: `https://FFund/profile/${formData.userFfundLinkSuffix}`
+        email: formData.email,
+        telephoneNumber: formData.telephoneNumber
       };
 
       console.log('Request Body:', requestBody);
@@ -252,13 +243,13 @@ export default function BasicProfileInfo() {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Username</Form.Label>
+                  <Form.Label>Email</Form.Label>
                   <Form.Control
-                    type="text"
-                    name="username"
-                    value={formData.username}
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="Enter your username"
+                    placeholder="Enter your email"
                     required
                     style={{ borderColor: '#ddd', padding: '0.625rem' }}
                   />
@@ -277,54 +268,6 @@ export default function BasicProfileInfo() {
                   />
                 </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Identification Number</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="identifyNumber"
-                    value={formData.identifyNumber}
-                    onChange={handleInputChange}
-                    placeholder="Enter your identification number"
-                    required
-                    style={{ borderColor: '#ddd', padding: '0.625rem' }}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Additional Information</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={4}
-                    name="userInformation"
-                    value={formData.userInformation}
-                    onChange={handleInputChange}
-                    placeholder="Enter any additional information about yourself"
-                    style={{ borderColor: '#ddd', padding: '0.625rem', resize: 'vertical' }}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>F-Fund Link</Form.Label>
-                  <div className="input-group" style={{ alignItems: 'center' }}>
-                    <div className="input-group-prepend">
-                      <span
-                        className="input-group-text"
-                        id="basic-addon3"
-                        style={{ height: '100%', display: 'flex', alignItems: 'center' }}
-                      >
-                        https://FFund/profile/
-                      </span>
-                    </div>
-                    <Form.Control
-                      type="text"
-                      name="userFfundLinkSuffix"
-                      value={formData.userFfundLinkSuffix}
-                      onChange={handleInputChange}
-                      placeholder="Enter your profile suffix"
-                      style={{ borderColor: '#ddd', height: '100%' }}
-                    />
-                  </div>
-                </Form.Group>
                 <Button
                   type="submit"
                   disabled={saving}

@@ -57,9 +57,16 @@ export const LoginForm = () => {
 
       // Pass the data directly to handleAuthSuccess
       handleAuthSuccess(data);
+
     } catch (error) {
       console.error('Login error details:', error);
-      toast.error(error.message || 'Login failed. Please try again.');
+
+      // Extract error message from error object, which might contain nested error properties
+      const errorMessage = error.message ||
+        (error.error ? error.error : 'Login failed. Please try again.');
+
+      // Display the error message to the user
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

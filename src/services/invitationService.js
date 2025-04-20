@@ -14,11 +14,32 @@ export const invitationService = {
         }
       });
 
+      // Get response as text first for better error handling
+      const responseText = await response.text();
+      
+      // Try to parse the response as JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing response as JSON:', parseError);
+        if (!response.ok) {
+          throw new Error(responseText || `Error: ${response.status}`);
+        }
+        return [];
+      }
+      
+      // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorMessage = result.error || 
+          result.message || 
+          (typeof result === 'string' ? result : null) || 
+          `Error: ${response.status}`;
+        
+        throw new Error(errorMessage);
       }
 
-      return await response.json();
+      return result;
     } catch (error) {
       console.error('Error fetching invitations:', error);
       throw error;
@@ -36,11 +57,32 @@ export const invitationService = {
         }
       });
 
+      // Get response as text first for better error handling
+      const responseText = await response.text();
+      
+      // Try to parse the response as JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing response as JSON:', parseError);
+        if (!response.ok) {
+          throw new Error(responseText || `Error: ${response.status}`);
+        }
+        return null;
+      }
+      
+      // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorMessage = result.error || 
+          result.message || 
+          (typeof result === 'string' ? result : null) || 
+          `Error: ${response.status}`;
+        
+        throw new Error(errorMessage);
       }
 
-      return await response.json();
+      return result;
     } catch (error) {
       console.error(`Error fetching invitation with ID ${id}:`, error);
       throw error;
@@ -76,19 +118,33 @@ export const invitationService = {
         body: JSON.stringify(requestBody) // Stringify the status string directly
       });
 
+      // Get response as text first for better error handling
+      const responseText = await response.text();
+      
+      // Try to parse the response as JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing response as JSON:', parseError);
+        if (!response.ok) {
+          throw new Error(responseText || `Error: ${response.status}`);
+        }
+        // Return a success object if the response is ok but not valid JSON
+        return { success: true, message: "Invitation status updated successfully" };
+      }
+      
+      // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Update invitation status API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorResponse: errorText
-        });
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        const errorMessage = result.error || 
+          result.message || 
+          (typeof result === 'string' ? result : null) || 
+          `Error: ${response.status}`;
+        
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
       console.log(`Invitation ${id} update response:`, result);
-
       return result;
     } catch (error) {
       console.error(`Error updating invitation status for ID ${id}:`, error);
@@ -119,15 +175,33 @@ export const invitationService = {
         // Remove the body from GET request
       });
 
+      // Get response as text first for better error handling
+      const responseText = await response.text();
+      
+      // Try to parse the response as JSON
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing response as JSON:', parseError);
+        if (!response.ok) {
+          throw new Error(responseText || `Error: ${response.status}`);
+        }
+        return [];
+      }
+      
+      // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`Error searching founder by email: ${response.status}`);
+        const errorMessage = result.error || 
+          result.message || 
+          (typeof result === 'string' ? result : null) || 
+          `Error: ${response.status}`;
+        
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      console.log('Search results:', data); // For debugging
-      return data;
+      console.log('Search results:', result); // For debugging
+      return result;
     } catch (error) {
       console.error('Error in searchFounderByEmail:', error);
       throw error;

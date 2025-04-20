@@ -11,7 +11,8 @@ const PROJECT_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project/get-by-id/${id}`
 const PROJECT_CREATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_UPDATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
-const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder`;
+const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/all`;
+const PROJECT_CURRENT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/current`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/guest/project/${id}`;
@@ -47,28 +48,49 @@ const projectService = {
                     'accept': '*/*'
                 }
             });
-    
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-    
-            const result = await response.json();
 
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses (rare case)
+                return [];
+            }
+
+            // If response wasn't successful, extract error message from the result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            // Handle successful response
             if (!result || !result.data || !Array.isArray(result.data.data)) {
                 return [];
             }
-    
+
             return result.data.data || [];
         } catch (error) {
             console.error('Error fetching all projects:', error);
             throw error;
         }
     },
+
     searchProjects: async (page = 0, size = 10, searchParams) => {
         try {
             const query = searchParams.query;
             const sort = searchParams.sort || '+createdAt';
-    
+
             const response = await fetch(
                 `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
                 {
@@ -78,7 +100,7 @@ const projectService = {
                     },
                 }
             );
-            
+
             return await response.json();
         } catch (error) {
             console.error("Error fetching projects search:", error);
@@ -221,12 +243,30 @@ const projectService = {
                 body: JSON.stringify(payload)
             });
 
-            const result = await response.json();
-            console.log("API response for project creation:", result);
+            const responseText = await response.text();
 
-            // Check for HTTP error responses
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+                console.log("API response for project creation:", result);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses (rare case)
+                return responseText;
+            }
+
+            // If response wasn't successful, extract error message from the result
             if (!response.ok) {
-                throw new Error(result.message || `HTTP error! Status: ${response.status}`);
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
             }
 
             return result;
@@ -272,16 +312,33 @@ const projectService = {
                 body: JSON.stringify(phaseData)
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+                console.log("API response for project creation:", result);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return responseText;
             }
 
-            const result = await response.json();
-            console.log("Phase created successfully:", result);
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
 
-            return result.data || result;
+                throw new Error(errorMessage);
+            }
+
+            return result;
         } catch (error) {
-            console.error(`Error creating project phase for project ${projectId}:`, error);
+            console.error('Error creating project:', error);
             throw error;
         }
     },
@@ -298,32 +355,42 @@ const projectService = {
                 body: JSON.stringify(phaseData)
             });
 
-            const result = await response.json();
+            const responseText = await response.text();
 
-            // Check for HTTP error responses first
-            if (!response.ok) {
-                throw new Error(result.message || `HTTP error! Status: ${response.status}`);
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return { message: "Phase updated successfully", success: true };
             }
 
-            // Handle successful status codes (2xx) with different response formats
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             if (result) {
-                // If the API includes a message like "Phase updated successfully", consider it a success
                 if (result.message && result.message.includes("successfully")) {
                     return result;
                 }
 
-                // Also accept explicit success status in response body
                 if (result.status >= 200 && result.status < 300) {
                     return result;
                 }
-
-                // If we got here with a 2xx HTTP status but no explicit success indicators,
-                // assume it's still a success and return the result
                 return result;
             }
-
-            // This should rarely happen - 2xx HTTP status but no response body
-            return { message: "Phase updated successfully" };
+            return { message: "Phase updated successfully", success: true };
         } catch (error) {
             console.error('Error updating project phase:', error);
             throw error;
@@ -342,13 +409,29 @@ const projectService = {
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return { success: true, message: "Phase deleted successfully" };
             }
 
-            const result = await response.json();
-            console.log("Phase deleted successfully:", result);
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
 
+                throw new Error(errorMessage);
+            }
+
+            console.log("Phase deleted successfully:", result);
             return result.data || result;
         } catch (error) {
             console.error(`Error deleting phase ${phaseId}:`, error);
@@ -409,6 +492,48 @@ const projectService = {
         }
     },
 
+    getCurrentProjectByFounder: async () => {
+        try {
+            const token = await tokenManager.getValidToken();
+            if (!token) {
+                throw new Error("No authentication token available");
+            }
+
+            const response = await fetch(PROJECT_CURRENT_BY_FOUNDER_ENDPOINT, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch current projects: ${response.status} ${response.statusText}`);
+            }
+
+            const responseText = await response.text();
+            console.log("Raw API response:", responseText);
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log("Parsed current project data:", data);
+            } catch (error) {
+                console.error("Error parsing response as JSON:", error);
+                throw new Error("Invalid JSON response from server");
+            }
+
+            let projectData = data;
+            if (data.data) {
+                projectData = data.data;
+            }
+            console.log("Final project data to return:", projectData);
+            // Return the data directly - caller will handle both array and single object
+            return projectData;
+        } catch (error) {
+            console.error('Error fetching current projects by founder:', error);
+            throw error;
+        }
+    },
+
     updateProjectInfo: async (projectId, projectData) => {
         try {
             const token = await tokenManager.getValidToken();
@@ -420,10 +545,33 @@ const projectService = {
                 },
                 body: JSON.stringify(projectData)
             });
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || `HTTP error! Status: ${response.status}`);
+
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return the text for non-JSON success responses
+                return { success: true, message: "Project info updated successfully" };
             }
+
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result;
         } catch (error) {
             console.error('Error updating project info:', error);
@@ -474,11 +622,11 @@ const projectService = {
             throw error;
         }
     },
-    
+
     getMilestoneByPhaseId: async (phaseId) => {
-        try{
+        try {
             const token = await tokenManager.getValidToken();
-            if(!token){
+            if (!token) {
                 throw new Error("No authentication token avaiable")
             }
 
@@ -497,7 +645,7 @@ const projectService = {
 
             const responseData = await response.json();
             console.log("API response for milestones:", responseData);
-            
+
             // Ensure the data has the correct structure
             if (responseData && responseData.data && Array.isArray(responseData.data)) {
                 return responseData.data;
@@ -511,7 +659,7 @@ const projectService = {
             throw error;
         }
     },
-    
+
     getPhasesForGuest: async (projectId) => {
         try {
             // Send GET request without authorization token for guest access
@@ -580,11 +728,32 @@ const projectService = {
                 body: JSON.stringify(storyData)
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return responseText;
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
             console.error(`Error creating project story for project ${projectId}:`, error);
@@ -687,7 +856,6 @@ const projectService = {
         try {
             console.log(`Uploading image for story ${storyBlockId}`);
 
-
             if (!storyBlockId) {
                 throw new Error('No story ID provided for image upload');
             }
@@ -696,7 +864,7 @@ const projectService = {
             const formData = new FormData();
             formData.append('file', file);
 
-            const token = localStorage.getItem('accessToken');
+            const token = await tokenManager.getValidToken();
             const response = await fetch(PROJECT_UPLOAD_STORY_IMAGE_ENDPOINT(storyBlockId), {
                 method: 'POST',
                 headers: {
@@ -705,14 +873,38 @@ const projectService = {
                 body: formData
             });
 
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
             if (!response.ok) {
-                console.error(`Image upload failed with status: ${response.status}`);
-                const errorText = await response.text();
-                throw new Error(errorText || 'Failed to upload image');
+                // Try to parse the error response as JSON first
+                try {
+                    const errorResult = JSON.parse(responseText);
+                    const errorMessage = errorResult.error ||
+                        errorResult.message ||
+                        errorResult.detail ||
+                        `Image upload failed: ${response.status} ${response.statusText}`;
+
+                    throw new Error(errorMessage);
+                } catch (parseError) {
+                    // If parsing fails, use the raw text or a fallback message
+                    throw new Error(responseText || `Image upload failed: ${response.status} ${response.statusText}`);
+                }
             }
 
-            const result = await response.json();
-            console.log('Image upload successful:', result);
+            // Try to parse the success response
+            let result;
+            try {
+                result = JSON.parse(responseText);
+                console.log('Image upload successful:', result);
+            } catch (parseError) {
+                console.error('Error parsing success response:', parseError);
+                // If the response is a plain URL string, return it directly
+                if (responseText.startsWith('http')) {
+                    return responseText;
+                }
+                throw new Error('Invalid response format from server');
+            }
 
             // Try to find the URL in the response
             if (result && result.url) return result.url;
@@ -739,16 +931,40 @@ const projectService = {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return empty array for non-JSON success responses
+                return [];
             }
-            const result = await response.json();
+
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
             console.error(`Error fetching project documents for project ${projectId}:`, error);
             throw error;
         }
     },
+
     createProjectDocument: async (projectId, documentData) => {
         try {
             const token = await tokenManager.getValidToken();
@@ -761,17 +977,39 @@ const projectService = {
                 body: JSON.stringify(documentData)
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return { success: true, message: "Document created successfully" };
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
             console.error(`Error creating project document for project ${projectId}:`, error);
             throw error;
         }
     },
+
     uploadDocumentFile: async (documentId, file) => {
         try {
             const formData = new FormData();
@@ -786,11 +1024,32 @@ const projectService = {
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const responseText = await response.text();
+
+            // Try to parse the response text as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `HTTP error! Status: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return responseText;
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                // Extract error message from API response
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
             console.error(`Error uploading document file for document ${documentId}:`, error);
@@ -809,11 +1068,32 @@ const projectService = {
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return { success: true, message: "Project submitted successfully" };
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
             console.error(`Error submitting project ${projectId}:`, error);
@@ -846,13 +1126,33 @@ const projectService = {
                 body: formData
             });
 
-            if (!response.ok) {
-                console.error(`Image upload failed with status: ${response.status}`);
-                const errorText = await response.text();
-                throw new Error(errorText || 'Failed to upload project image');
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    // If we can't parse the response and it's an error, return the raw text
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // If it's a success but not JSON, it might be a direct URL or other data
+                return { success: true, message: "Image uploaded successfully" };
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             console.log('Project image upload successful:', result);
 
             // Handle different response formats
@@ -869,7 +1169,7 @@ const projectService = {
     },
 
     getMilestoneByPhaseIdForGuest: async (phaseId) => {
-        try{
+        try {
             const response = await fetch(PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT(phaseId), {
                 method: 'GET',
                 headers: {
@@ -883,7 +1183,7 @@ const projectService = {
             }
 
             const responseData = await response.json();
-            
+
             // Ensure the data has the correct structure
             if (responseData && responseData.data && Array.isArray(responseData.data)) {
                 return responseData.data;

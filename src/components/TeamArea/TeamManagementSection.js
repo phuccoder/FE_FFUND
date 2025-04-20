@@ -3,8 +3,7 @@ import { Container, Row, Col, Button, Alert, Modal } from "react-bootstrap";
 import Link from "next/link";
 import Title from "../Reuseable/Title";
 import TeamMainArea from "./TeamMainArea";
-import { getUserExtendedInfo } from "src/services/userService";
-import { getTeamMemberInfo, deleteTeam } from "src/services/teamService";
+import { deleteTeam } from "src/services/teamService";
 import { useRouter } from "next/router";
 import TeamEditComponent from "./TeamEditComponent";
 
@@ -20,7 +19,6 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
     canDeleteTeam: false
   });
   const [showEditModal, setShowEditModal] = useState(false);
-  const [missingExtendedProfile, setMissingExtendedProfile] = useState(false);
 
   // Added state for delete team functionality
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -28,72 +26,112 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
   const [deleteError, setDeleteError] = useState(null);
   const router = useRouter();
 
+  // Initialize with role from localStorage at component mount
+  useEffect(() => {
+    // Check localStorage for LEADER role immediately
+    const teamRole = localStorage.getItem('teamRole');
+    const isLeaderInStorage = teamRole === 'LEADER';
+
+    console.log('Initial check - Team role from localStorage:', teamRole);
+
+    if (isLeaderInStorage) {
+      console.log('User is LEADER according to localStorage - setting initial admin status');
+      setUserIsAdmin(true);
+      setUserPermissions(prev => ({
+        ...prev,
+        isAdmin: true,
+        canUpdateRoles: true,
+        canDeleteMembers: true,
+        canDeleteTeam: localStorage.getItem('role') === 'FOUNDER'
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     const checkUserPermissions = async () => {
       try {
         setLoading(true);
 
-        // Get current user basic info
-        const userExtendedInfo = await getUserExtendedInfo();
+        // Get user data from localStorage
+        const userDataStr = localStorage.getItem('user');
+        const role = localStorage.getItem('role');
+        const teamRole = localStorage.getItem('teamRole');
 
-        // Check if extended profile exists
-        if (!userExtendedInfo || (!userExtendedInfo.studentClass && !userExtendedInfo.studentCode)) {
-          setMissingExtendedProfile(true);
-          setError("Please complete your extended profile information to access all features.");
+        if (!userDataStr) {
           setLoading(false);
           return;
         }
 
-        // Extract role and id from user data
-        const userRole = userExtendedInfo?.user?.roles || null;
-        const userId = userExtendedInfo?.user?.id || null;
-        const userEmail = userExtendedInfo?.user?.email || null;
+        const userData = JSON.parse(userDataStr);
+        console.log('User data from localStorage:', userData);
+        console.log('Role from localStorage:', role);
+        console.log('Team role from localStorage:', teamRole);
 
-        console.log('User ID from extended info:', userId);
-        console.log('User email from extended info:', userEmail);
+        // First set user permissions based on localStorage if they're a LEADER
+        const isLeaderInStorage = teamRole === 'LEADER';
+        const isFounder = role === 'FOUNDER';
 
-        // Create a combined user object
-        const userData = {
-          ...userExtendedInfo,
-          id: userId,
-          email: userEmail,
-          role: userRole,
-          teamRole: null // Initialize with null, will set correctly below
-        };
+        if (isLeaderInStorage) {
+          console.log('User is LEADER according to localStorage');
 
-        // Store combined user data in state
-        setCurrentUser(userData);
+          const storageBasedPermissions = {
+            isAdmin: true,
+            canUpdateRoles: true,
+            canDeleteMembers: true,
+            canDeleteTeam: isFounder
+          };
 
-        if (team && team.teamMembers && team.teamMembers.length > 0) {
-          console.log('Team members data:', team.teamMembers);
+          setUserIsAdmin(true);
+          setUserPermissions(storageBasedPermissions);
 
-          // Check if user is in team by comparing userId, memberId or email
-          const userMember = team.teamMembers.find(member => {
-            const memberIdMatch = member.memberId && userId && member.memberId.toString() === userId.toString();
-            const userIdMatch = member.userId && userId && member.userId.toString() === userId.toString();
-            const emailMatch = member.memberEmail && userEmail && 
-              member.memberEmail.toLowerCase() === userEmail.toLowerCase();
-            
-            const isMatch = memberIdMatch || userIdMatch || emailMatch;
-            if (isMatch) {
-              console.log('Found matching member:', member);
-            }
-            return isMatch;
-          });
+          console.log('Permissions set from localStorage:', storageBasedPermissions);
+        }
 
-          if (userMember) {
-            console.log('Found user in team members with role:', userMember.teamRole);
-            // Set the teamRole in user data 
-            userData.teamRole = userMember.teamRole;
-            setCurrentUser({...userData});
-          } else {
-            console.log('User is not found in team members');
+        if (!team || !team.teamMembers || team.teamMembers.length === 0) {
+          console.log('No team or team members data available');
+
+          // If we have a teamRole but no team data, still set the user with their role
+          if (teamRole) {
+            setCurrentUser({
+              ...userData,
+              teamRole: teamRole
+            });
           }
 
-          // Determine permissions based on teamRole and userRole
-          const isLeader = userData.teamRole === 'LEADER';
-          const isFounder = userRole === 'FOUNDER';
+          setLoading(false);
+          return;
+        }
 
+        // Find the current user in the team members
+        const currentUserInfo = team.teamMembers.find(member =>
+          member.userId === userData.id ||
+          member.memberEmail.toLowerCase() === userData.email.toLowerCase()
+        );
+
+        console.log('Current user found in team members:', currentUserInfo);
+
+        // Determine if user is a leader from team data
+        const isLeaderInTeam = currentUserInfo?.teamRole === 'LEADER';
+
+        console.log('Is leader in team data:', isLeaderInTeam);
+        console.log('Is leader in localStorage:', isLeaderInStorage);
+
+        // Combine the two sources of truth - a user is a leader if either source says so
+        const isLeader = isLeaderInTeam || isLeaderInStorage;
+        console.log('Final combined leader status:', isLeader);
+
+        if (currentUserInfo) {
+          // Always trust team data for the teamRole if it exists, fallback to localStorage
+          const effectiveTeamRole = currentUserInfo.teamRole || teamRole;
+
+          // Set current user with team role information
+          setCurrentUser({
+            ...userData,
+            teamRole: effectiveTeamRole,
+            memberId: currentUserInfo.memberId
+          });
+
+          // Determine permissions based on combined role information
           const permissions = {
             isAdmin: isLeader,
             canUpdateRoles: isLeader,
@@ -101,25 +139,35 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
             canDeleteTeam: isLeader && isFounder
           };
 
-          console.log('Final permissions:', permissions);
-          console.log('User is leader:', isLeader);
-          console.log('User is founder:', isFounder);
+          console.log('User permissions determined from team data + localStorage:', permissions);
+          setUserIsAdmin(permissions.isAdmin);
+          setUserPermissions(permissions);
+        } else if (teamRole) {
+          // User not found in team members but has teamRole in localStorage
+          setCurrentUser({
+            ...userData,
+            teamRole: teamRole
+          });
 
-          // Set the states based on the determined permissions
+          // Set permissions based on localStorage teamRole
+          const isLeaderRole = teamRole === 'LEADER';
+
+          const permissions = {
+            isAdmin: isLeaderRole,
+            canUpdateRoles: isLeaderRole,
+            canDeleteMembers: isLeaderRole,
+            canDeleteTeam: isLeaderRole && isFounder
+          };
+
+          console.log('User permissions from localStorage only:', permissions);
           setUserIsAdmin(permissions.isAdmin);
           setUserPermissions(permissions);
         } else {
-          console.log('No team members found in team data');
+          console.log('Current user not found in team members list and no teamRole in localStorage');
         }
       } catch (err) {
         console.error("Failed to check user permissions:", err);
-        // Check if the error is due to missing extended profile
-        if (err.response && err.response.status === 404) {
-          setMissingExtendedProfile(true);
-          setError("Please complete your extended profile information to access all features.");
-        } else {
-          setError("Failed to load user permissions. Some features might be unavailable.");
-        }
+        setError("Failed to load user permissions. Some features might be unavailable.");
       } finally {
         setLoading(false);
       }
@@ -160,13 +208,14 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
     }
   };
 
-  // Handler to navigate to the extended profile page
-  const navigateToExtendedProfile = () => {
-    router.push("/profile?tab=extended");
-  };
+  // For debugging - log the user permissions whenever they change
+  useEffect(() => {
+    console.log('User is admin:', userIsAdmin);
+    console.log('Current user permissions:', userPermissions);
+  }, [userIsAdmin, userPermissions]);
 
   return (
-    <div className="team-management-section py-4">
+    <div className="team-management-section py-4" data-testid="team-management">
       {/* Header Section in its own container */}
       <Container className="mb-4">
         {/* Title and Button Row */}
@@ -180,83 +229,61 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
             )}
           </Col>
           <Col lg={5} className="text-lg-end">
-            {!missingExtendedProfile ? (
-              <div className="d-flex flex-column align-items-end">
-                {/* Edit Team button - only for team leaders */}
-                {userPermissions.isAdmin && (
+            <div className="d-flex flex-column align-items-end">
+              {/* Edit Team button - only for team leaders */}
+              {userIsAdmin && (
+                <Button
+                  variant="info"
+                  className="mb-2"
+                  onClick={handleEditClick}
+                  style={{
+                    backgroundColor: '#17a2b8',
+                    borderColor: '#17a2b8',
+                    color: 'white',
+                    width: '200px'
+                  }}
+                >
+                  <i className="fa fa-edit me-2"></i>
+                  Edit Team Info
+                </Button>
+              )}
+
+              {/* Only show Invite Members button if user is a LEADER */}
+              {userIsAdmin && (
+                <Link href="/team/invite" passHref>
                   <Button
-                    variant="info"
+                    variant="primary"
                     className="mb-2"
-                    onClick={handleEditClick}
                     style={{
-                      backgroundColor: '#17a2b8',
-                      borderColor: '#17a2b8',
-                      color: 'white',
+                      backgroundColor: '#FF8C00',
+                      borderColor: '#FF8C00',
                       width: '200px'
                     }}
                   >
-                    <i className="fa fa-edit me-2"></i>
-                    Edit Team Info
+                    <i className="fa fa-user-plus me-2"></i>
+                    Invite Members
                   </Button>
-                )}
+                </Link>
+              )}
 
-                {/* Only show Invite Members button if user is a LEADER */}
-                {userPermissions.isAdmin && (
-                  <Link href="/team/invite" passHref>
-                    <Button
-                      variant="primary"
-                      className="mb-2"
-                      style={{
-                        backgroundColor: '#FF8C00',
-                        borderColor: '#FF8C00',
-                        width: '200px'
-                      }}
-                    >
-                      <i className="fa fa-user-plus me-2"></i>
-                      Invite Members
-                    </Button>
-                  </Link>
-                )}
-
-                {/* Added Delete Team Button - only visible if user has permission */}
-                {userPermissions.canDeleteTeam && (
-                  <Button
-                    variant="danger"
-                    onClick={handleDeleteClick}
-                    style={{ width: '200px' }}
-                  >
-                    <i className="fa fa-trash me-2"></i>
-                    Delete Team
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <Button
-                variant="warning"
-                onClick={navigateToExtendedProfile}
-                style={{ width: '250px' }}
-              >
-                <i className="fa fa-exclamation-circle me-2"></i>
-                Complete Your Profile
-              </Button>
-            )}
+              {/* Added Delete Team Button - only visible if user has permission */}
+              {userPermissions.canDeleteTeam && (
+                <Button
+                  variant="danger"
+                  onClick={handleDeleteClick}
+                  style={{ width: '200px' }}
+                >
+                  <i className="fa fa-trash me-2"></i>
+                  Delete Team
+                </Button>
+              )}
+            </div>
           </Col>
         </Row>
 
         {error && (
           <Alert variant="warning" className="mb-4" dismissible onClose={() => setError(null)}>
             {error}
-            {missingExtendedProfile && (
-              <div className="mt-2">
-                <Button 
-                  variant="outline-warning" 
-                  onClick={navigateToExtendedProfile}
-                  size="sm"
-                >
-                  Go to Profile Setup
-                </Button>
-              </div>
-            )}
           </Alert>
         )}
       </Container>
@@ -269,27 +296,6 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-2">Checking permissions...</p>
-          </div>
-        ) : missingExtendedProfile ? (
-          <div className="text-center py-5">
-            <div className="mb-4">
-              <i className="fa fa-user-edit" style={{ fontSize: '3rem', color: '#FF8C00' }}></i>
-            </div>
-            <h3 className="mb-3">Extended Profile Information Required</h3>
-            <p className="mb-4">
-              To access team management features, you need to complete your extended profile information first.
-              This helps us better understand your role and position within the organization.
-            </p>
-            <Button
-              variant="primary"
-              onClick={navigateToExtendedProfile}
-              style={{
-                backgroundColor: '#FF8C00',
-                borderColor: '#FF8C00',
-              }}
-            >
-              Complete Your Profile Now
-            </Button>
           </div>
         ) : (
           <TeamMainArea
@@ -308,7 +314,7 @@ const TeamManagementSection = ({ team, onTeamUpdate = () => { } }) => {
         onHide={() => setShowEditModal(false)}
         team={team}
         onTeamUpdate={onTeamUpdate}
-        userPermissions={userPermissions} 
+        userPermissions={userPermissions}
       />
 
       {/* Added Delete Team Modal */}

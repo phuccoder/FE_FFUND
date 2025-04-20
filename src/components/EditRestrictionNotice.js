@@ -5,12 +5,16 @@ import React from 'react';
  * @param {Object} props Component props
  * @param {string} props.projectStatus Current project status
  * @param {string} props.section Current section being edited
+ * @param {boolean} props.isLastPhaseCompleted Whether the last phase is completed (for time extension exception)
  * @returns {JSX.Element} Notice component
  */
-export default function EditRestrictionNotice({ projectStatus, section }) {
-  // Check if current section has restrictions in current status
+export default function EditRestrictionNotice({ projectStatus, section, isLastPhaseCompleted = false }) {
   const hasRestrictions = () => {
     if (projectStatus === 'FUNDRAISING') {
+      if (section === 'fundraisingInfo' && isLastPhaseCompleted) {
+        return { partial: true, message: "You cannot edit existing fundraising phases, but you can request a time extension." };
+      }
+      
       if (section === 'fundraisingInfo' || section === 'rewardInfo') {
         return true;
       }
@@ -42,7 +46,11 @@ export default function EditRestrictionNotice({ projectStatus, section }) {
         <div className="ml-3">
           <h3 className="text-sm font-medium text-amber-800">Editing Restricted</h3>
           <div className="mt-1 text-sm text-amber-700">
-            {projectStatus === 'FUNDRAISING' && section === 'fundraisingInfo' && (
+            {projectStatus === 'FUNDRAISING' && section === 'fundraisingInfo' && restrictions.partial && (
+              <p>{restrictions.message}</p>
+            )}
+            
+            {projectStatus === 'FUNDRAISING' && section === 'fundraisingInfo' && !restrictions.partial && (
               <p>You cannot edit fundraising information while your project is in the fundraising stage.</p>
             )}
             

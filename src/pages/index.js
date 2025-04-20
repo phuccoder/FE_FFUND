@@ -21,17 +21,12 @@ const Home = () => {
     <Layout>
       <Header />
       <BannerSlider />
-      <CtaArea />
       <ProjectsArea />
       <WhyChoose />
       <FunFacts />
-      <TogetherArea />
       <BrandArea />
       <TestimonialsArea />
-      <TeamArea />
       <TeamMainArea />
-      <NewsArea />
-      <GuideArea />
     </Layout>
   );
 };
