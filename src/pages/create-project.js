@@ -488,7 +488,18 @@ function CreateProject() {
         editMode={isEditMode}
       />
     },
-    { id: 'fundraising', name: 'Fundraising Information', component: <FundraisingInformation formData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
+    { 
+      id: 'fundraising', 
+      name: 'Fundraising Information', 
+      component: <FundraisingInformation 
+        formData={{
+          ...formData.fundraisingInfo,
+          totalTargetAmount: formData.basicInfo?.totalTargetAmount
+        }} 
+        updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} 
+        projectId={formData.projectId || formData.basicInfo?.projectId} 
+      /> 
+    },
     { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
     // Update the ProjectStoryHandler section in the sections array
     {

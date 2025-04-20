@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import Link from '../Reuseable/Link'; 
+import Link from '../Reuseable/Link';
 import { getUserExtendedInfo } from '../../services/userService';
-import { getTeamById } from '../../services/teamService';
+import { getTeamById, getUserTeam } from '../../services/teamService';
 
 /**
  * Founder profile information component for project creation
@@ -25,34 +25,34 @@ function FounderProfile({ formData, updateFormData, projectId }) {
   useEffect(() => {
     // Prevent re-fetching if we've already processed data
     if (dataProcessed) return;
-    
+
     const fetchUserAndTeamData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Get user extended information
         const response = await getUserExtendedInfo();
         console.log('API Response:', response);
-        
+
         // The response could be in different formats, handle both possibilities
         const extendedUserData = response.data || response;
         console.log('Extended user data processed:', extendedUserData);
-        
+
         // Check if the response is directly what we expect
         if (extendedUserData && extendedUserData.user) {
           setUserInfo(extendedUserData);
           processUserAndTeamData(extendedUserData, extendedUserData.teamId);
-        } 
+        }
         // Check if the response is nested under data
         else if (extendedUserData && extendedUserData.data && extendedUserData.data.user) {
           setUserInfo(extendedUserData.data);
           processUserAndTeamData(extendedUserData.data, extendedUserData.data.teamId);
-        } 
+        }
         else {
           console.error('Unexpected API response structure:', extendedUserData);
           setError('Unable to retrieve user information. Please try again later.');
-          
+
           // Provide empty data to prevent further errors
           updateFormData({
             bio: '',
@@ -72,11 +72,11 @@ function FounderProfile({ formData, updateFormData, projectId }) {
             team: []
           });
         }
-        
+
       } catch (err) {
         console.error('Error fetching user or team data:', err);
         setError('Failed to load user information. Please try again later.');
-        
+
         // Provide empty data to prevent further errors
         updateFormData({
           bio: '',
@@ -100,63 +100,21 @@ function FounderProfile({ formData, updateFormData, projectId }) {
         setDataProcessed(true);
       }
     };
-    
+
     fetchUserAndTeamData();
   }, [dataProcessed, updateFormData]);
-  
+
   // Separate function to process user data and fetch team data
-  const processUserAndTeamData = async (userData, teamId) => {
-    // Handle team data if teamId exists
-    if (teamId) {
-      try {
-        const teamResponse = await getTeamById(teamId);
-        console.log('Team Response:', teamResponse);
-        
-        // Handle different response structures
-        const teamData = teamResponse.data || teamResponse;
-        
-        if (teamData) {
-          setTeamInfo(teamData);
-          
-          // Update parent component form data with user and team information
-          const updatedForm = {
-            bio: userData.user?.userInformation || '',
-            fullName: userData.user?.fullName || '',
-            email: userData.user?.email || '',
-            avatar: userData.user?.userAvatar || '',
-            phone: userData.user?.telephoneNumber || '',
-            identifyNumber: userData.user?.identifyNumber || '',
-            ffundLink: userData.user?.userFfundLink || '',
-            studentInfo: {
-              studentCode: userData.studentCode || '',
-              studentClass: userData.studentClass || '',
-              exeClass: userData.exeClass || '',
-              fptFacility: userData.fptFacility || '',
-              portfolio: userData.studentPortfolio || '',
-            },
-            teamId: teamId,
-            teamName: teamData.teamName || '',
-            teamDescription: teamData.teamDescription || '',
-            // Map team members to the expected format
-            team: teamData.teamMembers ? teamData.teamMembers.map(member => ({
-              id: member.memberId?.toString() || `member-${Math.random().toString(36).substring(2, 11)}`,
-              userId: member.userId || '',
-              name: member.memberName || '',
-              role: member.teamRole || '',
-              email: member.memberEmail || '',
-              avatar: member.memberAvatar || ''
-            })) : []
-          };
-          
-          // Update parent component ONCE
-          updateFormData(updatedForm);
-        }
-      } catch (teamErr) {
-        console.error('Error fetching team data:', teamErr);
-        // Don't set an error state here, just continue with user data
-        
-        // Update with just user data
-        const userOnlyData = {
+  const processUserAndTeamData = async (userData) => {
+    try {
+      const teamResponse = await getUserTeam();
+      console.log('Team Response:', teamResponse);
+
+      const teamData = teamResponse;
+
+      if (teamData) {
+        setTeamInfo(teamData);
+        const updatedForm = {
           bio: userData.user?.userInformation || '',
           fullName: userData.user?.fullName || '',
           email: userData.user?.email || '',
@@ -171,13 +129,25 @@ function FounderProfile({ formData, updateFormData, projectId }) {
             fptFacility: userData.fptFacility || '',
             portfolio: userData.studentPortfolio || '',
           },
-          teamId: teamId,
-          team: []
+          teamId: teamData.teamId,
+          teamName: teamData.teamName || '',
+          teamDescription: teamData.teamDescription || '',
+          // Map team members to the expected format
+          team: teamData.teamMembers ? teamData.teamMembers.map(member => ({
+            id: member.memberId?.toString() || `member-${Math.random().toString(36).substring(2, 11)}`,
+            userId: member.userId || '',
+            name: member.memberName || '',
+            role: member.teamRole || '',
+            email: member.memberEmail || '',
+            avatar: member.memberAvatar || ''
+          })) : []
         };
-        updateFormData(userOnlyData);
+
+        // Update parent component ONCE
+        updateFormData(updatedForm);
       }
-    } else {
-      // No team found, just update with user data
+    } catch (teamErr) {
+      console.error('Error fetching team data:', teamErr);
       const userOnlyData = {
         bio: userData.user?.userInformation || '',
         fullName: userData.user?.fullName || '',
@@ -243,7 +213,7 @@ function FounderProfile({ formData, updateFormData, projectId }) {
             <h3 className="text-sm font-medium text-blue-800">Founder Profile</h3>
             <div className="mt-2 text-sm text-blue-700">
               <p>
-                The information below is pulled from your user profile. To update your personal details or team information, 
+                The information below is pulled from your user profile. To update your personal details or team information,
                 please visit your <Link href="/profile" className="text-blue-800 underline hover:no-underline">profile page</Link>.
               </p>
             </div>
@@ -257,9 +227,9 @@ function FounderProfile({ formData, updateFormData, projectId }) {
           <div className="p-6">
             <div className="flex items-center">
               {userInfo.user.userAvatar && (
-                <img 
-                  src={userInfo.user.userAvatar} 
-                  alt={userInfo.user.fullName || 'User'} 
+                <img
+                  src={userInfo.user.userAvatar}
+                  alt={userInfo.user.fullName || 'User'}
                   className="h-20 w-20 rounded-full object-cover mr-4"
                 />
               )}
@@ -274,7 +244,7 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                 )}
               </div>
             </div>
-            
+
             {/* Biography section */}
             {userInfo.user.userInformation && (
               <div className="mt-4 border-t border-gray-200 pt-4">
@@ -282,13 +252,13 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                 <p className="text-sm text-gray-700">{userInfo.user.userInformation}</p>
               </div>
             )}
-            
+
             {/* FFund Profile Link */}
             {userInfo.user.userFfundLink && (
               <div className="mt-3">
-                <a 
+                <a
                   href={userInfo.user.userFfundLink}
-                  target="_blank" 
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
                 >
@@ -299,7 +269,7 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                 </a>
               </div>
             )}
-            
+
             {/* Student Information */}
             {userInfo.studentCode && (
               <div className="mt-4 border-t border-gray-200 pt-4">
@@ -324,9 +294,9 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                 </div>
                 {userInfo.studentPortfolio && (
                   <div className="mt-3">
-                    <a 
+                    <a
                       href={userInfo.studentPortfolio}
-                      target="_blank" 
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
                     >
@@ -358,14 +328,14 @@ function FounderProfile({ formData, updateFormData, projectId }) {
               <h4 className="text-sm font-medium text-gray-700">Team Name</h4>
               <p className="text-base text-gray-900">{teamInfo.teamName}</p>
             </div>
-            
+
             {teamInfo.teamDescription && (
               <div className="mb-3">
                 <h4 className="text-sm font-medium text-gray-700">Description</h4>
                 <p className="text-sm text-gray-700">{teamInfo.teamDescription}</p>
               </div>
             )}
-            
+
             {teamInfo.projectId && (
               <div>
                 <h4 className="text-sm font-medium text-gray-700">Project ID</h4>
@@ -374,18 +344,18 @@ function FounderProfile({ formData, updateFormData, projectId }) {
             )}
           </div>
         )}
-        
+
         {/* Team Members List */}
         <h4 className="text-md font-medium text-gray-800 mb-3">Team Members</h4>
         {teamInfo && teamInfo.teamMembers && teamInfo.teamMembers.length > 0 ? (
-          <div className="space-y-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {teamInfo.teamMembers.map((member, index) => (
               <div key={member.memberId || `member-${index}`} className="bg-gray-50 p-4 rounded-md border border-gray-200">
                 <div className="flex items-center">
                   {member.memberAvatar && (
-                    <img 
-                      src={member.memberAvatar} 
-                      alt={member.memberName || 'Team member'} 
+                    <img
+                      src={member.memberAvatar}
+                      alt={member.memberName || 'Team member'}
                       className="h-10 w-10 rounded-full mr-3"
                     />
                   )}
@@ -412,7 +382,7 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                 <h3 className="text-sm font-medium text-yellow-800">No Team Members Found</h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   <p>
-                    You don&apos;t have any team members registered yet. To create and manage your team, please visit 
+                    You don&apos;t have any team members registered yet. To create and manage your team, please visit
                     your <Link href="/team-members" className="text-yellow-800 underline hover:no-underline">team management page</Link>.
                   </p>
                 </div>
@@ -420,7 +390,7 @@ function FounderProfile({ formData, updateFormData, projectId }) {
             </div>
           </div>
         )}
-        
+
         {/* Link to Update Team Info */}
         <div className="mt-6 flex justify-center">
           <Link href="/team-members" className="inline-flex items-center px-4 py-2 border border-blue-500 rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">

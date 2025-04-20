@@ -285,7 +285,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     if (!projectId) return null;
 
     try {
-      const projectData = await projectService.getProjectsByFounder();
+      const projectData = await projectService.getProjectById(projectId);
       console.log("Project data retrieved:", projectData);
 
       if (projectData && projectData.totalTargetAmount) {
