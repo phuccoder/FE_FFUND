@@ -30,7 +30,7 @@ var until = webdriver.until;
         await emailField.click();
         await browser.sleep(2000);
         await emailField.clear();
-        await emailField.sendKeys('phucnmtde170689@fpt.edu.vn');
+        await emailField.sendKeys('phanthienan@gmail.com');
 
         console.log('Email entered successfully!');
 

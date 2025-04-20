@@ -4,10 +4,8 @@ import SingleProject from "./SingleProject";
 import projectService from "../../services/projectService";
 import Pagination from '@/components/Pagination';
 
-
 const MemoizedSingleProject = memo(SingleProject);
 MemoizedSingleProject.displayName = "MemoizedSingleProject";
-
 
 const LoadingSkeleton = memo(() => (
     <Row className="justify-content-center">
@@ -52,7 +50,7 @@ const ExploreArea = ({ searchParams }) => {
     const [error, setError] = useState(null);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
-    const [size] = useState(9); // Show 6 items per page
+    const [size] = useState(9); // Show 9 items per page
     const [isSearching, setIsSearching] = useState(false);
     const [paginationData, setPaginationData] = useState({
         currentPage: 0,
@@ -79,64 +77,27 @@ const ExploreArea = ({ searchParams }) => {
 
             let extractedProjects = [];
             let paginationInfo = {
-                currentPage: pageNum,
+                currentPage: 0,
                 totalPages: 1,
                 pageSize: size,
                 totalElements: 0
             };
 
-            // Handle different response formats
+            // Handle the standard response format
             if (response && response.data) {
-                console.log("Response has data property:", response.data);
-
                 if (response.data.data && Array.isArray(response.data.data)) {
-                    console.log("Using response.data.data for projects");
                     extractedProjects = response.data.data;
-
-                    // Extract pagination data
                     paginationInfo = {
-                        currentPage: response.data.currentPage !== undefined ? response.data.currentPage : pageNum,
-                        totalPages: response.data.totalPages || Math.ceil(response.data.totalElements / size) || 1,
-                        pageSize: response.data.pageSize || size,
-                        totalElements: response.data.totalElements || extractedProjects.length
-                    };
-                } else if (Array.isArray(response.data)) {
-                    console.log("Using response.data for projects");
-                    extractedProjects = response.data;
-
-                    // If we don't have pagination info, estimate it
-                    paginationInfo = {
-                        currentPage: pageNum,
-                        totalPages: Math.ceil(extractedProjects.length / size) || 1,
-                        pageSize: size,
-                        totalElements: extractedProjects.length
+                        currentPage: response.data.currentPage,
+                        totalPages: response.data.totalPages,
+                        pageSize: response.data.pageSize,
+                        totalElements: response.data.totalElements
                     };
                 }
-            } else if (response && response.content && Array.isArray(response.content)) {
-                console.log("Using response.content for projects");
-                extractedProjects = response.content;
-
-                // Extract pagination data
-                paginationInfo = {
-                    currentPage: response.number !== undefined ? response.number : pageNum,
-                    totalPages: response.totalPages || Math.ceil(response.totalElements / size) || 1,
-                    pageSize: response.size || size,
-                    totalElements: response.totalElements || extractedProjects.length
-                };
-            } else if (Array.isArray(response)) {
-                console.log("Using response array directly for projects");
-                extractedProjects = response;
-
-                paginationInfo = {
-                    currentPage: pageNum,
-                    totalPages: Math.ceil(extractedProjects.length / size) || 1,
-                    pageSize: size,
-                    totalElements: extractedProjects.length
-                };
             }
 
-            console.log("Extracted pagination info:", paginationInfo);
-            console.log("Total pages:", paginationInfo.totalPages);
+            console.log("Extracted projects:", extractedProjects);
+            console.log("Pagination info:", paginationInfo);
 
             setProjects(extractedProjects);
             setPaginationData(paginationInfo);
@@ -180,7 +141,8 @@ const ExploreArea = ({ searchParams }) => {
     useEffect(() => {
         console.log("Current page:", currentPage);
         console.log("Total pages:", totalPages);
-    }, [currentPage, totalPages]);
+        console.log("Total elements:", paginationData.totalElements);
+    }, [currentPage, totalPages, paginationData]);
 
     return (
         <section className="explore-area pt-90 pb-120">
@@ -224,12 +186,15 @@ const ExploreArea = ({ searchParams }) => {
                                     </div>
                                 </div>
 
-                                {/* Always render Pagination for testing */}
-                                <Pagination
-                                    currentPage={currentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={handlePageChange}
-                                />
+                                {/* Always show pagination if totalPages is greater than 1 */}
+                                {totalPages > 1 && (
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalPages={totalPages}
+                                        onPageChange={handlePageChange}
+                                    />
+                                )}
+
                             </>
                         ) : (
                             <div className="text-center py-8">

@@ -1,7 +1,7 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 // API endpoints
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'http://localhost:8080/api/v1';
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const PROJECT_CREATE_ENDPOINT = `${API_BASE_URL}/project`;
@@ -47,18 +47,21 @@ const projectService = {
                     'accept': '*/*'
                 }
             });
-    
+
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-    
-            const result = await response.json();
 
-            if (!result || !result.data || !Array.isArray(result.data.data)) {
+            const result = await response.json();
+            console.log("getAllProjects raw response:", result);
+
+            if (!result || !result.data) {
+                console.error("Invalid response format:", result);
                 return [];
             }
-    
-            return result.data.data || [];
+
+            // Return the ENTIRE response so we have access to pagination data
+            return result;
         } catch (error) {
             console.error('Error fetching all projects:', error);
             throw error;
@@ -66,20 +69,27 @@ const projectService = {
     },
     searchProjects: async (page = 0, size = 10, searchParams) => {
         try {
-            const query = searchParams.query;
+            const query = searchParams.query || '';
             const sort = searchParams.sort || '+createdAt';
-    
+
+            console.log("searchProjects request:", {
+                page, size, query, sort,
+                url: `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`
+            });
+
             const response = await fetch(
                 `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
                 {
                     method: "GET",
                     headers: {
                         "accept": "*/*",
-                    },
+                    }
                 }
             );
-            
-            return await response.json();
+
+            const data = await response.json();
+            console.log("searchProjects raw response:", data);
+            return data;
         } catch (error) {
             console.error("Error fetching projects search:", error);
             throw new Error("Error fetching projects search");
