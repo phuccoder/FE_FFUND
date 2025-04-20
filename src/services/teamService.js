@@ -173,21 +173,51 @@ export const inviteMember = async (memberEmail) => {
 };
 
 /**
- * Get user's team data
- * This retrieves the user's extended info first, then uses the teamId to get team details
+ * Get user's current team data using the new API endpoint
  * @returns {Promise<Object>} - Team data or null if user has no team
  */
 export const getUserTeam = async () => {
   try {
-    const userInfo = await getUserExtendedInfo();
+    const token = await tokenManager.getValidToken();
 
-    if (userInfo && userInfo.teamId) {
-      return await getTeamById(userInfo.teamId);
+    if (!token) {
+      throw new Error('Authentication token is missing or invalid');
     }
 
-    return null;
+    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/current-team/member`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // If user has no team, the API might return 404
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Check if data exists and return it
+    if (result.status === 200 && result.data) {
+      return result.data;
+    } else {
+      // No team found or other issue
+      return null;
+    }
   } catch (error) {
     console.error('Error in getUserTeam:', error);
+
+    // If it's a 404, just return null (user has no team)
+    if (error.message && error.message.includes('404')) {
+      return null;
+    }
+
     throw error;
   }
 };

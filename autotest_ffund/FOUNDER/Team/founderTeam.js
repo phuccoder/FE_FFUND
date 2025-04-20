@@ -73,119 +73,183 @@ var Key = webdriver.Key;
         // Check for existing team or "Create Team" option
         let hasTeam = false;
         
-        try {
-            // First check if the team management section is visible
-            let teamManagementSection = await browser.findElement(By.css('.team-management-section, [data-testid="team-management"]'));
+        // Wait for either team management section or no team section to appear
+        // Using a more general wait strategy to catch any visible section
+        await browser.wait(
+            until.elementLocated(By.css('.team-management-section, .no-team-section')), 
+            10000, 
+            'Timed out waiting for either team management or no team section'
+        );
+        
+        // Now check which section is visible
+        let teamManagementElements = await browser.findElements(By.css('.team-management-section, [data-testid="team-management"]'));
+        if (teamManagementElements.length > 0) {
             console.log('✓ Team Management section found - user has an existing team');
             hasTeam = true;
-        } catch (error) {
-            // If not found, check for the "No Team" section with "Create Team" button
-            try {
-                let noTeamSection = await browser.findElement(By.css('.no-team-section, [data-testid="no-team"]'));
+        } else {
+            // Check for no team section
+            let noTeamElements = await browser.findElements(By.css('.no-team-section, [data-testid="no-team"]'));
+            if (noTeamElements.length > 0) {
                 console.log('✓ No Team section found - user needs to create a team');
                 
                 // TEST CASE 3: Create Team (only if user doesn't have a team)
                 console.log('\nTEST CASE 3: Testing team creation');
                 
                 // Find and click Create Team button
-                let createTeamButton = await browser.findElement(
-                    By.xpath("//a[contains(text(), 'Create Team')] | //button[contains(text(), 'Create Team')]")
-                );
-                await createTeamButton.click();
-                console.log('✓ Clicked on Create Team button');
-                await browser.sleep(2000);
-                
-                // Verify redirect to team creation page
-                let currentUrl = await browser.getCurrentUrl();
-                if (currentUrl.includes('/team/create')) {
-                    console.log('✓ Successfully navigated to team creation page');
+                try {
+                    let createTeamButton = await browser.findElement(
+                        By.xpath("//a[contains(text(), 'Create Team')] | //button[contains(text(), 'Create') and contains(text(), 'Team')] | //a[contains(@href, '/team/create')]")
+                    );
+                    await createTeamButton.click();
+                    console.log('✓ Clicked on Create Team button');
+                    await browser.sleep(2000);
                     
-                    // Fill in team creation form
-                    try {
-                        // Generate a unique team name with timestamp
-                        const timestamp = new Date().getTime();
-                        const teamName = `Test Team ${timestamp}`;
+                    // Verify redirect to team creation page
+                    let currentUrl = await browser.getCurrentUrl();
+                    if (currentUrl.includes('/team/create')) {
+                        console.log('✓ Successfully navigated to team creation page');
                         
-                        // Find and fill Team Name field
-                        let teamNameField = await browser.findElement(By.css('input[name="teamName"]'));
-                        await teamNameField.sendKeys(teamName);
-                        console.log(`✓ Entered team name: ${teamName}`);
-                        
-                        // Find and fill Team Description field
-                        let teamDescriptionField = await browser.findElement(By.css('textarea[name="teamDescription"]'));
-                        await teamDescriptionField.sendKeys(`This is a test team created at ${new Date().toLocaleString()}`);
-                        console.log('✓ Entered team description');
-                        
-                        // Add a team member email (optional)
+                        // Fill in team creation form
                         try {
-                            let memberEmailField = await browser.findElement(By.css('input[type="email"]'));
-                            const testEmail = `testmember${timestamp}@example.com`;
-                            await memberEmailField.sendKeys(testEmail);
-                            console.log(`✓ Entered member email: ${testEmail}`);
+                            // Generate a unique team name with timestamp
+                            const timestamp = new Date().getTime();
+                            const teamName = `Test Team ${timestamp}`;
                             
-                            // Test Add Another Email button
-                            let addEmailButton = await browser.findElement(
-                                By.xpath("//button[contains(text(), '+ Add Another Email')]")
-                            );
-                            await addEmailButton.click();
-                            console.log('✓ Clicked Add Another Email button');
-                            await browser.sleep(1000);
+                            // Find and fill Team Name field
+                            let teamNameField = await browser.findElement(By.css('input[name="teamName"]'));
+                            await teamNameField.sendKeys(teamName);
+                            console.log(`✓ Entered team name: ${teamName}`);
                             
-                            // Verify a new email field was added
-                            let emailFields = await browser.findElements(By.css('input[type="email"]'));
-                            if (emailFields.length > 1) {
-                                console.log(`✓ Successfully added another email field (Total: ${emailFields.length})`);
+                            // Find and fill Team Description field
+                            let teamDescriptionField = await browser.findElement(By.css('textarea[name="teamDescription"]'));
+                            await teamDescriptionField.sendKeys(`This is a test team created at ${new Date().toLocaleString()}`);
+                            console.log('✓ Entered team description');
+                            
+                            // Add a team member email (optional)
+                            try {
+                                let memberEmailField = await browser.findElement(By.css('input[type="email"]'));
+                                const testEmail = `testmember${timestamp}@example.com`;
+                                await memberEmailField.sendKeys(testEmail);
+                                console.log(`✓ Entered member email: ${testEmail}`);
                                 
-                                // Test Remove button
-                                let removeButton = await browser.findElement(By.xpath("//button[contains(text(), 'Remove')]"));
-                                await removeButton.click();
-                                console.log('✓ Clicked Remove button');
+                                // Test Add Another Email button
+                                let addEmailButton = await browser.findElement(
+                                    By.xpath("//button[contains(text(), '+ Add Another Email')]")
+                                );
+                                await addEmailButton.click();
+                                console.log('✓ Clicked Add Another Email button');
                                 await browser.sleep(1000);
                                 
-                                // Verify field was removed
-                                emailFields = await browser.findElements(By.css('input[type="email"]'));
-                                console.log(`✓ Email field count after removal: ${emailFields.length}`);
-                            }
-                        } catch (error) {
-                            console.log('✗ Error adding/removing team member emails:', error.message);
-                        }
-                        
-                        // Submit the form
-                        let submitButton = await browser.findElement(
-                            By.xpath("//button[contains(text(), 'Create Team')]")
-                        );
-                        await submitButton.click();
-                        console.log('✓ Clicked Create Team submit button');
-                        await browser.sleep(5000);
-                        
-                        // Verify redirect back to team page after creation
-                        currentUrl = await browser.getCurrentUrl();
-                        if (currentUrl.includes('/team-members')) {
-                            console.log('✓ Successfully created team and redirected to team members page');
-                            hasTeam = true;
-                        } else {
-                            console.log(`✗ Unexpected URL after team creation: ${currentUrl}`);
-                            
-                            // Check for any error messages
-                            try {
-                                let errorMessages = await browser.findElements(By.css('.Toastify__toast--error, .alert-danger, .text-danger'));
-                                if (errorMessages.length > 0) {
-                                    for (let i = 0; i < errorMessages.length; i++) {
-                                        console.log(`✗ Error message found: "${await errorMessages[i].getText()}"`);
-                                    }
+                                // Verify a new email field was added
+                                let emailFields = await browser.findElements(By.css('input[type="email"]'));
+                                if (emailFields.length > 1) {
+                                    console.log(`✓ Successfully added another email field (Total: ${emailFields.length})`);
+                                    
+                                    // Test Remove button
+                                    let removeButton = await browser.findElement(By.xpath("//button[contains(text(), 'Remove')]"));
+                                    await removeButton.click();
+                                    console.log('✓ Clicked Remove button');
+                                    await browser.sleep(1000);
+                                    
+                                    // Verify field was removed
+                                    emailFields = await browser.findElements(By.css('input[type="email"]'));
+                                    console.log(`✓ Email field count after removal: ${emailFields.length}`);
                                 }
                             } catch (error) {
-                                // No error messages found
+                                console.log('✗ Error adding/removing team member emails:', error.message);
                             }
+                            
+                            // Submit the form
+                            let submitButton = await browser.findElement(
+                                By.xpath("//button[contains(text(), 'Create Team')]")
+                            );
+                            await submitButton.click();
+                            console.log('✓ Clicked Create Team submit button');
+                            await browser.sleep(5000);
+                            
+                            // Verify redirect back to team page after creation
+                            currentUrl = await browser.getCurrentUrl();
+                            if (currentUrl.includes('/team-members')) {
+                                console.log('✓ Successfully created team and redirected to team members page');
+                                hasTeam = true;
+                            } else {
+                                console.log(`✗ Unexpected URL after team creation: ${currentUrl}`);
+                                
+                                // Check for any error messages
+                                try {
+                                    let errorMessages = await browser.findElements(By.css('.Toastify__toast--error, .alert-danger, .text-danger'));
+                                    if (errorMessages.length > 0) {
+                                        for (let i = 0; i < errorMessages.length; i++) {
+                                            console.log(`✗ Error message found: "${await errorMessages[i].getText()}"`);
+                                        }
+                                    }
+                                } catch (error) {
+                                    // No error messages found
+                                    console.log('No specific error messages found on the page');
+                                }
+                            }
+                        } catch (error) {
+                            console.log('✗ Error filling team creation form:', error.message);
                         }
-                    } catch (error) {
-                        console.log('✗ Error filling team creation form:', error.message);
+                    } else {
+                        console.log(`✗ Navigation to team creation page failed. Current URL: ${currentUrl}`);
                     }
-                } else {
-                    console.log(`✗ Navigation to team creation page failed. Current URL: ${currentUrl}`);
+                } catch (error) {
+                    console.log('✗ Error finding or clicking Create Team button:', error.message);
+                    
+                    // Try alternative approach: direct navigation to create team page
+                    console.log('Trying alternative: direct navigation to team creation page');
+                    await browser.get('https://deploy-f-fund-b4n2.vercel.app/team/create');
+                    await browser.sleep(2000);
+                    
+                    let currentUrl = await browser.getCurrentUrl();
+                    if (currentUrl.includes('/team/create')) {
+                        console.log('✓ Alternative navigation to team creation page successful');
+                        
+                        // Continue with form filling as above...
+                        // (Team creation logic would be repeated here)
+                    } else {
+                        console.log(`✗ Alternative navigation failed. Current URL: ${currentUrl}`);
+                    }
                 }
-            } catch (noTeamError) {
-                console.log('✗ Could not find either Team Management or No Team section');
+            } else {
+                console.log('✗ Neither Team Management nor No Team section was found');
+                console.log('Taking screenshot for debugging...');
+                
+                // Take a screenshot for debugging
+                let screenshot = await browser.takeScreenshot();
+                require('fs').writeFileSync('team-page-debug.png', screenshot, 'base64');
+                console.log('Screenshot saved as team-page-debug.png');
+                
+                // Try to get the page source for debugging
+                let pageSource = await browser.getPageSource();
+                let firstFewLines = pageSource.split('\n').slice(0, 20).join('\n');
+                console.log('First few lines of page source:');
+                console.log(firstFewLines);
+                
+                // Check for any loading indicators
+                try {
+                    let loadingIndicators = await browser.findElements(By.css('.spinner-border, .loading'));
+                    if (loadingIndicators.length > 0) {
+                        console.log('✓ Loading indicators found - page might still be loading');
+                        await browser.sleep(5000);  // Wait longer for loading
+                        
+                        // Try again after waiting
+                        teamManagementElements = await browser.findElements(By.css('.team-management-section'));
+                        noTeamElements = await browser.findElements(By.css('.no-team-section'));
+                        
+                        if (teamManagementElements.length > 0) {
+                            console.log('✓ Team Management section found after waiting');
+                            hasTeam = true;
+                        } else if (noTeamElements.length > 0) {
+                            console.log('✓ No Team section found after waiting');
+                        } else {
+                            console.log('✗ Still could not find expected sections after waiting');
+                        }
+                    }
+                } catch (error) {
+                    console.log('✗ Error checking for loading indicators:', error.message);
+                }
             }
         }
         
@@ -201,15 +265,22 @@ var Key = webdriver.Key;
             try {
                 // Check for team name
                 let teamNameElement = await browser.findElement(
-                    By.css('.team-name, h3, .card-title')
+                    By.css('.team-name, h3, .card-title, .section-title-2')
                 );
                 let teamName = await teamNameElement.getText();
-                console.log(`✓ Team name displayed: ${teamName}`);
+                console.log(`✓ Team name or title displayed: ${teamName}`);
                 
-                // Check for team members list
+                // Wait for team members section to load
                 try {
+                    await browser.wait(
+                        until.elementLocated(By.css('.team-member, .list-group-item, .member-item, table tbody tr')),
+                        10000,
+                        'Timed out waiting for team members list'
+                    );
+                    
+                    // Check for team members list
                     let teamMembersList = await browser.findElements(
-                        By.css('.team-member, .list-group-item, .member-item')
+                        By.css('.team-member, .list-group-item, .member-item, table tbody tr')
                     );
                     let memberCount = teamMembersList.length;
                     console.log(`✓ Found ${memberCount} team members`);
@@ -219,19 +290,27 @@ var Key = webdriver.Key;
                         try {
                             let memberElement = teamMembersList[i];
                             let memberRole = await memberElement.findElement(
-                                By.css('.badge, .team-role, .role-badge')
+                                By.css('.badge, .team-role, .role-badge, [class*="badge"]')
                             ).getText();
                             let memberName = await memberElement.findElement(
-                                By.css('.member-name, strong, .fw-bold')
+                                By.css('.member-name, strong, .fw-bold, td:first-child')
                             ).getText();
                             
                             console.log(`✓ Member: ${memberName}, Role: ${memberRole}`);
                         } catch (error) {
-                            console.log('✗ Error getting member details');
+                            console.log(`✗ Error getting details for member ${i+1}:`, error.message);
+                            
+                            // Try to at least get some text from the member row
+                            try {
+                                let rowText = await teamMembersList[i].getText();
+                                console.log(`Member ${i+1} row text: ${rowText}`);
+                            } catch (textError) {
+                                console.log(`Could not extract text for member ${i+1}`);
+                            }
                         }
                     }
                 } catch (error) {
-                    console.log('✗ Error finding team members list:', error.message);
+                    console.log('✗ Error waiting for team members list:', error.message);
                 }
                 
                 // TEST CASE 5: Test Invite Team Member functionality
@@ -240,7 +319,7 @@ var Key = webdriver.Key;
                 try {
                     // Find and click Invite Member button
                     let inviteButton = await browser.findElement(
-                        By.xpath("//a[contains(text(), 'Invite Member')] | //button[contains(text(), 'Invite Member')]")
+                        By.xpath("//a[contains(text(), 'Invite Member')] | //button[contains(text(), 'Invite Member')] | //a[contains(@href, '/team/invite')]")
                     );
                     await inviteButton.click();
                     console.log('✓ Clicked on Invite Member button');
@@ -254,11 +333,11 @@ var Key = webdriver.Key;
                         // Check if the current team members are displayed
                         try {
                             let currentMembers = await browser.findElements(
-                                By.css('.list-group-item, .team-member, .member-item')
+                                By.css('.list-group-item, .team-member, .member-item, table tbody tr')
                             );
                             console.log(`✓ Current team members displayed: ${currentMembers.length}`);
                         } catch (error) {
-                            console.log('✗ Could not find current team members list');
+                            console.log('✗ Could not find current team members list:', error.message);
                         }
                         
                         // Test member search functionality
@@ -285,6 +364,7 @@ var Key = webdriver.Key;
                                 await browser.sleep(2000);
                             } catch (error) {
                                 // Spinner might be gone already
+                                console.log('No search indicator found - might be gone already');
                             }
                             
                             // Check for search results dropdown
@@ -356,6 +436,19 @@ var Key = webdriver.Key;
                     }
                 } catch (error) {
                     console.log('✗ Error finding Invite Member button:', error.message);
+                    
+                    // Try direct navigation as a fallback
+                    console.log('Trying direct navigation to invite page');
+                    await browser.get('https://deploy-f-fund-b4n2.vercel.app/team/invite');
+                    await browser.sleep(2000);
+                    
+                    let currentUrl = await browser.getCurrentUrl();
+                    if (currentUrl.includes('/team/invite')) {
+                        console.log('✓ Alternative navigation to invite page successful');
+                        // Continue with invite testing
+                    } else {
+                        console.log(`✗ Alternative navigation to invite page failed. Current URL: ${currentUrl}`);
+                    }
                 }
             } catch (error) {
                 console.log('✗ Error checking team details:', error.message);
@@ -387,37 +480,6 @@ var Key = webdriver.Key;
                                     By.xpath("//button[contains(text(), 'Cancel')] | //button[contains(@title, 'Cancel')]")
                                 );
                                 console.log(`✓ Found ${cancelButtons.length} cancel invitation buttons`);
-                                
-                                // Test cancel functionality on the first invitation (commented out to avoid actual deletion)
-                                /*
-                                if (cancelButtons.length > 0) {
-                                    await cancelButtons[0].click();
-                                    console.log('✓ Clicked cancel button for first invitation');
-                                    await browser.sleep(2000);
-                                    
-                                    // Check for confirmation dialog
-                                    try {
-                                        let confirmButton = await browser.findElement(
-                                            By.xpath("//button[contains(text(), 'Confirm')] | //button[contains(text(), 'Yes')]")
-                                        );
-                                        await confirmButton.click();
-                                        console.log('✓ Confirmed cancellation');
-                                        await browser.sleep(2000);
-                                        
-                                        // Check for success toast
-                                        try {
-                                            let toastMessage = await browser.findElement(
-                                                By.css('.Toastify__toast-body, .toast-message')
-                                            );
-                                            console.log(`✓ Toast message: "${await toastMessage.getText()}"`);
-                                        } catch (error) {
-                                            // No toast message found
-                                        }
-                                    } catch (error) {
-                                        console.log('✗ No confirmation dialog found');
-                                    }
-                                }
-                                */
                             } catch (error) {
                                 console.log('✗ No cancel buttons found for pending invitations');
                             }
@@ -437,6 +499,15 @@ var Key = webdriver.Key;
 
     } catch (err) {
         console.error('Error during Team Management test:', err);
+        
+        // Take a final screenshot on error for debugging
+        try {
+            let screenshot = await browser.takeScreenshot();
+            require('fs').writeFileSync('error-screenshot.png', screenshot, 'base64');
+            console.log('Error screenshot saved as error-screenshot.png');
+        } catch (screenshotError) {
+            console.error('Could not take error screenshot:', screenshotError);
+        }
     } finally {
         try {
             console.log('Closing browser...');

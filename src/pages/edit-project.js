@@ -361,7 +361,7 @@ function EditProjectPage() {
 
     // 3. Try to get latest project from API directly
     try {
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
 
       // Handle different API response formats
       if (Array.isArray(response) && response.length > 0) {
@@ -798,7 +798,7 @@ function EditProjectPage() {
       }
 
       // Get projects from founder API
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
       console.log("Projects from founder API:", response);
 
       let projectData = null;

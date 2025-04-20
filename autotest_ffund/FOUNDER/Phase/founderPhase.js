@@ -61,7 +61,7 @@ var until = webdriver.until;
         }
 
         // Navigate to project management page first
-        await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+        await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
         await browser.sleep(3000);
         console.log('Navigated to project management page');
         

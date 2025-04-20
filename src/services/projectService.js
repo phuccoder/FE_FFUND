@@ -11,7 +11,8 @@ const PROJECT_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project/get-by-id/${id}`
 const PROJECT_CREATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_UPDATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
-const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder`;
+const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/all`;
+const PROJECT_CURRENT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/current`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/guest/project/${id}`;
@@ -487,6 +488,48 @@ const projectService = {
             return projectData;
         } catch (error) {
             console.error('Error fetching projects by founder:', error);
+            throw error;
+        }
+    },
+
+    getCurrentProjectByFounder: async () => {
+        try {
+            const token = await tokenManager.getValidToken();
+            if (!token) {
+                throw new Error("No authentication token available");
+            }
+
+            const response = await fetch(PROJECT_CURRENT_BY_FOUNDER_ENDPOINT, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch current projects: ${response.status} ${response.statusText}`);
+            }
+
+            const responseText = await response.text();
+            console.log("Raw API response:", responseText);
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log("Parsed current project data:", data);
+            } catch (error) {
+                console.error("Error parsing response as JSON:", error);
+                throw new Error("Invalid JSON response from server");
+            }
+
+            let projectData = data;
+            if (data.data) {
+                projectData = data.data;
+            }
+            console.log("Final project data to return:", projectData);
+            // Return the data directly - caller will handle both array and single object
+            return projectData;
+        } catch (error) {
+            console.error('Error fetching current projects by founder:', error);
             throw error;
         }
     },

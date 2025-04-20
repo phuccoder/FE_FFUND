@@ -67,9 +67,9 @@ var path = require('path');
         // TEST CASE 2: Navigate to project management page
         console.log('\nTEST CASE 2: Navigating to project management page');
         
-        await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+        await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
         await browser.sleep(3000);
-        console.log('✓ Navigated to project management page');
+        console.log('✓ Navigated to project edit page');
         
         // Check if project management page is loaded correctly
         try {
@@ -487,7 +487,7 @@ var path = require('path');
                                             }
                                         } catch (error) {
                                             console.log('✗ Could not find Cancel button, trying to navigate away');
-                                            await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+                                            await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
                                         }
                                     }
                                 } catch (error) {
@@ -532,7 +532,7 @@ var path = require('path');
                                     }
                                 } catch (error) {
                                     console.log('✗ Could not find Cancel button, trying to navigate away');
-                                    await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+                                    await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
                                 }
                             }
                         } catch (error) {
@@ -555,7 +555,7 @@ var path = require('path');
         console.log('\nTEST CASE 4: Checking existing project details');
         
         // Ensure we're on the project management page
-        await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+        await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
         await browser.sleep(3000);
         
         try {
@@ -681,7 +681,7 @@ var path = require('path');
                                 }
                             } catch (error) {
                                 console.log('✗ Could not find Cancel button, trying to navigate away');
-                                await browser.get('https://deploy-f-fund-b4n2.vercel.app/project-management');
+                                await browser.get('https://deploy-f-fund-b4n2.vercel.app/edit-project');
                             }
                         } catch (error) {
                             console.log('✗ Edit Project form not loaded:', error.message);
