@@ -49,37 +49,12 @@ const projectService = {
                 }
             });
 
-            const responseText = await response.text();
-
-            // Try to parse the response as JSON
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Error parsing response as JSON:', parseError);
-                if (!response.ok) {
-                    throw new Error(responseText || `Error: ${response.status}`);
-                }
-                // Return text for non-JSON success responses (rare case)
-                return [];
-            }
-
-            // If response wasn't successful, extract error message from the result
             if (!response.ok) {
-                const errorMessage = result.error ||
-                    result.message ||
-                    (typeof result === 'string' ? result : null) ||
-                    `Error: ${response.status}`;
-
-                throw new Error(errorMessage);
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
 
-            // Handle successful response
-            if (!result || !result.data || !Array.isArray(result.data.data)) {
-                return [];
-            }
-
-            return result.data.data || [];
+            const data = await response.json();
+            return data;
         } catch (error) {
             console.error('Error fetching all projects:', error);
             throw error;

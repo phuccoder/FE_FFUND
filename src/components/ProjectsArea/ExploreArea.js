@@ -83,16 +83,35 @@ const ExploreArea = ({ searchParams }) => {
                 totalElements: 0
             };
 
-            // Handle the standard response format
-            if (response && response.data) {
-                if (response.data.data && Array.isArray(response.data.data)) {
-                    extractedProjects = response.data.data;
-                    paginationInfo = {
-                        currentPage: response.data.currentPage,
-                        totalPages: response.data.totalPages,
-                        pageSize: response.data.pageSize,
-                        totalElements: response.data.totalElements
-                    };
+            // Handle response from both API calls in a standardized way
+            if (response && response.status === 200 && response.data) {
+                // For getAllProjects
+                if (Array.isArray(response.data)) {
+                    // Direct array response
+                    extractedProjects = response.data;
+                }
+                // For response structure with nested data object containing array and pagination
+                else if (response.data.data) {
+                    if (Array.isArray(response.data.data)) {
+                        // Handle flat array in data property
+                        extractedProjects = response.data.data;
+                        paginationInfo = {
+                            currentPage: response.data.currentPage || 0,
+                            totalPages: response.data.totalPages || 1,
+                            pageSize: response.data.pageSize || size,
+                            totalElements: response.data.totalElements || 0
+                        };
+                    }
+                    // Handle nested data.data array structure
+                    else if (response.data.data.data && Array.isArray(response.data.data.data)) {
+                        extractedProjects = response.data.data.data;
+                        paginationInfo = {
+                            currentPage: response.data.data.currentPage || 0,
+                            totalPages: response.data.data.totalPages || 1,
+                            pageSize: response.data.data.pageSize || size,
+                            totalElements: response.data.data.totalElements || 0
+                        };
+                    }
                 }
             }
 
@@ -148,12 +167,7 @@ const ExploreArea = ({ searchParams }) => {
         <section className="explore-area pt-90 pb-120">
             <Container>
                 {loading ? (
-                    <div className="text-center py-8">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2">Loading projects...</p>
-                    </div>
+                    <LoadingSkeleton />
                 ) : error ? (
                     <div className="alert alert-warning text-center">{error}</div>
                 ) : (
