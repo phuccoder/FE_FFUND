@@ -1,3 +1,2 @@
-2025/04/15-22:26:37.842 4780 Reusing MANIFEST d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Session Storage/MANIFEST-000001
-2025/04/15-22:26:37.880 4780 Recovering log #3
-2025/04/15-22:26:37.887 4780 Reusing old log d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Session Storage/000003.log 
+2025/04/16-19:39:10.576 a664 Creating DB d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Session Storage since it was missing.
+2025/04/16-19:39:10.603 a664 Reusing MANIFEST d:\FE_FFUND\autotest_ffund\Login-Register\Register\chrome-profile\Default\Session Storage/MANIFEST-000001

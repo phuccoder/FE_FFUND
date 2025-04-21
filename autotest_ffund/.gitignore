@@ -1,1 +1,8 @@
-.qodo
+# Ignore node_modules
+node_modules/
+
+# Ignore build output
+/build
+
+# Ignore environment files
+.env

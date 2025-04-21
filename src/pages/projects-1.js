@@ -1,10 +1,21 @@
+import { useState, useEffect, lazy, Suspense } from "react";
+import { useRouter } from "next/router";
 import Header from "@/components/Header/Header";
 import Layout from "@/components/Layout/Layout";
-import ExploreArea from "@/components/ProjectsArea/ExploreArea";
 import PageTitle from "@/components/Reuseable/PageTitle";
-import AdvancedSearch from "@/components/ProjectsArea/AdvancedSearch";
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+
+// Lazy load các components không cần thiết ngay lập tức
+const AdvancedSearch = lazy(() => import("@/components/ProjectsArea/AdvancedSearch"));
+const ExploreArea = lazy(() => import("@/components/ProjectsArea/ExploreArea"));
+
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="text-center py-8">
+    <div className="spinner-border text-primary" role="status">
+      <span className="visually-hidden">Loading component...</span>
+    </div>
+  </div>
+);
 
 const Projects = () => {
   const [searchParams, setSearchParams] = useState(null);
@@ -36,7 +47,7 @@ const Projects = () => {
       setSearchParams(params);
 
       // Gửi dữ liệu để cập nhật AdvancedSearch component
-      if (window && window.dispatchEvent) {
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
         const event = new CustomEvent('applySearchFilters', {
           detail: {
             category: category,
@@ -60,8 +71,16 @@ const Projects = () => {
     <Layout>
       <Header />
       <PageTitle title="Explore" />
-      <AdvancedSearch onSearch={handleSearch} defaultCategory={category} defaultSubCategory={subCategory} />
-      <ExploreArea searchParams={searchParams} />
+      <Suspense fallback={<LoadingFallback />}>
+        <AdvancedSearch
+          onSearch={handleSearch}
+          defaultCategory={category}
+          defaultSubCategory={subCategory}
+        />
+      </Suspense>
+      <Suspense fallback={<LoadingFallback />}>
+        <ExploreArea searchParams={searchParams} />
+      </Suspense>
     </Layout>
   );
 };
