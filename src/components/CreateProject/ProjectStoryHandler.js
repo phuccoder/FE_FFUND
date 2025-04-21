@@ -1546,77 +1546,25 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       const imageBlocks = filteredStoryBlocks.filter(block => block.type === 'IMAGE');
       const imageUrls = imageBlocks.map(block => block.content);
 
-      // Apply duplicate image detection, but ONLY for blocks that ACTUALLY contain images
+
       const cleanedStoryBlocks = filteredStoryBlocks.filter(block => {
         // Keep all non-TEXT blocks
         if (block.type !== 'TEXT') return true;
 
-        // CRITICAL FIX #2: Check if block actually contains an image before applying duplicate logic
+        // Check if this TEXT block contains image tags
         if (block.content && block.content.includes('<img')) {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = block.content;
-
-          // Get text content (excluding images)
-          const textOnlyClone = tempDiv.cloneNode(true);
-          Array.from(textOnlyClone.querySelectorAll('img')).forEach(img => img.remove());
-          const textContent = textOnlyClone.textContent.trim();
-
-          // Get all images in this TEXT block
-          const images = tempDiv.querySelectorAll('img');
-
-          // Only apply duplicate detection if this block ONLY contains images (no text)
-          // AND all those images exist in IMAGE blocks
-          if (images.length > 0 && textContent.length === 0) {
-            let allImagesExistElsewhere = true;
-
-            for (const img of images) {
-              const imgSrc = img.getAttribute('src');
-              if (!imageUrls.includes(imgSrc)) {
-                allImagesExistElsewhere = false;
-                break;
-              }
-            }
-
-            // Filter out ONLY if this TEXT block contains ONLY images that exist elsewhere
-            if (allImagesExistElsewhere) {
-              return false;
-            }
-          }
+          return false;
         }
 
-        // By default, keep TEXT blocks
         return true;
       });
 
-      // Apply same logic to risks blocks
       const cleanedRisksBlocks = filteredRisksBlocks.filter(block => {
         if (block.type !== 'TEXT') return true;
 
+        // Don't keep TEXT blocks with images
         if (block.content && block.content.includes('<img')) {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = block.content;
-
-          const textOnlyClone = tempDiv.cloneNode(true);
-          Array.from(textOnlyClone.querySelectorAll('img')).forEach(img => img.remove());
-          const textContent = textOnlyClone.textContent.trim();
-
-          const images = tempDiv.querySelectorAll('img');
-
-          if (images.length > 0 && textContent.length === 0) {
-            let allImagesExistElsewhere = true;
-
-            for (const img of images) {
-              const imgSrc = img.getAttribute('src');
-              if (!imageUrls.includes(imgSrc)) {
-                allImagesExistElsewhere = false;
-                break;
-              }
-            }
-
-            if (allImagesExistElsewhere) {
-              return false;
-            }
-          }
+          return false;
         }
 
         return true;
@@ -1684,9 +1632,9 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       const apiReadyBlocks = combinedBlocks.map((block, index) => {
         // Always reassign sequential order numbers to ensure proper ordering
         return {
-          type: block.type, 
+          type: block.type,
           content: block.content,
-          order: index, 
+          order: index,
           metadata: {
             additionalProp1: typeof block.metadata?.additionalProp1 === 'object'
               ? block.metadata.additionalProp1
