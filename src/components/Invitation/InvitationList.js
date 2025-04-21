@@ -15,33 +15,27 @@ const InvitationList = () => {
     if (!dateValue) return 'N/A';
     
     try {
-      // Check if the date is an array [year, month, day, hour, minute, second, nanos]
+      let date;
+      
       if (Array.isArray(dateValue)) {
-        console.log('Date is array format:', dateValue);
-        // Extract components from array - Java LocalDateTime format
-        const [year, month, day, hour, minute, second] = dateValue;
-        // JavaScript months are 0-indexed, so subtract 1 from month
-        const date = new Date(year, month - 1, day, hour, minute, second);
-        return formatDistanceToNow(date, { addSuffix: true });
+        const [year, month, day, hour = 0, minute = 0, second = 0] = dateValue;
+        date = new Date(year, month - 1, day, hour, minute, second);
+      }
+      else if (typeof dateValue === 'string') {
+        date = parseISO(dateValue);
+      }
+      else {
+        date = new Date(dateValue);
       }
       
-      // If it's a string, try to parse as ISO
-      if (typeof dateValue === 'string') {
-        const date = parseISO(dateValue);
-        if (isValid(date)) {
-          return formatDistanceToNow(date, { addSuffix: true });
-        }
+      // Verify the date is valid
+      if (!date || isNaN(date.getTime())) {
+        console.warn('Invalid date value:', dateValue);
+        return 'Invalid date';
       }
+
+      return formatDistanceToNow(date, { addSuffix: true });
       
-      // Try with direct Date constructor as fallback
-      const directDate = new Date(dateValue);
-      if (directDate.toString() !== 'Invalid Date') {
-        return formatDistanceToNow(directDate, { addSuffix: true });
-      }
-      
-      // If we get here, we couldn't parse the date
-      console.warn('Could not parse date:', dateValue);
-      return 'Invalid date';
     } catch (error) {
       console.error('Date formatting error:', error, dateValue);
       return 'Date error';

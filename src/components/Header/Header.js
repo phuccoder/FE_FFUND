@@ -35,7 +35,7 @@ const Header = ({ className = "" }) => {
           </Col>
         </Row>
       </Container>
-      <div className={`main-header${scrollTop ? " sticky" : ""}`}>
+      <div className={`main-header${scrollTop ? " sticky" : ""}`} style={{ zIndex: 10 }}>
         <Container>
           <MainHeaderItem
             logo={logo}

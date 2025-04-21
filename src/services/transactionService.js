@@ -1,21 +1,45 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
-const TRANSACTION_GET_BY_INVESTOR_ENDPOINT = (page, size, sort) => `${API_BASE_URL}/investment/user?page=${page}&size=${size}&sort=${sort}`;
-const TRANSACTION_GET_BY_FOUNDER_ENDPOINT = `${API_BASE_URL}/transactions`;
+
+const TRANSACTION_GET_BY_INVESTOR_ENDPOINT = `${API_BASE_URL}/investment/user`;
+const TRANSACTION_GET_BY_FOUNDER_ENDPOINT = `${API_BASE_URL}/transactions/current`;
 
 const buildUrl = (baseUrl, params) => {
-    const url = new URL(baseUrl);
-
-    Object.keys(params).forEach(key => {
-        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
-            url.searchParams.append(key, params[key]);
+    try {
+        if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
+            console.error('Invalid base URL:', baseUrl);
+            throw new Error('Invalid base URL');
         }
-    });
-
-    return url.toString();
+        
+        const url = new URL(baseUrl);
+        
+        if (params && typeof params === 'object') {
+            Object.keys(params).forEach(key => {
+                if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+                    url.searchParams.append(key, params[key]);
+                }
+            });
+        }
+        
+        return url.toString();
+    } catch (error) {
+        console.error('Error building URL:', error, 'Base URL:', baseUrl);
+        let urlString = baseUrl;
+        let hasQueryParams = urlString.includes('?');
+        
+        if (params && typeof params === 'object') {
+            Object.keys(params).forEach((key, index) => {
+                if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+                    urlString += (hasQueryParams ? '&' : '?') + `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`;
+                    hasQueryParams = true;
+                }
+            });
+        }
+        
+        return urlString;
+    }
 };
-
 
 const buildQueryString = (filters) => {
     if (!filters || typeof filters !== 'object') return '';
@@ -37,8 +61,17 @@ export const transactionService = {
     getTransactionsByInvestor: async (page = 0, size = 10, sort = '') => {
         try {
             const token = await tokenManager.getValidToken();
+            
+            // Fix 3: Use buildUrl for investor endpoint
+            const url = buildUrl(TRANSACTION_GET_BY_INVESTOR_ENDPOINT, {
+                page,
+                size,
+                sort: sort || undefined
+            });
+            
+            console.log('Fetching investor transactions from URL:', url);
 
-            const response = await fetch(TRANSACTION_GET_BY_INVESTOR_ENDPOINT(page, size, sort), {
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,7 +122,7 @@ export const transactionService = {
                 query: query || undefined
             });
 
-            console.log('Fetching from URL:', url);
+            console.log('Fetching founder transactions from URL:', url);
 
             const response = await fetch(url, {
                 method: 'GET',

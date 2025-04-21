@@ -379,7 +379,7 @@ export default function InvestmentReward() {
             {/* Detail Modal - More compact design, wider horizontally and less vertical padding */}
             {showModal && selectedReward && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-y-auto">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-y-auto" style={{ zIndex: 11 }}>
                         <div className="bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 flex justify-between items-center rounded-t-xl">
                             <h3 className="text-white text-xl font-bold">Investment Reward Details</h3>
                             <button
@@ -394,38 +394,78 @@ export default function InvestmentReward() {
                             <div className="flex flex-wrap -mx-2">
                                 {/* Investor Shipping Information */}
                                 <div className="w-full md:w-1/2 px-2 mb-4">
-                                    <div className="bg-orange-50 p-4 rounded-lg h-full">
-                                        <h4 className="text-lg font-semibold text-gray-800 mb-3">Investor Shipping Information</h4>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-sm text-gray-500">Name</p>
-                                                <p className="font-medium">{selectedReward.shippingInformation?.investorName || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Email</p>
-                                                <p className="font-medium">{selectedReward.shippingInformation?.investorEmail || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Phone</p>
-                                                <p className="font-medium">{selectedReward.shippingInformation?.investorPhone || 'N/A'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-gray-500">Status</p>
-                                                <p className="font-medium">{selectedReward.shippingInformation?.status || 'N/A'}</p>
-                                            </div>
+                                    <div className="w-full md:w-1/2 px-2 mb-4">
+                                        <div className="bg-orange-50 p-4 rounded-lg h-full">
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-3">Investor Shipping Information</h4>
+
+                                            {!selectedReward.shippingInformation ||
+                                                (!selectedReward.shippingInformation.investorName &&
+                                                    !selectedReward.shippingInformation.investorEmail &&
+                                                    !selectedReward.shippingInformation.investorPhone) ? (
+                                                // Show notification when shipping information is missing
+                                                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                                                    <div className="flex items-center">
+                                                        <FaExclamationCircle className="text-yellow-400 mr-2" />
+                                                        <p className="text-sm text-yellow-700">
+                                                            No shipping information has been provided by the investor yet.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                // Show shipping details when available
+                                                <>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {selectedReward.shippingInformation?.investorName && (
+                                                            <div>
+                                                                <p className="text-sm text-gray-500">Name</p>
+                                                                <p className="font-medium">{selectedReward.shippingInformation.investorName}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {selectedReward.shippingInformation?.investorEmail && (
+                                                            <div>
+                                                                <p className="text-sm text-gray-500">Email</p>
+                                                                <p className="font-medium">{selectedReward.shippingInformation.investorEmail}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {selectedReward.shippingInformation?.investorPhone && (
+                                                            <div>
+                                                                <p className="text-sm text-gray-500">Phone</p>
+                                                                <p className="font-medium">{selectedReward.shippingInformation.investorPhone}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {selectedReward.shippingInformation?.status && (
+                                                            <div>
+                                                                <p className="text-sm text-gray-500">Status</p>
+                                                                <p className="font-medium">{selectedReward.shippingInformation.status}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {selectedReward.shippingInformation?.userAddress ? (
+                                                        <div className="bg-white p-3 rounded border border-orange-100 mt-3">
+                                                            <p className="text-sm text-gray-500 mb-1">Address</p>
+                                                            <p className="font-medium">{selectedReward.shippingInformation.userAddress.address}</p>
+                                                            <p className="text-sm">
+                                                                {selectedReward.shippingInformation.userAddress.ward}, {selectedReward.shippingInformation.userAddress.district}, {selectedReward.shippingInformation.userAddress.province}
+                                                            </p>
+                                                            {selectedReward.shippingInformation.userAddress.note && (
+                                                                <p className="mt-1 text-sm text-gray-600 italic">Note: {selectedReward.shippingInformation.userAddress.note}</p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-50 p-3 rounded border border-gray-200 mt-3">
+                                                            <p className="text-sm text-gray-500 flex items-center">
+                                                                <FaExclamationCircle className="text-gray-400 mr-2" />
+                                                                No address information available
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
-                                        {selectedReward.shippingInformation?.userAddress && (
-                                            <div className="bg-white p-3 rounded border border-orange-100 mt-3">
-                                                <p className="text-sm text-gray-500 mb-1">Address</p>
-                                                <p className="font-medium">{selectedReward.shippingInformation.userAddress.address}</p>
-                                                <p className="text-sm">
-                                                    {selectedReward.shippingInformation.userAddress.ward}, {selectedReward.shippingInformation.userAddress.district}, {selectedReward.shippingInformation.userAddress.province}
-                                                </p>
-                                                {selectedReward.shippingInformation.userAddress.note && (
-                                                    <p className="mt-1 text-sm text-gray-600 italic">Note: {selectedReward.shippingInformation.userAddress.note}</p>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 

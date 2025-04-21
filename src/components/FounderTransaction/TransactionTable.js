@@ -6,10 +6,15 @@ export default function TransactionTable({ transactions, onSort }) {
   const [sortDirection, setSortDirection] = useState('asc');
   const [hoveredRow, setHoveredRow] = useState(null);
 
-  const formatDate = (dateArray) => {
-    if (!dateArray || dateArray.length !== 3) return 'N/A';
-    const [year, month, day] = dateArray;
-    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  const formatDate = (dateValue) => {
+    if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateValue;
+    }
+    if (Array.isArray(dateValue) && dateValue.length === 3) {
+      const [year, month, day] = dateValue;
+      return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    }
+    return 'N/A';
   };
 
   const formatCurrency = (amount) => {
