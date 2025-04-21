@@ -16,7 +16,7 @@ const MainHeaderItem = ({
   return (
     <Row>
       <Col lg={12}>
-        <div className="main-header-item" style={{ position: 'relative', zIndex: 10 }}>
+        <div className="main-header-item" style={{ position: 'relative', zIndex: 40 }}>
           <div className="main-header-menus d-flex justify-content-between align-items-center">
             <div className="header-logo">
               <Link href="/">

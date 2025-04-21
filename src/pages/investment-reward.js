@@ -379,7 +379,7 @@ export default function InvestmentReward() {
             {/* Detail Modal - More compact design, wider horizontally and less vertical padding */}
             {showModal && selectedReward && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-y-auto" style={{ zIndex: 11 }}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-y-auto" style={{ zIndex: 41 }}>
                         <div className="bg-gradient-to-r from-orange-500 to-green-500 px-6 py-3 flex justify-between items-center rounded-t-xl">
                             <h3 className="text-white text-xl font-bold">Investment Reward Details</h3>
                             <button

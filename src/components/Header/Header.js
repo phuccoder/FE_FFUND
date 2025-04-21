@@ -1,5 +1,5 @@
 import headerData from "@/data/headerData";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import MainHeaderItem from "./MainHeaderItem";
 import Social from "./Social";
@@ -7,6 +7,24 @@ import Social from "./Social";
 const { logo, navItems, phone, icon, email, address, socials } = headerData;
 
 const Header = ({ className = "" }) => {
+  // Add the missing scrollTop state
+  const [scrollTop, setScrollTop] = useState(false);
+  
+  // Listen for scroll events
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollTop(window.scrollY > 100);
+    };
+    
+    // Add scroll event listener
+    window.addEventListener("scroll", handleScroll);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   return (
     <header className={`header-area ${className}`}>
       <Container>
@@ -32,7 +50,7 @@ const Header = ({ className = "" }) => {
           </Col>
         </Row>
       </Container>
-      <div className={`main-header${scrollTop ? " sticky" : ""}`} style={{ zIndex: 10 }}>
+      <div className={`main-header${scrollTop ? " sticky" : ""}`} style={{ zIndex: 40 }}>
         <Container>
           <MainHeaderItem
             logo={logo}
