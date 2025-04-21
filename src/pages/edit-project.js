@@ -361,7 +361,7 @@ function EditProjectPage() {
 
     // 3. Try to get latest project from API directly
     try {
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
 
       // Handle different API response formats
       if (Array.isArray(response) && response.length > 0) {
@@ -494,39 +494,39 @@ function EditProjectPage() {
   const loadProjectStory = async (projectId) => {
     try {
       console.log("Fetching story data for project:", projectId);
-  
+
       if (!projectId) {
         console.error("No project ID provided for story loading");
         return null;
       }
-  
+
       const storyData = await projectService.getProjectStoryByProjectId(projectId);
       console.log("Story data received from API:", storyData);
-  
+
       if (!storyData) {
         console.warn("No story data returned from API for project:", projectId);
         return null;
       }
-  
+
       // Handle block-based story structure
       if (storyData.blocks && Array.isArray(storyData.blocks)) {
         console.log("Processing block-based story data with", storyData.blocks.length, "blocks");
-  
+
         // Extract story content from blocks
         let storyContent = '';
         let risksContent = '';
-  
+
         // Find the risks section heading index
         const risksStartIndex = storyData.blocks.findIndex(block =>
           block.type === 'HEADING' &&
           block.content &&
           block.content.toLowerCase().includes('risk'));
-  
+
         if (risksStartIndex !== -1) {
           // Process blocks before risks section as story content
           const storyBlocks = storyData.blocks.slice(0, risksStartIndex);
           storyContent = storyBlocks.map(block => block.content || '').join('\n\n');
-          
+
           // Process blocks after risks section as risks content
           const risksBlocks = storyData.blocks.slice(risksStartIndex + 1);
           risksContent = risksBlocks.map(block => block.content || '').join('\n\n');
@@ -534,7 +534,7 @@ function EditProjectPage() {
           // If no risks section found, treat all blocks as story content
           storyContent = storyData.blocks.map(block => block.content || '').join('\n\n');
         }
-  
+
         const processedStoryData = {
           id: storyData.projectStoryId,
           projectStoryId: storyData.projectStoryId,
@@ -545,21 +545,21 @@ function EditProjectPage() {
           blocks: storyData.blocks, // Keep all blocks for reference
           version: storyData.version
         };
-  
+
         console.log("Processed block-based story data:", processedStoryData);
-  
+
         // Update form data with story information
         setFormData(prevData => ({
           ...prevData,
           projectStory: processedStoryData
         }));
-  
+
         return processedStoryData;
       }
-  
+
       // Handle simple text-based story format
       const storyId = storyData.projectStoryId || storyData.id || null;
-  
+
       const processedStoryData = {
         id: storyId,
         projectStoryId: storyId,
@@ -568,15 +568,15 @@ function EditProjectPage() {
         status: storyData.status || 'DRAFT',
         projectId: storyData.projectId || projectId
       };
-  
+
       console.log("Processed simple story data:", processedStoryData);
-  
+
       // Update form data with story information
       setFormData(prevData => ({
         ...prevData,
         projectStory: processedStoryData
       }));
-  
+
       return processedStoryData;
     } catch (error) {
       console.error("Error loading project story:", error);
@@ -798,7 +798,7 @@ function EditProjectPage() {
       }
 
       // Get projects from founder API
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
       console.log("Projects from founder API:", response);
 
       let projectData = null;
@@ -1353,8 +1353,8 @@ function EditProjectPage() {
       name: 'Fundraising Information',
       component: (
         <>
-          {(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') && (
-            <div className="mb-6 bg-gray-50 border-l-4 border-gray-400 p-4">
+          <div className="mb-6">
+            <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -1365,22 +1365,47 @@ function EditProjectPage() {
                   <h3 className="text-sm font-medium text-gray-800">Editing Restricted</h3>
                   <div className="mt-1 text-sm text-gray-700">
                     <p>Fundraising information cannot be modified for {projectStatus === 'FUNDRAISING' ? 'a project in fundraising stage' : 'an approved project'}.</p>
+                    {(projectStatus === 'FUNDRAISING' &&
+                      formData.fundraisingInfo?.phases?.length > 0 &&
+                      formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED') && (
+                        <p className="mt-1 font-medium text-blue-700">
+                          However, you can request a time extension since your last phase is completed.
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
-          <div className={`${(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') ? 'opacity-70 pointer-events-none' : ''}`}>
-            <FundraisingInformation
-              formData={{
-                projectId: formData.projectId,
-                startDate: formData.fundraisingInfo?.startDate || '',
-                phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : []
-              }}
-              updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
-              projectId={formData.projectId}
-              readOnly={(projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED') || !editRestrictions.fundraisingInfo}
-            />
+          </div>
+
+          <div className={`relative ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED' || projectStatus === 'COMPLETED') ? 'opacity-70' : ''}`}>
+            <style>{`
+              .fundraising-info-container .normal-elements {
+                ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED'|| projectStatus === 'COMPLETED' ) ? 'pointer-events: none;' : ''}
+              }
+              
+              .fundraising-info-container .time-extension-form {
+                pointer-events: auto !important;
+                opacity: 1 !important;
+              }
+            `}</style>
+
+            <div className="fundraising-info-container">
+              <FundraisingInformation
+                formData={{
+                  projectId: formData.projectId,
+                  startDate: formData.fundraisingInfo?.startDate || '',
+                  phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : [],
+                  totalTargetAmount: formData.basicInfo?.totalTargetAmount
+                }}
+                updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
+                projectId={formData.projectId}
+                isLastPhaseCompleted={
+                  formData.fundraisingInfo?.phases?.length > 0 &&
+                  formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED'
+                }
+              />
+            </div>
           </div>
         </>
       )

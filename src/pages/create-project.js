@@ -121,6 +121,19 @@ function CreateProject() {
     };
   }, []);
 
+  useEffect(() => {
+    // Check if we should redirect to payment section
+    const shouldRedirectToPayment = localStorage.getItem('redirectToPaymentSection');
+    if (shouldRedirectToPayment === 'true') {
+      const paymentSectionIndex = sections.findIndex(section => section.id === 'payment');
+      if (paymentSectionIndex !== -1) {
+        setCurrentSection(paymentSectionIndex);
+        // Clear the flag after navigation
+        localStorage.removeItem('redirectToPaymentSection');
+      }
+    }
+  }, []);
+
   // Define loadProjectData outside useEffect
   const loadProjectData = async () => {
     console.log("Loading project data...");
@@ -129,7 +142,7 @@ function CreateProject() {
     try {
       // First try to get user's projects
       console.log("Fetching projects for current founder...");
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
       console.log("API response:", response);
 
       // Handle both array and single object responses
@@ -396,24 +409,29 @@ function CreateProject() {
   // Check if the first two sections are completed to enable navigation to later sections
   const isInitialSectionsComplete = () => {
     const isTermsComplete = Boolean(formData.termsAgreed);
-
+  
     const basicInfo = formData.basicInfo || {};
     const categoryValue = basicInfo.category || basicInfo.categoryId;
-    const locationValue = basicInfo.location || basicInfo.locationId;
-    const subCategoryValue = basicInfo.subCategory || basicInfo.subCategoryIds;
-
+    const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.projectLocation;
+    const subCategoryValue = basicInfo.subCategory || (Array.isArray(basicInfo.subCategoryIds) && basicInfo.subCategoryIds.length > 0);
     const isBasicInfoComplete = Boolean(
       basicInfo.title &&
       categoryValue &&
       subCategoryValue &&
       basicInfo.shortDescription &&
-      locationValue &&
-      basicInfo.projectUrl &&
-      basicInfo.mainSocialMediaUrl &&
-      basicInfo.projectVideoDemo &&
-      basicInfo.projectImage
+      locationValue
     );
-
+  
+    console.log("Terms complete:", isTermsComplete);
+    console.log("Basic info complete:", isBasicInfoComplete);
+    console.log("Basic info validation details:", {
+      title: Boolean(basicInfo.title),
+      category: Boolean(categoryValue),
+      subCategory: Boolean(subCategoryValue),
+      shortDescription: Boolean(basicInfo.shortDescription),
+      location: Boolean(locationValue)
+    });
+  
     return isTermsComplete && isBasicInfoComplete;
   };
 
@@ -470,7 +488,18 @@ function CreateProject() {
         editMode={isEditMode}
       />
     },
-    { id: 'fundraising', name: 'Fundraising Information', component: <FundraisingInformation formData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} projectId={formData.projectId || formData.basicInfo?.projectId} /> },
+    { 
+      id: 'fundraising', 
+      name: 'Fundraising Information', 
+      component: <FundraisingInformation 
+        formData={{
+          ...formData.fundraisingInfo,
+          totalTargetAmount: formData.basicInfo?.totalTargetAmount
+        }} 
+        updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} 
+        projectId={formData.projectId || formData.basicInfo?.projectId} 
+      /> 
+    },
     { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
     // Update the ProjectStoryHandler section in the sections array
     {
@@ -563,11 +592,7 @@ function CreateProject() {
           !categoryValue ||
           !subCategoryValue ||
           !basicInfo.shortDescription ||
-          !locationValue ||
-          !basicInfo.projectUrl ||
-          !basicInfo.mainSocialMediaUrl ||
-          !basicInfo.projectVideoDemo ||
-          basicInfo.isClassPotential === undefined
+          !locationValue
         ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;
@@ -583,12 +608,12 @@ function CreateProject() {
       }
 
       // If going from project story to founder profile section, check if project story is complete
-      if (currentSection === 4) {
-        if (!isProjectStoryComplete()) {
-          alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
-          return;
-        }
-      }
+      // if (currentSection === 4) {
+      //   if (!isProjectStoryComplete()) {
+      //     alert("Please complete the Project Story, or click 'Save button' section before proceeding to the Founder Profile section.");
+      //     return;
+      //   }
+      // }
 
       setCurrentSection(currentSection + 1);
       window.scrollTo(0, 0);

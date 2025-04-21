@@ -31,7 +31,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit, 
+      StarterKit,
       Underline,
       TextStyle,
       Color,
@@ -140,28 +140,20 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
       alert(`You've reached the character limit (${MAX_CHARS}). Please remove some content before adding images.`);
       return;
     }
-  
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-  
+
     input.onchange = async () => {
       if (input.files?.length) {
         const file = input.files[0];
-  
-        // Add loading indicator
-        if (editor) {
-          const tempId = `loading-${Date.now()}`;
-          editor.chain().focus().insertContent(`
-            <div id="${tempId}" class="bg-gray-100 p-4 rounded text-center">
-              <p>Uploading image...</p>
-            </div>
-          `).run();
-        }
-  
+
+        const loadingId = `loading-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
         try {
           let imageUrl;
-  
+
           if (onImageUpload && typeof onImageUpload === 'function') {
             console.log('Using provided upload function');
             imageUrl = await onImageUpload(file);
@@ -173,7 +165,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
               reader.readAsDataURL(file);
             });
           }
-  
+
           // Remove the loading placeholder
           const tempElements = document.querySelectorAll('[id^="loading-"]');
           if (tempElements.length > 0) {
@@ -181,7 +173,25 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
               el.parentNode?.removeChild(el);
             });
           }
-  
+
+          const loadingElement = document.getElementById(loadingId);
+          if (loadingElement) {
+            loadingElement.remove();
+          }
+
+          // Then also use editor commands to clean up any HTML that might be in the editor state
+          if (editor) {
+            // Try to find and remove the loading indicator from the editor content
+            const editorHTML = editor.getHTML();
+            if (editorHTML.includes(loadingId)) {
+              const cleanHTML = editorHTML.replace(
+                new RegExp(`<div id="${loadingId}"[^>]*>.*?<\/div>`, 'gs'),
+                ''
+              );
+              editor.commands.setContent(cleanHTML);
+            }
+          }
+
           if (imageUrl && editor) {
             // IMPORTANT CHANGE: Insert image as a proper block with data attributes
             const imageId = `img-${Date.now()}`;
@@ -196,7 +206,7 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
                   data-block-id="${imageId}">
               </div>
             `).run();
-            
+
             console.log('Image inserted successfully with proper IMAGE block type');
           } else {
             alert('Failed to upload image. Please try again.');
@@ -204,18 +214,25 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
         } catch (error) {
           console.error('Image upload failed:', error);
           alert('Failed to upload image: ' + (error.message || 'Unknown error'));
-  
-          // Remove loading placeholder
-          const tempElements = document.querySelectorAll('[id^="loading-"]');
-          if (tempElements.length > 0) {
-            tempElements.forEach(el => {
-              el.parentNode?.removeChild(el);
-            });
+
+          const loadingElement = document.getElementById(loadingId);
+          if (loadingElement) {
+            loadingElement.remove();
+          }
+          if (editor) {
+            const editorHTML = editor.getHTML();
+            if (editorHTML.includes(loadingId)) {
+              const cleanHTML = editorHTML.replace(
+                new RegExp(`<div id="${loadingId}"[^>]*>.*?<\/div>`, 'gs'),
+                ''
+              );
+              editor.commands.setContent(cleanHTML);
+            }
           }
         }
       }
     };
-  
+
     input.click();
   };
 
@@ -538,20 +555,6 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
 
           {/* Media & Link buttons - positioned to right */}
           <div className="ml-auto flex gap-1">
-            <button
-              onClick={setLink}
-              className={`px-2 py-1 rounded text-sm border ${isActive('link') ? 'bg-blue-50 text-blue-600 border-blue-200' : 'border-gray-300 hover:bg-gray-100'
-                }`}
-              title="Insert Link"
-            >
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" className="mr-1">
-                  <path d="M6.354 5.5H4a3 3 0 0 0 0 6h3a3 3 0 0 0 2.83-4H9c-.086 0-.17.01-.25.031A2 2 0 0 1 7 10.5H4a2 2 0 1 1 0-4h1.535c.218-.376.495-.714.82-1z" />
-                  <path d="M9 5.5a3 3 0 0 0-2.83 4h1.098A2 2 0 0 1 9 6.5h3a2 2 0 1 1 0 4h-1.535a4.02 4.02 0 0 1-.82 1H12a3 3 0 1 0 0-6H9z" />
-                </svg>
-                Link
-              </div>
-            </button>
 
             <button
               onClick={addImage}
@@ -579,45 +582,6 @@ const TiptapEditor = ({ content, onChange, placeholder, onImageUpload }) => {
                 Video
               </div>
             </button>
-          </div>
-        </div>
-
-        {/* Text and highlight colors toolbar */}
-        <div className="px-3 py-2 flex flex-wrap items-center gap-2">
-          <div className="flex items-center">
-            <span className="text-xs text-gray-500 mr-2">Text color:</span>
-            <div className="flex gap-1">
-              {['#000000', '#4a5568', '#2b6cb0', '#2c7a7b', '#2f855a', '#744210', '#c53030', '#702459'].map(color => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => editor && editor.chain().focus().setColor(color).run()}
-                  className="w-5 h-5 rounded border border-gray-300"
-                  style={{ backgroundColor: color }}
-                  title={`Set text color`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="h-5 border-l border-gray-300 mx-1"></div>
-
-          <div className="flex items-center">
-            <span className="text-xs text-gray-500 mr-2">Highlight:</span>
-            <div className="flex gap-1">
-              {['#FFFF00', '#00FFFF', '#FF99CC', '#99FF99', '#FF9966', '#99CCFF'].map(color => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => editor && editor.chain().focus().toggleHighlight({ color }).run()}
-                  className="w-5 h-5 rounded border border-gray-300 flex items-center justify-center"
-                  style={{ backgroundColor: color }}
-                  title={`Highlight text`}
-                >
-                  <span className="text-xs" style={{ color: '#000' }}>A</span>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </div>

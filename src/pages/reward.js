@@ -38,11 +38,31 @@ function RewardPage() {
                     }
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                // Get response as text first for better error handling
+                const responseText = await response.text();
+
+                // Try to parse the response as JSON
+                let responseData;
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Error parsing response as JSON:', parseError);
+                    if (!response.ok) {
+                        throw new Error(responseText || `Error: ${response.status}`);
+                    }
+                    // Return empty array for non-JSON success responses
+                    responseData = [];
                 }
 
-                const responseData = await response.json();
+                // If response wasn't successful, extract error message from result
+                if (!response.ok) {
+                    const errorMessage = responseData.error ||
+                        responseData.message ||
+                        (typeof responseData === 'string' ? responseData : null) ||
+                        `Error: ${response.status}`;
+
+                    throw new Error(errorMessage);
+                }
 
                 // Check the exact structure and handle both possible formats
                 let investmentsArray = [];
@@ -132,11 +152,32 @@ function RewardPage() {
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let responseData;
+            try {
+                responseData = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing milestone response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Set default milestone data for non-JSON success responses
+                responseData = { data: null };
             }
 
-            const responseData = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = responseData.error ||
+                    responseData.message ||
+                    (typeof responseData === 'string' ? responseData : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             let milestone = null;
 
             if (responseData && responseData.data) {
@@ -386,7 +427,7 @@ function RewardPage() {
                     } catch (shippingErr) {
                         console.error('Error updating shipping information with new address:', shippingErr);
                     }
-                }     
+                }
                 return true;
             } else {
                 toast.error('Failed to update address');
@@ -416,8 +457,6 @@ function RewardPage() {
                     setSelectedAddress(null);
                 }
             }
-
-            toast.success("Address deleted successfully");
             await handleRefreshAddresses();
             return true;
         } catch (err) {

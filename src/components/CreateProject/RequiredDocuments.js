@@ -187,18 +187,56 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
       // Enhanced error extraction
       let errorMessage;
 
-      if (error.response?.data) {
-        // Extract message from API response
-        errorMessage = error.response.data.message ||
-          error.response.data.error ||
-          error.response.data.detail ||
-          `Upload failed: ${error.response.status} ${error.response.statusText}`;
-      } else if (error.message) {
-        // Use error message directly
-        errorMessage = error.message;
-      } else {
-        // Fallback for unknown errors
-        errorMessage = `Upload failed: ${fieldName} document could not be processed`;
+      try {
+        // Check if we have a response object with data
+        if (error.response?.data) {
+          // First try to get the error message directly
+          if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          }
+          else if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          }
+          else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+          else if (error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+          }
+          else {
+            errorMessage = `Upload failed: ${error.response.status} ${error.response.statusText}`;
+          }
+        }
+        else if (error.rawResponse) {
+          try {
+            const parsedResponse = JSON.parse(error.rawResponse);
+            errorMessage = parsedResponse.error || parsedResponse.message || 'Unknown upload error';
+          } catch (e) {
+            errorMessage = error.rawResponse;
+          }
+        }
+        else if (error.message) {
+          if (error.message.includes('{') && error.message.includes('}')) {
+            try {
+              const jsonStart = error.message.indexOf('{');
+              const jsonEnd = error.message.lastIndexOf('}') + 1;
+              const jsonStr = error.message.substring(jsonStart, jsonEnd);
+              const errorObj = JSON.parse(jsonStr);
+              errorMessage = errorObj.error || errorObj.message || 'Upload failed';
+            } catch (jsonParseError) {
+              errorMessage = error.message;
+            }
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        // Fallback error message
+        else {
+          errorMessage = `Upload failed: ${fieldName} document could not be processed`;
+        }
+      } catch (errorParsingError) {
+        errorMessage = 'An error occurred during file upload';
+        console.error('Error while parsing error response:', errorParsingError);
       }
 
       setUploadStatus(prev => ({

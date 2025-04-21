@@ -34,10 +34,10 @@ var until = webdriver.until;
             10000
         );
         await registerButton.click();
-        console.log('Register button clicked!');
-
-        let fullNameField = await browser.wait(until.elementLocated(By.css("input[placeholder='Enter your full name']")),
-            1000
+        console.log('Register button clicked!');     
+        let fullNameField = await browser.wait(
+            until.elementLocated(By.css("input[placeholder='Enter your full name']")),
+            10000
         );
         await fullNameField.click();
         await fullNameField.clear();

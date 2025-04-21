@@ -34,7 +34,7 @@ export const authenticate = {
         ...formData,
         password: '***********' // Don't log actual password
       });
-
+  
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -43,16 +43,15 @@ export const authenticate = {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password
-          // Remove rememberMe if not expected by API
         }),
       });
-
+  
       console.log('Login response status:', response.status);
-
+  
       // Get response text first to see actual error message
       const responseText = await response.text();
       console.log('Login response text:', responseText);
-
+  
       // Try to parse JSON if possible
       let data;
       try {
@@ -60,27 +59,42 @@ export const authenticate = {
       } catch (e) {
         // Not JSON - use text as error message
         if (!response.ok) {
-          throw new Error(`Login failed: ${responseText}`);
+          throw {
+            message: `Login failed: ${responseText}`,
+            status: response.status
+          };
         }
-        throw new Error('Invalid response format from server');
+        throw {
+          message: 'Invalid response format from server',
+          status: response.status
+        };
       }
-
+  
+      // If response is not OK, throw an error with the message from the server
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw {
+          message: data.error || data.message || 'Login failed',
+          error: data.error,
+          status: response.status,
+          data: data
+        };
       }
-
+  
       // Check if the structure has a nested 'data' property
       const payload = data.data || data;
-
+  
       if (!payload.accessToken) {
         console.error('Missing accessToken in response:', data);
-        throw new Error('Invalid response: missing access token');
+        throw {
+          message: 'Invalid response: missing access token',
+          data: data
+        };
       }
-
+  
       tokenManager.setTokens(payload.accessToken, payload.refreshToken);
       localStorage.setItem('role', payload.role);
       localStorage.setItem('userId', payload.userId);
-
+  
       return {
         data: payload // Return consistent structure
       };
@@ -278,14 +292,17 @@ export const authenticate = {
   // Refresh the authentication token
   refreshToken: async (refreshToken) => {
     try {
+      const tokenValue = typeof refreshToken === 'object' && refreshToken.token ? 
+        refreshToken.token : refreshToken;
+        
       const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: refreshToken }),
+        body: JSON.stringify({ token: tokenValue }),
       });
-
+  
       if (response.ok) {
         const data = await response.json();
         return data;

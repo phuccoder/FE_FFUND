@@ -1570,11 +1570,16 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const currentEditorContent = storyData.story || '<p>Project story</p>';
           const storyBlocks = parseHtmlToBlocks(currentEditorContent);
 
+          const maxOrder = storyBlocks.length > 0 
+          ? Math.max(...storyBlocks.map(block => block.order || 0)) 
+          : -1;
+        const newImageOrder = maxOrder + 1;
+
           // Add a placeholder image block - this helps us track where to put the image
           const imageBlock = {
             type: 'IMAGE',
             content: 'placeholder-for-uploading-image',
-            order: cursorPosition,
+            order: newImageOrder,
             metadata: {
               additionalProp1: {
                 width: "100%",

@@ -105,6 +105,13 @@ export default function StripeOnboard() {
                 });
         }
     };
+    
+    // Navigate to payment section of create project page
+    const navigateToPaymentSection = () => {
+        // Store the section index in local storage to be retrieved in create-project page
+        localStorage.setItem('redirectToPaymentSection', 'true');
+        router.push('/create-project');
+    };
 
     return (
         <Layout>
@@ -146,11 +153,12 @@ export default function StripeOnboard() {
                                 )}
 
                                 <div className="mt-4">
-                                    <Link href="/create-project">
-                                        <a className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                                            Continue to Create Project
-                                        </a>
-                                    </Link>
+                                    <button
+                                        onClick={navigateToPaymentSection}
+                                        className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                                    >
+                                        Continue to Create Project
+                                    </button>
                                 </div>
                             </div>
                         ) : success ? (
@@ -165,11 +173,12 @@ export default function StripeOnboard() {
                                     {successMessage || 'Your Stripe account has been successfully linked to our platform. You can now receive payments for your project.'}
                                 </p>
                                 <div className="mt-6">
-                                    <Link href="/create-project">
-                                        <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                            Continue to Create Project
-                                        </a>
-                                    </Link>
+                                    <button
+                                        onClick={navigateToPaymentSection}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Continue to Create Project
+                                    </button>
                                 </div>
                             </div>
                         ) : null}

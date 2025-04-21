@@ -106,7 +106,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     setError(prev => ({ ...prev, fetchingProject: null }));
 
     try {
-      const response = await projectService.getProjectsByFounder();
+      const response = await projectService.getCurrentProjectByFounder();
       console.log('Raw API response from getProjectsByFounder:', response);
 
       // Handle different response formats

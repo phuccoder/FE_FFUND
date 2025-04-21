@@ -181,9 +181,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                     className="project-video"
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    onPlay={() => setIsPaused(true)} 
-                    onPause={() => setIsPaused(false)} 
+                    allowFullScreen 
                   ></iframe>
                 ) : (
                   <img
