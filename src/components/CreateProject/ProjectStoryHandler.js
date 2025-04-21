@@ -9,11 +9,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
   const [error, setError] = useState(null);
   const [storyData, setStoryData] = useState(initialStoryData || { story: '', risks: '' });
   const [storyId, setStoryId] = useState(null);
-  const [savingStatus, setSavingStatus] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
-  const [fetchAttempted, setFetchAttempted] = useState(false); // Track if we've attempted to fetch
+  const [savingStatus, setSavingStatus] = useState('idle');
+  const [fetchAttempted, setFetchAttempted] = useState(false);
   const lastUpdateRef = React.useRef(Date.now());
   const router = useRouter();
   const [hasChanges, setHasChanges] = useState(false);
+  const [apiError, setApiError] = useState(null);
 
   // Get project ID either from props or URL
   useEffect(() => {
@@ -1053,22 +1054,244 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       return; // Skip updates that are too frequent (less than 500ms apart)
     }
 
+    // Clone data to avoid mutation
+    const fixedData = { ...data };
+
+    try {
+      // IMPROVED DETECTION: Handle case where risks content is in the story section
+      if (fixedData.story) {
+        const storyDiv = document.createElement('div');
+        storyDiv.innerHTML = fixedData.story;
+
+        // More robust detection of risks headings - now handles special characters safely
+        const risksHeadings = Array.from(storyDiv.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+          .filter(heading => {
+            // Normalize text by removing special characters for comparison purposes
+            const headingText = (heading.textContent || '')
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, "")
+              .trim();
+
+            return (headingText.includes("risk") && headingText.includes("challenge")) ||
+              (headingText.includes("risks") && headingText.includes("challenges")) ||
+              (headingText.includes("risk") && headingText.includes("&")) ||
+              (headingText.includes("risks") && headingText.includes("&"));
+          });
+
+        if (risksHeadings.length > 0) {
+          console.log('Found Risks and Challenges heading in story section, moving to risks section');
+          const risksHeading = risksHeadings[0];
+
+          // Create content container for risks
+          const risksContentDiv = document.createElement('div');
+
+          // Collect the heading and all elements after it
+          let currentNode = risksHeading;
+          const nodesToMove = [];
+
+          while (currentNode) {
+            nodesToMove.push(currentNode);
+            currentNode = currentNode.nextSibling;
+          }
+
+          // Add each node to risks content
+          nodesToMove.forEach(node => {
+            risksContentDiv.appendChild(node.cloneNode(true));
+          });
+
+          // Remove moved content from story
+          nodesToMove.forEach(node => {
+            if (node.parentNode) {
+              node.parentNode.removeChild(node);
+            }
+          });
+
+          // Update story content without the risks section
+          fixedData.story = storyDiv.innerHTML;
+
+          // Merge with existing risks content if any
+          if (fixedData.risks && fixedData.risks.trim()) {
+            const existingRisksDiv = document.createElement('div');
+            existingRisksDiv.innerHTML = fixedData.risks;
+
+            // Check if risks already has a heading with same robust detection
+            const existingRisksHeadings = Array.from(existingRisksDiv.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+              .filter(heading => {
+                const headingText = (heading.textContent || '')
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, "")
+                  .trim();
+
+                return (headingText.includes("risk") && headingText.includes("challenge")) ||
+                  (headingText.includes("risks") && headingText.includes("challenges")) ||
+                  (headingText.includes("risk") && headingText.includes("&")) ||
+                  (headingText.includes("risks") && headingText.includes("&"));
+              });
+
+            if (existingRisksHeadings.length > 0 && risksContentDiv.querySelector('h1, h2, h3, h4, h5, h6')) {
+              // Remove duplicated heading if both have one
+              const newHeading = risksContentDiv.querySelector('h1, h2, h3, h4, h5, h6');
+              if (newHeading) {
+                newHeading.parentNode.removeChild(newHeading);
+              }
+
+              // Append new content to existing risks
+              fixedData.risks = existingRisksDiv.innerHTML + risksContentDiv.innerHTML;
+            } else {
+              // Use the new risks content (with heading)
+              fixedData.risks = risksContentDiv.innerHTML;
+            }
+          } else {
+            // No existing risks, use new content
+            fixedData.risks = risksContentDiv.innerHTML;
+          }
+        }
+      }
+
+      // SCAN FOR RISKS CONTENT: Look for paragraphs about risks in the story section
+      if ((!fixedData.risks || !fixedData.risks.trim()) && fixedData.story) {
+        const storyDiv = document.createElement('div');
+        storyDiv.innerHTML = fixedData.story;
+
+        // Enhanced detection that handles special characters
+        const risksParagraphs = Array.from(storyDiv.querySelectorAll('p, div, section, li'))
+          .filter(el => {
+            const text = (el.textContent || '')
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, "")
+              .trim();
+
+            return (text.includes("risk") && text.includes("challenge")) ||
+              (text.includes("risks") && text.includes("challenges"));
+          });
+
+        if (risksParagraphs.length > 0) {
+          console.log('Found paragraphs about risks in story section, moving to risks section');
+
+          // Create default heading
+          const risksHeading = document.createElement('h1');
+          risksHeading.textContent = 'Risks and Challenges';
+
+          const risksDiv = document.createElement('div');
+          risksDiv.appendChild(risksHeading);
+
+          // Move each paragraph
+          risksParagraphs.forEach(p => {
+            risksDiv.appendChild(p.cloneNode(true));
+
+            // Remove from story
+            if (p.parentNode) {
+              p.parentNode.removeChild(p);
+            }
+          });
+
+          // Update data
+          fixedData.risks = risksDiv.innerHTML;
+          fixedData.story = storyDiv.innerHTML;
+        }
+      }
+
+      // Ensure risks section has a proper heading
+      if (fixedData.risks && fixedData.risks.trim()) {
+        const risksDiv = document.createElement('div');
+        risksDiv.innerHTML = fixedData.risks;
+
+        // Check if risks already has a heading with improved detection
+        const hasRisksHeading = Array.from(risksDiv.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+          .some(heading => {
+            const headingText = (heading.textContent || '')
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, "")
+              .trim();
+
+            return (headingText.includes("risk") || headingText.includes("risks")) &&
+              (headingText.includes("challenge") || headingText.includes("challenges") || headingText.includes("&"));
+          });
+
+        if (!hasRisksHeading) {
+          // Add a heading if none exists
+          const risksHeading = document.createElement('h1');
+          risksHeading.textContent = 'Risks and Challenges';
+          risksDiv.insertBefore(risksHeading, risksDiv.firstChild);
+          fixedData.risks = risksDiv.innerHTML;
+        }
+      }
+
+      // SPECIAL CASE: Handle completely restructured content
+      // If the entire content structure has changed dramatically
+      if (fixedData.story && !fixedData.risks) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = fixedData.story;
+
+        // Look for patterns of structured risks content with improved detection
+        const potentialRisksSections = Array.from(tempDiv.querySelectorAll('div, section'))
+          .filter(section => {
+            const text = (section.textContent || '')
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}]/gu, "")
+              .trim();
+
+            return text.includes("risks") && text.length > 100; // Reasonably sized section
+          });
+
+        if (potentialRisksSections.length > 0) {
+          console.log('Found potential risks section in completely restructured content');
+
+          // Take the largest matching section
+          const largestSection = potentialRisksSections.reduce((largest, current) =>
+            (current.textContent?.length > largest.textContent?.length) ? current : largest,
+            potentialRisksSections[0]
+          );
+
+          // Create risks content with proper heading
+          const risksHeading = document.createElement('h1');
+          risksHeading.textContent = 'Risks and Challenges';
+
+          const risksDiv = document.createElement('div');
+          risksDiv.appendChild(risksHeading);
+          risksDiv.appendChild(largestSection.cloneNode(true));
+
+          // Remove from story
+          if (largestSection.parentNode) {
+            largestSection.parentNode.removeChild(largestSection);
+          }
+
+          // Update data
+          fixedData.risks = risksDiv.innerHTML;
+          fixedData.story = tempDiv.innerHTML;
+        }
+      }
+    } catch (error) {
+      // Add error handling to prevent crashes from special character processing
+      console.error('Error processing content:', error);
+    }
+
+    // Update state with fixed data
     setStoryData(prevData => {
-      // Compare if anything actually changed to prevent unnecessary updates
-      const hasContentChanged = data.story !== prevData.story || data.risks !== prevData.risks;
+      // Has anything actually changed?
+      const hasContentChanged =
+        fixedData.story !== prevData.story ||
+        fixedData.risks !== prevData.risks;
 
       if (hasContentChanged) {
         setHasChanges(true);
+
+        // Log what changed for debugging
+        console.log("Content changed, updating story and risks sections");
       }
 
-      if (data.story === prevData.story && data.risks === prevData.risks) {
-        return prevData; // Return same object reference to prevent re-render
+      if (fixedData.story === prevData.story && fixedData.risks === prevData.risks) {
+        return prevData;
       }
 
-      // Update the timestamp for this change
+      // Update timestamp and return new state
       lastUpdateRef.current = now;
-
-      return data;
+      return fixedData;
     });
   }, []);
 
@@ -1461,9 +1684,9 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       const apiReadyBlocks = combinedBlocks.map((block, index) => {
         // Always reassign sequential order numbers to ensure proper ordering
         return {
-          type: block.type, // Preserve the original block type (VIDEO, IMAGE, TEXT, HEADING)
+          type: block.type, 
           content: block.content,
-          order: index, // Important: use the index here to guarantee sequential ordering
+          order: index, 
           metadata: {
             additionalProp1: typeof block.metadata?.additionalProp1 === 'object'
               ? block.metadata.additionalProp1
@@ -1489,45 +1712,89 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       };
 
       // Save to API
-      if (storyId) {
-        console.log(`Updating existing story with ID: ${storyId}`);
-        await projectService.updateProjectStory(storyId, payload);
-      } else {
-        console.log(`Creating new story for project: ${currentProjectId}`);
-        const result = await projectService.createProjectStory(currentProjectId, payload);
+      try {
+        if (storyId) {
+          console.log(`Updating existing story with ID: ${storyId}`);
+          await projectService.updateProjectStory(storyId, payload);
+        } else {
+          console.log(`Creating new story for project: ${currentProjectId}`);
+          const result = await projectService.createProjectStory(currentProjectId, payload);
 
-        if (result && result.data && result.data.projectStoryId) {
-          setStoryId(result.data.projectStoryId);
-        } else if (result && result.projectStoryId) {
-          setStoryId(result.projectStoryId);
+          if (result && result.data && result.data.projectStoryId) {
+            setStoryId(result.data.projectStoryId);
+          } else if (result && result.projectStoryId) {
+            setStoryId(result.projectStoryId);
+          }
         }
+
+        setSavingStatus('saved');
+        setTimeout(() => {
+          setSavingStatus('idle');
+        }, 2000);
+
+        if (updateFormData) {
+          updateFormData({
+            story: storyData.story || '',
+            risks: storyData.risks || '',
+            id: storyId,
+            projectStoryId: storyId,
+            projectId: currentProjectId
+          });
+        }
+
+        console.log('Story saved successfully');
+        setHasChanges(false);
+        return true;
+      } catch (error) {
+        console.error('API error:', error);
+
+        // Enhanced dynamic error handling
+        let errorMessage = 'Failed to save story. Please try again later.';
+
+        // Handle structured error response with different potential formats
+        if (error.response) {
+          // Handle response object with data property (axios-like format)
+          if (error.response.data) {
+            errorMessage = typeof error.response.data.error === 'string'
+              ? error.response.data.error
+              : error.response.data.message || `Error ${error.response.status || 400}`;
+          } else {
+            errorMessage = `Server error: ${error.response.status || 'Unknown'}`;
+          }
+        }
+        // Handle direct error object with status and error properties (custom API format)
+        else if (error.status) {
+          errorMessage = error.error || error.message || `Error code: ${error.status}`;
+
+          if (error.status === 400 && !error.error) {
+            errorMessage = 'Invalid request. Please check your story content and try again.';
+          }
+        }
+        else if (typeof error === 'string') {
+          errorMessage = error;
+
+          // Add specific context for known error patterns
+          if (error.includes('project status')) {
+            errorMessage = 'This project cannot be edited in its current status. Only draft or rejected projects can be modified.';
+          } else if (error.includes('permission') || error.includes('unauthorized')) {
+            errorMessage = 'You do not have permission to edit this project story.';
+          } else if (error.includes('not found')) {
+            errorMessage = 'The project or story could not be found. It may have been deleted.';
+          }
+        }
+        // Handle Error objects
+        else if (error instanceof Error) {
+          errorMessage = error.message || 'An error occurred during save';
+        }
+
+        setApiError(errorMessage);
+        setSavingStatus('error');
+        return false;
       }
-
-      setSavingStatus('saved');
-      setTimeout(() => {
-        setSavingStatus('idle');
-      }, 2000);
-
-      if (updateFormData) {
-        updateFormData({
-          story: storyData.story || '',
-          risks: storyData.risks || '',
-          id: storyId,
-          projectStoryId: storyId,
-          projectId: propProjectId
-        });
-      }
-
-      console.log('Story saved successfully');
-      return true;
     } catch (error) {
       console.error('Error saving story:', error);
+      setApiError('An unexpected error occurred while processing your story. Please try again.');
       setSavingStatus('error');
-
-      setTimeout(() => {
-        setSavingStatus('idle');
-      }, 3000);
-
       return false;
     }
   }, [storyId, storyData, propProjectId, router.query.id, parseHtmlToBlocks, processYouTubeUrls, updateFormData, debugContent, debugYouTubeContent]);
@@ -1570,10 +1837,10 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           const currentEditorContent = storyData.story || '<p>Project story</p>';
           const storyBlocks = parseHtmlToBlocks(currentEditorContent);
 
-          const maxOrder = storyBlocks.length > 0 
-          ? Math.max(...storyBlocks.map(block => block.order || 0)) 
-          : -1;
-        const newImageOrder = maxOrder + 1;
+          const maxOrder = storyBlocks.length > 0
+            ? Math.max(...storyBlocks.map(block => block.order || 0))
+            : -1;
+          const newImageOrder = maxOrder + 1;
 
           // Add a placeholder image block - this helps us track where to put the image
           const imageBlock = {
@@ -2296,6 +2563,32 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           </button>
         </div>
       </div>
+
+      {apiError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 rounded">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-red-800">Error Saving Story</h3>
+              <div className="mt-1 text-sm text-red-700">
+                {apiError}
+              </div>
+              <div className="mt-2 flex space-x-3">
+                <button
+                  onClick={() => setApiError(null)}
+                  className="text-xs text-red-800 font-medium hover:text-red-900"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProjectStory
         formData={storyData.story}

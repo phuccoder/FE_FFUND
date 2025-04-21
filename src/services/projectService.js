@@ -840,14 +840,34 @@ const projectService = {
                 body: JSON.stringify(storyData)
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return text for non-JSON success responses
+                return responseText;
             }
 
-            const result = await response.json();
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
             return result.data || result;
         } catch (error) {
-            console.error(`Error updating project story ${storyId}:`, error);
+            console.error(`Error updating project story`, error);
             throw error;
         }
     },
