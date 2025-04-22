@@ -162,6 +162,12 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
   };
 
+  const numberToOrdinal = (num) => {
+    const suffixes = ["th", "st", "nd", "rd"];
+    const value = num % 100;
+    return num + (suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0]);
+  };
+
   return (
     <section className="project-details-area pt-120 pb-190">
       <Container>
@@ -263,6 +269,7 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
                   ))}
                 </div>
               )}
+
               {/* Title và Icon Like */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h3 className="title" style={{ marginTop: '20px', fontSize: '30px' }}>{title}</h3>
@@ -278,6 +285,10 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
               {description && <p className="description">{description}</p>}
               <div className="project-details-item mt-3">
                 <div className="item text-center">
+                  <h5 className="title">{numberToOrdinal(currentPhase.phaseNumber)}</h5>
+                  <span>Phase</span>
+                </div>
+                <div className="item text-center">
                   <h5 className="title">${raised}</h5>
                   <span>Pledged</span>
                 </div>
@@ -292,21 +303,32 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
               </div>
               <div className="w-full h-2 bg-gray-200 rounded-full mt-3">
                 <div
-                  className={`h-full rounded-full ${raisedPercentage >= 100 ? 'bg-yellow-500' : 'bg-green-600'}`}
+                  className={`h-full rounded-full ${raisedPercentage >= 100 ? "complete-progress" : ""}`}
                   style={{
                     width: `${Math.min(raisedPercentage, 100)}%`,
+                    background: raisedPercentage >= 100
+                      ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
+                      : "#16a34a",
+                    backgroundSize: raisedPercentage >= 100 ? "200% 200%" : "100% 100%",
                     transition: "width 0.5s ease-in-out",
                   }}
                 ></div>
               </div>
 
               <div className="flex justify-between text-sm text-gray-700 mt-2">
-                <span className="font-bold">{Math.round(raisedPercentage)}% funded</span>
+                <span className={`font-bold ${raisedPercentage >= 100 ? "highlight-text" : ""}`}>
+                  {Math.round(raisedPercentage)}% funded
+                </span>
                 <span>{daysLeft} days left</span>
               </div>
+              {/* Hiển thị Target Amount và Total Target Amount */}
               <div className="projects-goal">
                 <span>
-                  Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
+                  Current Phase Goal: <span>{currentPhase.targetAmount ? Number(currentPhase.targetAmount).toLocaleString() : "0"}$</span>
+                </span>
+                <br />
+                <span>
+                  Total Project Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
                 </span>
               </div>
               <div className="project-btn mt-25">

@@ -80,10 +80,8 @@ const ContactFormArea = () => {
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
             >
               <option value="REPORT_BUG">Report a Bug</option>
-              <option value="INVESTMENT">Investment</option>
-              <option value="CREATE_PROJECT">Create Project</option>
-              <option value="REWARD_SHIPPING">Reward Shipping</option>
-              <option value="CHOOSE_MILESTONE">Choose Milestone</option>
+              <option value="STRIPE_ACCOUNT">Stripe Account</option>
+              <option value="PROJECT_BANNER">Project Banner</option>
               <option value="OTHER">Other</option>
             </select>
           </div>

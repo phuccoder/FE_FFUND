@@ -67,9 +67,6 @@ export default function TransactionTable({ transactions }) {
                     {transaction.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {transaction.investorName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {transaction.projectTitle}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
