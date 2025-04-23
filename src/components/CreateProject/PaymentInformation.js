@@ -121,50 +121,52 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
   useEffect(() => {
     // Skip calculation if no updateFormData function is provided
     if (typeof updateFormData !== 'function') return;
-    
+
     const calculatePaymentCompletion = () => {
-      const paymentInfo = formData || {};
-      
-      // If empty or not an object, return 0%
+      // Use paymentInfo instead of undefined formData variable
       if (!paymentInfo || typeof paymentInfo !== 'object' || Object.keys(paymentInfo).length === 0) {
         return 0;
       }
-      
+
       // Check for completed status
       if (paymentInfo.status === 'LINKED') {
         return 100;
       }
-      
+
       // Check for Stripe account ID
       if (paymentInfo.stripeAccountId && typeof paymentInfo.stripeAccountId === 'string'
         && paymentInfo.stripeAccountId.trim().length > 0) {
         return 100;
       }
-      
+
       // Check for payment ID (partial completion)
       if ((paymentInfo.id && typeof paymentInfo.id === 'string' && paymentInfo.id.trim().length > 0) ||
         (paymentInfo.id && typeof paymentInfo.id === 'number' && paymentInfo.id > 0)) {
         return 40;
       }
-      
+
       // Minimal progress - initiated but not completed
       return 10;
     };
-    
+
     // Calculate current percentage
     const completionPercentage = calculatePaymentCompletion();
-    
+
     // Only update if the value has changed to avoid infinite loops
-    if (formData?._completionPercentage !== completionPercentage) {
-      // Create a copy of formData with completion percentage
+    if (paymentInfo?._completionPercentage !== completionPercentage) {
+      // Create a copy of paymentInfo with completion percentage
       const updatedFormData = {
-        ...formData,
+        ...paymentInfo,
         _completionPercentage: completionPercentage
       };
+
       // Update parent component
-      updateFormData(updatedFormData);
+      updateFormData(prevData => ({
+        ...prevData,
+        paymentInfo: updatedFormData
+      }));
     }
-  }, [formData, updateFormData]);
+  }, [paymentInfo, updateFormData]);
 
   // Handle connecting to Stripe
   const handleConnectStripe = async () => {
@@ -442,12 +444,6 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
               {paymentInfo.id && (
                 <p className="text-xs text-gray-600 mt-1">
                   Internal ID: {paymentInfo.id}
-                </p>
-              )}
-
-              {paymentInfo.projectId && (
-                <p className="text-xs text-gray-600 mt-1">
-                  Project ID: {paymentInfo.projectId}
                 </p>
               )}
 

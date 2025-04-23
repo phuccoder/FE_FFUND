@@ -998,7 +998,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
         )}
         {/* Show ExtendTimeRequestForm only if the last phase is COMPLETED */}
-        {isLastPhaseCompleted && (
+        {isEditPage && isLastPhaseCompleted && (
           <div className="mt-6 border-t border-gray-200 pt-6">
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
               <div className="flex">
