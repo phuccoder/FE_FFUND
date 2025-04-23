@@ -24,25 +24,47 @@ const RequestManager = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [isReport, setIsReport] = useState(false);
     const [activeTab, setActiveTab] = useState("1");
+    const [userRole, setUserRole] = useState(null);
+
+    // Get user role from localStorage on component mount
+    useEffect(() => {
+        // Check if we're running in the browser (not during SSR)
+        if (typeof window !== 'undefined') {
+            try {
+                // Get user info from localStorage
+                const userRole = localStorage.getItem('role');    
+                setUserRole(userRole);     
+            } catch (error) {
+                console.error("Error parsing user info from localStorage:", error);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [requestResponse, reportResponse] = await Promise.all([
-                    requestService.getRequestByUser(),
-                    reportService.getReportsByUser()
-                ]);
+                // Always fetch request data
+                const requestResponse = await requestService.getRequestByUser();
                 setRequests(requestResponse.data || []);
-                setReports(reportResponse.data || []);
+                
+                // Only fetch report data if user is not a FOUNDER
+                if (userRole !== "FOUNDER") {
+                    const reportResponse = await reportService.getReportsByUser();
+                    setReports(reportResponse.data || []);
+                }
             } catch (error) {
                 message.error("Failed to fetch data.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
-    }, []);
+        
+        // Only fetch data if we've determined the user role
+        if (userRole !== null) {
+            fetchData();
+        }
+    }, [userRole]);
 
     const handleViewDetails = (item, isReportItem) => {
         setSelectedItem(item);
@@ -209,6 +231,19 @@ const RequestManager = () => {
         </table>
     );
 
+    // Show a loading state if we're still determining the user role or fetching data
+    if (userRole === null) {
+        return (
+            <Layout>
+                <Header />
+                <PageTitle title="Request/Report Management" />
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
+                    Loading...
+                </div>
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
             <Header />
@@ -227,9 +262,12 @@ const RequestManager = () => {
                         <TabPane tab="Requests" key="1">
                             {renderTable(requests, false)}
                         </TabPane>
-                        <TabPane tab="Reports" key="2">
-                            {renderTable(reports, true)}
-                        </TabPane>
+                        {/* Only show Reports tab if user is not a FOUNDER */}
+                        {userRole !== "FOUNDER" && (
+                            <TabPane tab="Reports" key="2">
+                                {renderTable(reports, true)}
+                            </TabPane>
+                        )}
                     </Tabs>
                 </div>
 
