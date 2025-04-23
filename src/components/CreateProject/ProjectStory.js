@@ -120,6 +120,86 @@ export default function ProjectStory({ formData, risksData, updateFormData, uplo
     setRisksCharCount(plainText.length);
   }, [risksContent]);
 
+  useEffect(() => {
+    // Skip calculation if no updateFormData function is provided
+    if (typeof updateFormData !== 'function') return;
+    
+    const calculateStoryCompletion = () => {
+      const story = formData?.story || '';
+      const risks = formData?.risks || '';
+      
+      if (!story && !risks) return 0;
+      
+      // Parse the HTML content to count elements
+      const parseAndCountElements = (html) => {
+        try {
+          if (typeof window === 'undefined') {
+            return { textLength: html.length };
+          }
+          
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          
+          return {
+            textLength: tempDiv.textContent?.length || 0,
+            headings: tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').length,
+            images: tempDiv.querySelectorAll('img, [data-type="IMAGE"]').length,
+            videos: tempDiv.querySelectorAll('iframe, [data-youtube-video], [data-type="VIDEO"]').length,
+            paragraphs: tempDiv.querySelectorAll('p').length,
+            lists: tempDiv.querySelectorAll('ul, ol').length
+          };
+        } catch (error) {
+          console.error('Error parsing HTML content:', error);
+          return { textLength: html.length };
+        }
+      };
+      
+      const storyElements = parseAndCountElements(story);
+      const risksElements = parseAndCountElements(risks);
+      
+      // Calculate score based on content
+      let score = 0;
+      
+      // Story content scoring (max: 70 points)
+      if (storyElements.textLength > 3000) score += 35;
+      else if (storyElements.textLength > 1500) score += 25;
+      else if (storyElements.textLength > 800) score += 15;
+      else if (storyElements.textLength > 300) score += 8;
+      else score += 4;
+  
+      // Risks content scoring (max: 30 points)
+      if (risksElements.textLength > 1000) score += 30;
+      else if (risksElements.textLength > 500) score += 25;
+      else if (risksElements.textLength > 200) score += 15;
+      else if (risksElements.textLength > 100) score += 10;
+      else score += 5;
+      
+      // Content variety bonus (up to 30 extra points)
+      if (storyElements.headings > 0) score += Math.min(storyElements.headings * 3, 10);
+      if (storyElements.images > 0) score += Math.min(storyElements.images * 5, 20);
+      if (storyElements.paragraphs > 2) score += Math.min((storyElements.paragraphs - 2) * 2, 10);
+      if (storyElements.lists > 0) score += Math.min(storyElements.lists * 3, 9);
+      if (storyElements.videos > 0) score += Math.min(storyElements.videos * 4, 15);
+      
+      // Cap at 100%
+      return Math.min(score, 100);
+    };
+    
+    // Calculate current percentage
+    const completionPercentage = calculateStoryCompletion();
+    
+    // Only update if the value has changed to avoid infinite loops
+    if (formData?._completionPercentage !== completionPercentage) {
+      // Create a copy of formData with completion percentage
+      const updatedFormData = {
+        ...formData,
+        _completionPercentage: completionPercentage
+      };
+      // Update parent component
+      updateFormData(updatedFormData);
+    }
+  }, [formData, updateFormData]);
+
   const handleChange = useCallback((newContent) => {
     setContent(newContent);
     updateFormData({ story: newContent, risks: risksContent });

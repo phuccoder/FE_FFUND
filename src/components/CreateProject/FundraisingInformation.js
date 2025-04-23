@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
 import ExtendTimeRequestForm from '../Request/RequestExtendTime';
 
-export default function FundraisingInformation({ formData, updateFormData, projectId }) {
+export default function FundraisingInformation({ formData, updateFormData, projectId, isEditPage = false }) {
   // Initialize with safe default values
   const [form, setForm] = useState({
     startDate: formData?.startDate || new Date().toISOString().split('T')[0],
@@ -55,6 +55,40 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   }, [form.phases, formData?.totalTargetAmount]);
 
+  useEffect(() => {
+    if (typeof updateFormData !== 'function') return;
+    
+    const calculateFundraisingCompletion = () => {
+      const phases = form.phases || [];
+      
+      // If no phases, return 0%
+      if (!phases.length) return 0;
+      
+      let completedPhaseFields = 0;
+      let totalPhaseFields = 0;
+      
+      phases.forEach(phase => {
+        if (!phase) return;
+        const requiredFields = ['fundingGoal', 'startDate', 'duration'];
+        requiredFields.forEach(field => {
+          totalPhaseFields++;
+          if (phase[field]) completedPhaseFields++;
+        });
+      });
+      
+      return totalPhaseFields > 0 ? Math.round((completedPhaseFields / totalPhaseFields) * 100) : 0;
+    };
+
+    const completionPercentage = calculateFundraisingCompletion();
+    
+    // Only update if the value has changed to avoid infinite loops
+    if (formData?._completionPercentage !== completionPercentage) {
+      // Create a copy of form data with completion percentage
+      const updatedFormData = { ...form, _completionPercentage: completionPercentage };
+      updateFormData(updatedFormData);
+    }
+  }, [form, formData?._completionPercentage, updateFormData]);
+
   const fetchProjectPhases = async () => {
     if (!projectId) return;
 
@@ -84,11 +118,14 @@ export default function FundraisingInformation({ formData, updateFormData, proje
           return {
             id: phase.id,
             fundingGoal: phase.targetAmount?.toString() || '',
+            targetAmount: phase.targetAmount || 0,
+            raiseAmount: phase.raiseAmount || 0,
             startDate: startDateFormatted,
             endDate: endDateFormatted,
             duration: calculateDuration(startDateFormatted, endDateFormatted),
             phaseNumber: phase.phaseNumber,
             status: phase.status,
+            totalInvestors: phase.totalInvestors || 0,
             savedToServer: true
           };
         });
@@ -777,6 +814,34 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     </div>
                   )}
                 </div>
+                {isEditPage && typeof phase.raiseAmount !== 'undefined' && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="text-xs text-gray-700">Funding Progress</div>
+                      <div className="text-xs font-medium text-gray-900">
+                        {formatCurrency(phase.raiseAmount || 0)} / {formatCurrency(phase.targetAmount || phase.fundingGoal || 0)}
+                        {phase.totalInvestors > 0 && (
+                          <span className="ml-2 text-gray-500">({phase.totalInvestors} investor{phase.totalInvestors !== 1 ? 's' : ''})</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${phase.status === 'COMPLETED' ? 'bg-green-600' :
+                          phase.status === 'PROCESS' ? 'bg-blue-600' : 'bg-yellow-400'
+                          }`}
+                        style={{
+                          width: `${Math.min(100, ((phase.raiseAmount || 0) / (phase.targetAmount || phase.fundingGoal || 1)) * 100)}%`
+                        }}
+                      ></div>
+                    </div>
+                    {((phase.raiseAmount || 0) > 0) && (
+                      <div className="text-xs mt-1 text-right text-gray-500">
+                        {Math.round(((phase.raiseAmount || 0) / (phase.targetAmount || phase.fundingGoal || 1)) * 100)}% funded
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -962,7 +1027,8 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 FundraisingInformation.propTypes = {
   formData: PropTypes.object,
   updateFormData: PropTypes.func.isRequired,
-  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  isEditPage: PropTypes.bool,
 };
 
 // Default props
@@ -971,5 +1037,6 @@ FundraisingInformation.defaultProps = {
     startDate: new Date().toISOString().split('T')[0],
     phases: []
   },
-  projectId: null
+  projectId: null,
+  isEditPage: false,
 };

@@ -335,7 +335,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     const blocks = [];
     const processedElements = new Set();
     const processedImageSrcs = new Set();
-    const processedListItems = new Set(); // NEW: Track list items to avoid duplication
+    const processedListItems = new Set(); // Track list items to avoid duplication
 
     // Function to map all elements in document order
     const mapElements = () => {
@@ -364,12 +364,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             !element.querySelector('br')) {
             continue;
           }
-        }
-
-        // Skip elements that are direct children of list items - they'll be handled by the list
-        if (element.parentElement && (element.parentElement.tagName.toLowerCase() === 'li')) {
-          processedListItems.add(element);
-          continue;
         }
 
         // Handle YouTube videos (iframes)
@@ -433,7 +427,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
         // Handle images
         if (tagName === 'img' && element.src && !processedElements.has(element)) {
-          // IMPORTANT FIX: Skip if this image source has already been processed
+          // Skip if this image source has already been processed
           if (processedImageSrcs.has(element.src)) {
             processedElements.add(element);
             continue;
@@ -465,9 +459,6 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           continue;
         }
 
-
-
-
         // Handle headings
         if (tagName.startsWith('h') && tagName.length === 2 && !processedElements.has(element)) {
           const level = parseInt(tagName[1]);
@@ -491,18 +482,19 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           continue;
         }
 
-        // Handle lists (ul/ol) as composite blocks
+        // FIX: Improved list handling - handle lists (ul/ol) as composite blocks
         if ((tagName === 'ul' || tagName === 'ol') && !processedElements.has(element)) {
           // Mark all child elements as processed
           const listItems = element.querySelectorAll('li');
           listItems.forEach(li => {
             processedElements.add(li);
+            // Process li children but don't mark as fully processed yet
             Array.from(li.children).forEach(child => {
               processedListItems.add(child);
             });
           });
 
-          // Get the entire list HTML
+          // Get the entire list HTML - this is the key fix to preserve all list content
           const listContent = element.outerHTML;
 
           if (listContent.trim()) {
@@ -523,11 +515,42 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
           continue;
         }
 
-        // Handle paragraphs and other text elements
+        // FIX: Handle individual list items that might not be caught by the list handler
+        if (tagName === 'li' && !processedElements.has(element) && !processedListItems.has(element)) {
+          const parentList = element.closest('ul, ol');
+
+          // If the parent list was already processed, skip this list item
+          if (processedElements.has(parentList)) {
+            processedElements.add(element);
+            continue;
+          }
+
+          // Create a temporary list to contain just this item
+          const tempList = document.createElement(parentList ? parentList.tagName : 'ul');
+          tempList.appendChild(element.cloneNode(true));
+
+          blocks.push({
+            type: 'TEXT',
+            content: tempList.outerHTML,
+            order: order++,
+            metadata: {
+              additionalProp1: {
+                align: 'left',
+                color: null,
+                listType: parentList && parentList.tagName.toLowerCase() === 'ol' ? 'ordered' : 'bullet'
+              }
+            }
+          });
+
+          processedElements.add(element);
+          continue;
+        }
+
+        // FIX: Improved handling of paragraphs and text elements - don't skip elements with processed children
         if ((tagName === 'p' || tagName === 'div' || tagName === 'blockquote') &&
           !processedElements.has(element) && !processedListItems.has(element)) {
 
-          // IMPORTANT FIX: Skip if paragraph only contains an already processed image
+          // Skip if paragraph only contains an already processed image
           const containsOnlyProcessedImage = () => {
             const images = element.querySelectorAll('img');
             if (images.length === 1 && processedImageSrcs.has(images[0].src)) {
@@ -544,14 +567,12 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
             continue;
           }
 
-          // Skip if this element contains already processed elements (like images or videos)
-          const hasProcessedChild = Array.from(element.querySelectorAll('*')).some(
-            child => processedElements.has(child)
-          );
+          // FIX: Always process elements with text content even if they have processed children
+          // This ensures we don't lose text in paragraphs that contain processed elements
+          const hasTextContent = element.textContent.trim().length > 0;
 
-          const hasTextContent = element.textContent && element.textContent.trim().length > 0;
-
-          if (!hasProcessedChild || hasTextContent) {
+          // Process if it has text or hasn't been processed elsewhere
+          if (hasTextContent || !Array.from(element.querySelectorAll('*')).some(child => processedElements.has(child))) {
             const content = tagName === 'p' ? element.innerHTML : element.outerHTML;
 
             // Skip completely empty or whitespace-only content
@@ -581,7 +602,7 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
               processedElements.add(element);
             } else if (content.trim()) { // Only add non-empty content
               blocks.push({
-                type: tagName === 'p' ? 'TEXT' : 'TEXT',
+                type: 'TEXT',
                 content: content,
                 order: order++,
                 metadata: {
@@ -618,12 +639,63 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     // Map and process all elements in document order
     mapElements();
 
+    // FIX: NEW STEP - Ensure we don't miss any plain text nodes
+    const textNodes = [];
+
+    // Function to recursively collect text nodes
+    const collectTextNodes = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent.trim();
+        if (text.length > 0) {
+          textNodes.push(node);
+        }
+      } else {
+        // Process children
+        node.childNodes.forEach(child => collectTextNodes(child));
+      }
+    };
+
+    // Start collecting from the root
+    collectTextNodes(tempDiv);
+
+    // Add text nodes that aren't already part of processed elements
+    textNodes.forEach(textNode => {
+      // Check if this text node is part of an already processed element
+      let parent = textNode.parentNode;
+      let isProcessed = false;
+
+      while (parent && parent !== tempDiv) {
+        if (processedElements.has(parent)) {
+          isProcessed = true;
+          break;
+        }
+        parent = parent.parentNode;
+      }
+
+      // If not already processed, add as a text block
+      if (!isProcessed) {
+        blocks.push({
+          type: 'TEXT',
+          content: `<p>${textNode.textContent}</p>`,
+          order: blocks.length, // Add at the end
+          metadata: {
+            additionalProp1: {
+              align: 'left',
+              color: null
+            }
+          }
+        });
+      }
+    });
+
     // Final verification and logging
     const finalVideoBlocks = blocks.filter(b => b.type === 'VIDEO');
     const finalImageBlocks = blocks.filter(b => b.type === 'IMAGE');
+    const finalTextBlocks = blocks.filter(b => b.type === 'TEXT');
+    const finalHeadingBlocks = blocks.filter(b => b.type === 'HEADING');
 
     console.log(`Parsing complete. Generated ${blocks.length} blocks`);
-    console.log(`Final multimedia count: ${finalVideoBlocks.length} videos, ${finalImageBlocks.length} images`);
+    console.log(`Final block counts: ${finalHeadingBlocks.length} headings, ${finalTextBlocks.length} text, ${finalImageBlocks.length} images, ${finalVideoBlocks.length} videos`);
     console.log('Block types:', blocks.map(b => b.type).join(', '));
 
     return blocks;
@@ -1433,6 +1505,175 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
     console.log('--- End YouTube Debug ---');
   };
 
+  const fixListStructure = (blocks) => {
+    // If no blocks or not an array, return as is
+    if (!blocks || !Array.isArray(blocks)) {
+      return blocks;
+    }
+  
+    // Create a map to track list items by their parent list
+    const listContainers = new Map();
+    
+    // First pass: identify all list blocks and group related items
+    blocks.forEach((block, index) => {
+      // Only process TEXT blocks that might contain lists
+      if (block.type === 'TEXT' && block.content) {
+        // Check if this is a list item or list container
+        const isListBlock = 
+          block.content.includes('<ul') || 
+          block.content.includes('<ol') || 
+          block.content.includes('<li') ||
+          (block.metadata?.additionalProp1?.listType === 'bullet' || 
+           block.metadata?.additionalProp1?.listType === 'ordered');
+        
+        if (isListBlock) {
+          // Determine the list type (bullet or ordered)
+          let listType = 'bullet'; // default
+          
+          if (block.metadata?.additionalProp1?.listType) {
+            listType = block.metadata.additionalProp1.listType;
+          } else if (block.content.includes('<ol')) {
+            listType = 'ordered';
+          }
+          
+          // Create a new list container if needed
+          if (!listContainers.has(listType)) {
+            listContainers.set(listType, {
+              items: [],
+              indices: []
+            });
+          }
+          
+          // Add this block to its list container
+          listContainers.get(listType).items.push(block);
+          listContainers.get(listType).indices.push(index);
+        }
+      }
+    });
+    
+    // Return the original blocks if no lists found
+    if (listContainers.size === 0) {
+      return blocks;
+    }
+    
+    // Create a new array to hold the fixed blocks
+    const fixedBlocks = [...blocks];
+    
+    // Process each list container and ensure proper structure
+    listContainers.forEach((container, listType) => {
+      // Skip if only one item (already properly structured)
+      if (container.items.length <= 1) {
+        return;
+      }
+      
+      // Sort indices to maintain proper document order
+      const sortedIndices = [...container.indices].sort((a, b) => a - b);
+      
+      // Find consecutive sequences of list items
+      let currentSequence = [];
+      let sequences = [];
+      
+      for (let i = 0; i < sortedIndices.length; i++) {
+        const currentIndex = sortedIndices[i];
+        
+        if (currentSequence.length === 0 || currentIndex === sortedIndices[i-1] + 1) {
+          // Part of the current sequence
+          currentSequence.push(currentIndex);
+        } else {
+          // Start a new sequence
+          if (currentSequence.length > 0) {
+            sequences.push([...currentSequence]);
+          }
+          currentSequence = [currentIndex];
+        }
+      }
+      
+      // Add the last sequence if not empty
+      if (currentSequence.length > 0) {
+        sequences.push(currentSequence);
+      }
+      
+      // Process each sequence of consecutive list items
+      sequences.forEach(sequence => {
+        // Skip if only one item
+        if (sequence.length <= 1) {
+          return;
+        }
+        
+        // Get the blocks in this sequence
+        const sequenceBlocks = sequence.map(index => blocks[index]);
+        
+        // Create a temporary element to properly combine the list items
+        const tempDiv = document.createElement('div');
+        
+        // Determine what type of list to create
+        const listTag = listType === 'ordered' ? 'ol' : 'ul';
+        const list = document.createElement(listTag);
+        
+        // Add each item to the list
+        sequenceBlocks.forEach(block => {
+          const content = block.content;
+          
+          // If it's already a complete list, extract the items
+          if (content.includes(`<${listTag}>`) && content.includes(`</${listTag}>`)) {
+            const itemDiv = document.createElement('div');
+            itemDiv.innerHTML = content;
+            
+            // Get all list items
+            const items = Array.from(itemDiv.querySelectorAll('li'));
+            items.forEach(item => {
+              list.appendChild(item.cloneNode(true));
+            });
+          }
+          // If it's a list item
+          else if (content.includes('<li>')) {
+            const itemDiv = document.createElement('div');
+            itemDiv.innerHTML = content;
+            
+            // Get all list items
+            const items = Array.from(itemDiv.querySelectorAll('li'));
+            items.forEach(item => {
+              list.appendChild(item.cloneNode(true));
+            });
+          }
+          // Otherwise wrap the content in a list item
+          else {
+            const li = document.createElement('li');
+            li.innerHTML = content;
+            list.appendChild(li);
+          }
+        });
+        
+        tempDiv.appendChild(list);
+        
+        // Update the first block with the combined list and mark others for removal
+        const combinedContent = tempDiv.innerHTML;
+        const firstIndex = sequence[0];
+        
+        // Update the first block with the combined content
+        fixedBlocks[firstIndex] = {
+          ...blocks[firstIndex],
+          content: combinedContent,
+          metadata: {
+            ...blocks[firstIndex].metadata,
+            additionalProp1: {
+              ...(blocks[firstIndex].metadata?.additionalProp1 || {}),
+              listType: listType
+            }
+          }
+        };
+        
+        // Mark other blocks in the sequence for removal (by setting to null)
+        for (let i = 1; i < sequence.length; i++) {
+          fixedBlocks[sequence[i]] = null;
+        }
+      });
+    });
+    
+    // Filter out null blocks (those marked for removal)
+    return fixedBlocks.filter(block => block !== null);
+  };
+
   const handleSaveStory = useCallback(async () => {
     try {
       setSavingStatus('saving');
@@ -1457,8 +1698,28 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
       const processedStoryHtml = processYouTubeUrls(storyHtml);
       const processedRisksHtml = processYouTubeUrls(risksHtml);
 
-      // Parse content into blocks while maintaining their DOM positions
-      console.log('Parsing HTML content into blocks...');
+      // FIX #1: First try to get the existing story structure from API
+      let originalBlocks = [];
+      let originalRisksStartIndex = -1;
+
+      if (storyId) {
+        try {
+          const existingStory = await projectService.getProjectStoryByProjectId(currentProjectId);
+          if (existingStory && existingStory.blocks && Array.isArray(existingStory.blocks)) {
+            originalBlocks = existingStory.blocks;
+
+            // Find where the risks section starts in the original blocks
+            originalRisksStartIndex = originalBlocks.findIndex(block =>
+              block.type === 'HEADING' &&
+              block.content &&
+              block.content.toLowerCase().includes('risks and challenges'));
+
+            console.log(`Retrieved ${originalBlocks.length} original blocks, risks section starts at index ${originalRisksStartIndex}`);
+          }
+        } catch (error) {
+          console.warn('Could not retrieve original blocks, will create new structure:', error);
+        }
+      }
 
       // Parse both sections to blocks
       const storyBlocks = parseHtmlToBlocks(processedStoryHtml);
@@ -1466,170 +1727,108 @@ const ProjectStoryHandler = ({ projectId: propProjectId, initialStoryData, updat
 
       console.log(`Parsed blocks - Story: ${storyBlocks.length}, Risks: ${risksBlocks.length}`);
 
-      // CRITICAL FIX #1: Preserve the original blocks before filtering
-      let preservedStoryText = [];
-      let preservedRisksText = [];
+      // FIX #2: Deduplicate image blocks - Remove images in TEXT blocks that also exist in IMAGE blocks
+      const deduplicateImages = (blocks) => {
+        const imageUrls = blocks
+          .filter(block => block.type === 'IMAGE')
+          .map(block => block.content);
 
-      // Store all TEXT blocks with actual text content to ensure we don't lose them
-      storyBlocks.forEach(block => {
-        if (block.type === 'TEXT') {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = block.content;
-
-          // Check if there's any actual text content (not just whitespace)
-          const actualText = tempDiv.textContent.trim();
-
-          // If this block has actual text content, preserve it
-          if (actualText.length > 0) {
-            preservedStoryText.push(block);
+        return blocks.map(block => {
+          // Only process TEXT blocks
+          if (block.type !== 'TEXT' || !block.content) {
+            return block;
           }
-        }
-      });
 
-      risksBlocks.forEach(block => {
-        if (block.type === 'TEXT') {
+          // Check if this TEXT block contains any images that exist as IMAGE blocks
+          let processedContent = block.content;
+
+          // For each image URL that exists as an IMAGE block
+          imageUrls.forEach(imageUrl => {
+            if (processedContent.includes(imageUrl)) {
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = processedContent;
+
+              // Find and remove img tags with this src
+              const images = tempDiv.querySelectorAll(`img[src="${imageUrl}"]`);
+              images.forEach(img => {
+                // If the image is the only content in a paragraph, remove the paragraph
+                const para = img.closest('p');
+                if (para && para.textContent.trim() === '') {
+                  para.parentNode.removeChild(para);
+                } else {
+                  // Otherwise just remove the image
+                  img.parentNode.removeChild(img);
+                }
+              });
+
+              processedContent = tempDiv.innerHTML;
+            }
+          });
+
+          // If the TEXT block now only contains empty paragraphs or whitespace, return null to filter out
           const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = block.content;
-          const actualText = tempDiv.textContent.trim();
-
-          if (actualText.length > 0) {
-            preservedRisksText.push(block);
+          tempDiv.innerHTML = processedContent;
+          if (tempDiv.textContent.trim() === '') {
+            return null;
           }
-        }
-      });
 
-      console.log(`Preserved ${preservedStoryText.length} story text blocks with content`);
-      console.log(`Preserved ${preservedRisksText.length} risks text blocks with content`);
-
-      // Filter out empty blocks from both sections (keep non-text blocks and text blocks with content)
-      const filteredStoryBlocks = storyBlocks.filter(block => {
-        // Always keep non-TEXT blocks (images, videos, headings)
-        if (block.type !== 'TEXT') return true;
-
-        // For TEXT blocks, we need more careful checks
-        if (!block.content) return false;
-
-        // Keep blocks with line breaks that are intentional spacing
-        if (block.metadata?.additionalProp1?.isEmptyParagraph ||
-          block.metadata?.additionalProp1?.isBreak) return true;
-
-        // Check HTML content
-        if (typeof block.content === 'string') {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = block.content;
-
-          // Check if there's any text content or media elements
-          const textContent = tempDiv.textContent.trim();
-          const hasMediaElements = tempDiv.querySelector('img, iframe, video');
-
-          return textContent.length > 0 || hasMediaElements;
-        }
-
-        return false;
-      });
-
-      const filteredRisksBlocks = risksBlocks.filter(block => {
-        if (block.type !== 'TEXT') return true;
-        if (!block.content || typeof block.content !== 'string') return false;
-        if (block.metadata?.additionalProp1?.isEmptyParagraph ||
-          block.metadata?.additionalProp1?.isBreak) return true;
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = block.content;
-        const hasText = tempDiv.textContent.trim().length > 0;
-        const hasMediaElements = tempDiv.querySelector('img, iframe, video');
-
-        return hasText || hasMediaElements;
-      });
-
-      // Get all image URLs from IMAGE blocks for duplicate detection
-      const imageBlocks = filteredStoryBlocks.filter(block => block.type === 'IMAGE');
-      const imageUrls = imageBlocks.map(block => block.content);
-
-
-      const cleanedStoryBlocks = filteredStoryBlocks.filter(block => {
-        // Keep all non-TEXT blocks
-        if (block.type !== 'TEXT') return true;
-
-        // Check if this TEXT block contains image tags
-        if (block.content && block.content.includes('<img')) {
-          return false;
-        }
-
-        return true;
-      });
-
-      const cleanedRisksBlocks = filteredRisksBlocks.filter(block => {
-        if (block.type !== 'TEXT') return true;
-
-        // Don't keep TEXT blocks with images
-        if (block.content && block.content.includes('<img')) {
-          return false;
-        }
-
-        return true;
-      });
-
-      // CRITICAL FIX #3: Check if any text blocks with real content were lost and restore them
-      // Build sets of IDs to check what's missing
-      const getBlockId = (block) => {
-        return block.content.substring(0, 50); // Use content as a crude ID
+          return {
+            ...block,
+            content: processedContent
+          };
+        }).filter(Boolean); // Remove null blocks
       };
 
-      const cleanedIds = new Set(cleanedStoryBlocks
-        .filter(b => b.type === 'TEXT')
-        .map(getBlockId));
+      // Apply deduplication to both sections
+      const cleanedStoryBlocks = deduplicateImages(storyBlocks);
+      const cleanedRisksBlocks = deduplicateImages(risksBlocks);
 
-      const preservedIds = new Set(preservedStoryText.map(getBlockId));
+      // FIX #1: Determine the overall structure based on original blocks or create new one
+      let finalBlocks = [];
 
-      // Check if any preserved text blocks are missing from cleaned blocks
-      for (const block of preservedStoryText) {
-        const blockId = getBlockId(block);
-        if (!cleanedIds.has(blockId)) {
-          console.log('Restoring missing text block:', block.content.substring(0, 50));
-          cleanedStoryBlocks.push(block);
+      if (originalBlocks.length > 0 && originalRisksStartIndex > 0) {
+        // We have existing structure, update while preserving order
+
+        // For the story section (before risks)
+        if (cleanedStoryBlocks.length > 0) {
+          const mappedStoryBlocks = cleanedStoryBlocks.map((block, index) => ({
+            ...block,
+            // Maintain original ordering up to the risks section
+            order: index
+          }));
+
+          finalBlocks = [...mappedStoryBlocks];
         }
+
+        // For the risks section (if it exists)
+        if (cleanedRisksBlocks.length > 0) {
+          const mappedRisksBlocks = cleanedRisksBlocks.map((block, index) => ({
+            ...block,
+            // Continue ordering from where story section ends
+            order: finalBlocks.length + index
+          }));
+
+          finalBlocks = [...finalBlocks, ...mappedRisksBlocks];
+        }
+      } else {
+        // No existing structure, create new one from scratch
+        finalBlocks = [
+          ...cleanedStoryBlocks.map((block, index) => ({
+            ...block,
+            order: index
+          })),
+          ...cleanedRisksBlocks.map((block, index) => ({
+            ...block,
+            order: cleanedStoryBlocks.length + index
+          }))
+        ];
       }
 
-      // Do the same for risks blocks
-      const cleanedRisksIds = new Set(cleanedRisksBlocks
-        .filter(b => b.type === 'TEXT')
-        .map(getBlockId));
-
-      const preservedRisksIds = new Set(preservedRisksText.map(getBlockId));
-
-      for (const block of preservedRisksText) {
-        const blockId = getBlockId(block);
-        if (!cleanedRisksIds.has(blockId)) {
-          console.log('Restoring missing risks text block:', block.content.substring(0, 50));
-          cleanedRisksBlocks.push(block);
-        }
-      }
-
-      // Sort the blocks by their original order since we might have added blocks
-      cleanedStoryBlocks.sort((a, b) => a.order - b.order);
-      cleanedRisksBlocks.sort((a, b) => a.order - b.order);
-
-      console.log(`After full processing - Story: ${cleanedStoryBlocks.length}, Risks: ${cleanedRisksBlocks.length}`);
-
-      // Log block types to verify we're capturing multimedia elements
-      console.log('Story block types:', cleanedStoryBlocks.map(b => b.type).join(', '));
-      console.log('Risk block types:', cleanedRisksBlocks.map(b => b.type).join(', '));
-
-      // Assign proper order values - this sets correct position within each section
-      cleanedStoryBlocks.forEach((block, index) => {
-        block.order = index;
-      });
-
-      cleanedRisksBlocks.forEach((block, index) => {
-        block.order = cleanedStoryBlocks.length + index;
-      });
-
-      // Combine all blocks in order
-      const combinedBlocks = [...cleanedStoryBlocks, ...cleanedRisksBlocks];
+      // Fix list structure in final blocks
+      finalBlocks = fixListStructure(finalBlocks);
 
       // Clean blocks for API - only include required fields
-      const apiReadyBlocks = combinedBlocks.map((block, index) => {
+      const apiReadyBlocks = finalBlocks.map((block, index) => {
         // Always reassign sequential order numbers to ensure proper ordering
         return {
           type: block.type,

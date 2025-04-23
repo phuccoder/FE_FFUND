@@ -104,6 +104,64 @@ function FounderProfile({ formData, updateFormData, projectId }) {
     fetchUserAndTeamData();
   }, [dataProcessed, updateFormData]);
 
+  useEffect(() => {
+    // Skip calculation if no updateFormData function is provided
+    if (typeof updateFormData !== 'function') return;
+    
+    const calculateFounderCompletion = () => {
+      // Extract founder profile data
+      const founderProfile = formData || {};
+      
+      // Check for user information in various locations
+      const userInfo = founderProfile.userInfo || founderProfile.user || founderProfile;
+      
+      // Get basic info
+      const fullName = userInfo.fullName || userInfo.name || '';
+      const email = userInfo.email || '';
+      const phone = userInfo.phone || userInfo.phoneNumber || '';
+      
+      // Get team information
+      const team = founderProfile.team || [];
+      
+      // Check for student info
+      const studentInfo = founderProfile.studentInfo || userInfo.studentInfo || {};
+      const hasStudentInfo = studentInfo && Object.values(studentInfo).some(val => !!val);
+      
+      // Calculate completion score
+      let completed = 0;
+      const total = 4; // Required fields
+      
+      if (fullName) completed++;
+      if (email) completed++;
+      if (phone) completed++;
+      if (hasStudentInfo) completed++;
+      
+      // Team bonus
+      let teamBonus = 0;
+      if (team && Array.isArray(team) && team.length > 0) {
+        teamBonus = 0.5;
+      }
+      
+      // Final percentage with bonus
+      const basePercentage = Math.round(((completed) / total) * 100);
+      return Math.min(100, basePercentage + (teamBonus * 20)); // Add up to 20% for team
+    };
+    
+    // Calculate current percentage
+    const completionPercentage = calculateFounderCompletion();
+    
+    // Only update if the value has changed to avoid infinite loops
+    if (formData?._completionPercentage !== completionPercentage) {
+      // Create a copy of formData with completion percentage
+      const updatedFormData = {
+        ...formData,
+        _completionPercentage: completionPercentage
+      };
+      // Update parent component
+      updateFormData(updatedFormData);
+    }
+  }, [formData, updateFormData]);
+
   // Separate function to process user data and fetch team data
   const processUserAndTeamData = async (userData) => {
     try {

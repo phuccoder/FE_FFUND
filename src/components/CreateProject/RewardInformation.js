@@ -51,6 +51,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     const [selectedPhase, setSelectedPhase] = useState(null);
     const fileInputRef = useRef(null);
     const milestoneFileInputRef = useRef(null);
+    const prevCompletionRef = useRef(null);
 
     // Fetch phases from the parent component's formData
     useEffect(() => {
@@ -152,6 +153,76 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             }
         }
     }, [currentMilestone.phaseId, milestones, showMilestoneForm]);
+
+    useEffect(() => {
+        // Skip calculation if no updateFormData function is provided
+        if (typeof updateFormData !== 'function') return;
+
+        const calculateRewardCompletion = () => {
+            const rewards = formData || [];
+            const phasesList = phases || [];
+
+            // If no rewards or phases, return 0%
+            if (!rewards.length || !phasesList.length) return 0;
+
+            // Get unique phase IDs
+            const phaseIds = phasesList
+                .filter(phase => phase && phase.id)
+                .map(phase => phase.id);
+
+            if (phaseIds.length === 0) return 0;
+
+            // Get unique phases that have rewards
+            const phasesWithRewards = new Set(
+                rewards
+                    .filter(reward => reward && reward.phaseId)
+                    .map(reward => reward.phaseId)
+            );
+
+            // Calculate phase coverage percentage
+            const phasesCovered = phaseIds.filter(id => phasesWithRewards.has(id)).length;
+            const phaseCoverage = phaseIds.length > 0 ? phasesCovered / phaseIds.length : 0;
+
+            // Calculate reward completeness (80% for phase coverage)
+            let percentage = Math.round(phaseCoverage * 80);
+
+            // Check if rewards have full details
+            const completeRewards = rewards.filter(reward =>
+                reward && reward.title && reward.description && reward.amount && reward.phaseId
+            ).length;
+
+            // Check for rewards with items
+            const rewardsWithItems = rewards.filter(reward =>
+                reward && reward.items && Array.isArray(reward.items) && reward.items.length > 0
+            ).length;
+
+            // Add up to 20% bonus for quality
+            const qualityBonus = Math.min(20, Math.round((rewardsWithItems / Math.max(1, rewards.length)) * 20));
+
+            // Final percentage capped at 100%
+            return Math.min(100, percentage + qualityBonus);
+        };
+
+        // Calculate current percentage
+        const completionPercentage = calculateRewardCompletion();
+        if (prevCompletionRef.current !== completionPercentage) {
+            prevCompletionRef.current = completionPercentage;
+
+            // Create a new array from formData (if it's an array) with the completion percentage
+            if (Array.isArray(formData)) {
+                const updatedFormData = [...formData];
+                // Add the completion percentage as a property
+                updatedFormData._completionPercentage = completionPercentage;
+                // Update parent component
+                updateFormData(updatedFormData);
+            } else {
+                // If formData is not an array (maybe it's null or undefined), create a new empty array
+                const updatedFormData = [];
+                updatedFormData._completionPercentage = completionPercentage;
+                updateFormData(updatedFormData);
+            }
+        }
+    }, [formData, phases]);
 
     // Fetch milestones for all phases
     const fetchMilestones = async () => {
@@ -1014,6 +1085,8 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showPhaseFilter]);
+
+    
 
     const filteredMilestones = milestones.filter(milestone => milestone.phaseId === selectedPhase);
 
