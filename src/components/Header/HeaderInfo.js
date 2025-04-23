@@ -15,7 +15,8 @@ const MENU_ITEMS = {
     { label: 'Manage Team', icon: Users, href: '/team-members' },
     { label: 'Manage Invitation', icon: Mail, href: '/invitation' },
     { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' },
-    { label: 'Investment Reward', icon: Container, href: '/investment-reward' }
+    { label: 'Investment Reward', icon: Container, href: '/investment-reward' },
+    { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },

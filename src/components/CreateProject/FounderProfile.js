@@ -338,10 +338,6 @@ function FounderProfile({ formData, updateFormData, projectId }) {
                     <p className="text-sm text-gray-900">{userInfo.studentCode}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Class</p>
-                    <p className="text-sm text-gray-900">{userInfo.studentClass || "N/A"}</p>
-                  </div>
-                  <div>
                     <p className="text-xs text-gray-500">EXE Class</p>
                     <p className="text-sm text-gray-900">{userInfo.exeClass || "N/A"}</p>
                   </div>
@@ -391,13 +387,6 @@ function FounderProfile({ formData, updateFormData, projectId }) {
               <div className="mb-3">
                 <h4 className="text-sm font-medium text-gray-700">Description</h4>
                 <p className="text-sm text-gray-700">{teamInfo.teamDescription}</p>
-              </div>
-            )}
-
-            {teamInfo.projectId && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-700">Project ID</h4>
-                <p className="text-sm text-gray-900">#{teamInfo.projectId}</p>
               </div>
             )}
           </div>

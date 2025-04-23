@@ -1332,6 +1332,133 @@ function EditProjectPage() {
     window.scrollTo(0, 0);
   };
 
+  const isStatusAllowedForEditing = (status) => {
+    if (!status) return false; // Don't allow if no status (redirect to create-project)
+
+    // Normalize the status to handle case differences
+    const normalizedStatus = status.toUpperCase();
+
+    // List of allowed statuses (DRAFT excluded)
+    const allowedStatuses = [
+      'PENDING_APPROVAL',
+      'APPROVED',
+      'FUNDRAISING_COMPLETED',
+      'REJECTED' // Including REJECTED so users can fix and resubmit
+    ];
+
+    return allowedStatuses.includes(normalizedStatus);
+  };
+
+  // Then replace the existing isEditingRestricted check with this:
+  const isEditingRestricted = () => {
+    // First normalize the status
+    const normalizedStatus = projectStatus ? projectStatus.toUpperCase() : '';
+
+    console.log("Checking edit restrictions:", {
+      status: normalizedStatus,
+      isAllowedStatus: isStatusAllowedForEditing(projectStatus)
+    });
+
+    // If it's DRAFT, restrict editing in this page
+    if (normalizedStatus === 'DRAFT') {
+      return true;
+    }
+
+    // If it's not in our allowed list, restrict editing
+    return !isStatusAllowedForEditing(projectStatus);
+  };
+
+  // Update the conditional render component:
+  if (isEditingRestricted() && !authStatus.isLoading) {
+    return (
+      <Layout>
+        <Header />
+        <PageTitle title="Edit Project" />
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white shadow overflow-hidden rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-8 w-8 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-5">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Editing Restricted
+                    </h3>
+                    <div className="mt-2 max-w-xl text-sm text-gray-500">
+                      <p>
+                        This project cannot be edited because its current status is <span className="font-semibold">{projectStatus}</span>.
+                      </p>
+                      <div className="mt-3">
+                        <p className="text-gray-700">
+                          {projectStatus === 'DRAFT' ? (
+                            <>
+                              Draft projects should be edited in the Create Project page.
+                            </>
+                          ) : projectStatus === 'FUNDRAISING' ? (
+                            <>
+                              This project is currently in the fundraising stage. Only project updates are allowed at this time.
+                            </>
+                          ) : projectStatus === 'COMPLETED' ? (
+                            <>
+                              This project has been completed. You can view project details but cannot edit information.
+                            </>
+                          ) : projectStatus === 'SUSPENDED' ? (
+                            <>
+                              This project has been suspended. Please contact support for more information.
+                            </>
+                          ) : projectStatus === 'CANCELLED' ? (
+                            <>
+                              This project has been cancelled and cannot be edited.
+                            </>
+                          ) : (
+                            <>
+                              Projects with status &quot;{projectStatus}&quot; cannot be edited.
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-5 flex">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/`)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3"
+                      >
+                        Back to Home
+                      </button>
+                      {projectStatus === 'DRAFT' && (
+                        <button
+                          type="button"
+                          onClick={() => router.push('/create-project')}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          Go to Create Project
+                        </button>
+                      )}
+                      {projectStatus === 'FUNDRAISING' && (
+                        <button
+                          type="button"
+                          onClick={() => goToSection(sections.length - 1)} // Go to Updates section
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          Post Project Update
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // Define base sections without the update blog
   const baseSections = [
     {
@@ -1364,8 +1491,8 @@ function EditProjectPage() {
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-gray-800">Editing Restricted</h3>
                   <div className="mt-1 text-sm text-gray-700">
-                    <p>Fundraising information cannot be modified for {projectStatus === 'FUNDRAISING' ? 'a project in fundraising stage' : 'an approved project'}.</p>
-                    {(projectStatus === 'FUNDRAISING' &&
+                    <p>Fundraising information cannot be modified for {projectStatus === 'FUNDRAISING_COMPLETED' ? 'a project in fundraising stage' : 'an approved project'}.</p>
+                    {(projectStatus === 'FUNDRAISING_COMPLETED' &&
                       formData.fundraisingInfo?.phases?.length > 0 &&
                       formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED') && (
                         <p className="mt-1 font-medium text-blue-700">
@@ -1381,7 +1508,7 @@ function EditProjectPage() {
           <div className={`relative ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED' || projectStatus === 'COMPLETED') ? 'opacity-70' : ''}`}>
             <style>{`
               .fundraising-info-container .normal-elements {
-                ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED'|| projectStatus === 'COMPLETED' ) ? 'pointer-events: none;' : ''}
+                ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED' || projectStatus === 'COMPLETED') ? 'pointer-events: none;' : ''}
               }
               
               .fundraising-info-container .time-extension-form {
@@ -1402,6 +1529,12 @@ function EditProjectPage() {
                 projectId={formData.projectId}
                 isEditPage={true}
                 isLastPhaseCompleted={
+                  formData.fundraisingInfo?.phases?.length > 0 &&
+                  formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED' &&
+                  (projectStatus === 'FUNDRAISING_COMPLETED' || projectStatus === 'APPROVED')
+                }
+                showTimeExtensionRequest={
+                  projectStatus === 'FUNDRAISING_COMPLETED' &&
                   formData.fundraisingInfo?.phases?.length > 0 &&
                   formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED'
                 }
