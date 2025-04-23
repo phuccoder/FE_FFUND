@@ -315,12 +315,27 @@ function CreateProject() {
     console.log("ProjectId in basicInfo:", formData.basicInfo?.projectId);
   }, [formData]);
 
+  useEffect(() => {
+    // Process completion percentages whenever form data changes
+    processCompletionPercentages();
+  }, [formData]);
+
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating form data for section ${section}:`, data);
 
     // Check if data contains a projectId
     const projectId = data.projectId || data.id;
     const projectImage = data.projectImage;
+
+    // IMPROVED: Preserve completion percentage if present in the data
+    const completionPercentage = data._completionPercentage !== undefined ?
+      data._completionPercentage :
+      (Array.isArray(data) && data._completionPercentage !== undefined ?
+        data._completionPercentage : undefined);
+
+    if (completionPercentage !== undefined) {
+      console.log(`Section ${section} reported completion: ${completionPercentage}%`);
+    }
 
     // Log the projectImage if it exists
     if (projectImage) {
@@ -345,6 +360,9 @@ function CreateProject() {
           shortDescription: data.shortDescription || data.projectDescription,
           projectDescription: data.projectDescription || data.shortDescription,
           projectImage: data.projectImage || prevData.basicInfo?.projectImage,
+          _completionPercentage: completionPercentage !== undefined
+            ? completionPercentage
+            : prevData.basicInfo?._completionPercentage
         };
 
         console.log("Updated basicInfo with projectImage:", updatedBasicInfo.projectImage);
@@ -357,11 +375,37 @@ function CreateProject() {
         };
       }
 
-      // For other sections, just update normally
+      // IMPROVED: For array data like rewardInfo, preserve both the array and its _completionPercentage
+      if (Array.isArray(data)) {
+        // Create a shallow copy of the array
+        const updatedArray = [...data];
+
+        // If the original array had a completion percentage, preserve it
+        if (completionPercentage !== undefined) {
+          updatedArray._completionPercentage = completionPercentage;
+        } else if (prevData[section] && prevData[section]._completionPercentage !== undefined) {
+          updatedArray._completionPercentage = prevData[section]._completionPercentage;
+        }
+
+        return {
+          ...prevData,
+          projectId: projectId || prevData.projectId,
+          [section]: updatedArray
+        };
+      }
+
+      // For other sections, handle as objects
+      const updatedData = {
+        ...data,
+        _completionPercentage: completionPercentage !== undefined
+          ? completionPercentage
+          : prevData[section]?._completionPercentage
+      };
+
       return {
         ...prevData,
         projectId: projectId || prevData.projectId,
-        [section]: data,
+        [section]: updatedData,
       };
     });
   };
@@ -409,7 +453,7 @@ function CreateProject() {
   // Check if the first two sections are completed to enable navigation to later sections
   const isInitialSectionsComplete = () => {
     const isTermsComplete = Boolean(formData.termsAgreed);
-  
+
     const basicInfo = formData.basicInfo || {};
     const categoryValue = basicInfo.category || basicInfo.categoryId;
     const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.projectLocation;
@@ -421,7 +465,7 @@ function CreateProject() {
       basicInfo.shortDescription &&
       locationValue
     );
-  
+
     console.log("Terms complete:", isTermsComplete);
     console.log("Basic info complete:", isBasicInfoComplete);
     console.log("Basic info validation details:", {
@@ -431,7 +475,7 @@ function CreateProject() {
       shortDescription: Boolean(basicInfo.shortDescription),
       location: Boolean(locationValue)
     });
-  
+
     return isTermsComplete && isBasicInfoComplete;
   };
 
@@ -488,17 +532,17 @@ function CreateProject() {
         editMode={isEditMode}
       />
     },
-    { 
-      id: 'fundraising', 
-      name: 'Fundraising Information', 
-      component: <FundraisingInformation 
+    {
+      id: 'fundraising',
+      name: 'Fundraising Information',
+      component: <FundraisingInformation
         formData={{
           ...formData.fundraisingInfo,
           totalTargetAmount: formData.basicInfo?.totalTargetAmount
-        }} 
-        updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)} 
-        projectId={formData.projectId || formData.basicInfo?.projectId} 
-      /> 
+        }}
+        updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
+        projectId={formData.projectId || formData.basicInfo?.projectId}
+      />
     },
     { id: 'rewards', name: 'Reward Information', component: <RewardInformation formData={formData.rewardInfo} projectData={formData.fundraisingInfo} updateFormData={(data) => handleUpdateFormData('rewardInfo', data)} /> },
     // Update the ProjectStoryHandler section in the sections array
@@ -759,6 +803,59 @@ function CreateProject() {
 
     // Make sure each phase has at least one reward
     return phaseIds.every(phaseId => rewardPhaseIds.includes(phaseId));
+  };
+
+  const processCompletionPercentages = () => {
+    const sections = [
+      { id: 'terms', data: formData.termsAgreed, weight: 1 },
+      { id: 'basic', data: formData.basicInfo, weight: 2 },
+      { id: 'fundraising', data: formData.fundraisingInfo, weight: 2 },
+      { id: 'rewards', data: formData.rewardInfo, weight: 2 },
+      { id: 'story', data: formData.projectStory, weight: 2 },
+      { id: 'founder', data: formData.founderProfile, weight: 1 },
+      { id: 'documents', data: formData.requiredDocuments, weight: 1 },
+      { id: 'payment', data: formData.paymentInfo, weight: 1 }
+    ];
+  
+    // Calculate weighted overall completion percentage
+    let totalPercentage = 0;
+    let totalWeight = 0;
+  
+    sections.forEach(section => {
+      // Skip sections without data
+      if (!section.data) return;
+  
+      // Get completion percentage based on different data structures
+      let percentage = 0;
+      
+      if (section.id === 'terms') {
+        // Terms is boolean
+        percentage = formData.termsAgreed ? 100 : 0;
+      } else if (Array.isArray(section.data)) {
+        // For arrays like rewardInfo
+        percentage = section.data._completionPercentage || 0;
+      } else if (typeof section.data === 'object') {
+        // For object data
+        percentage = section.data._completionPercentage || 0;
+      }
+  
+      console.log(`Section ${section.id} completion: ${percentage}%`);
+      
+      totalPercentage += percentage * section.weight;
+      totalWeight += section.weight;
+    });
+  
+    // Calculate weighted average completion
+    const overallCompletion = totalWeight > 0
+      ? Math.round(totalPercentage / totalWeight)
+      : 0;
+  
+    console.log("Overall project completion:", overallCompletion + "%");
+  
+    // Store overall completion in localStorage for persistence
+    localStorage.setItem('projectCompletion', overallCompletion);
+  
+    return overallCompletion;
   };
 
   return (

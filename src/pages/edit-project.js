@@ -1400,6 +1400,7 @@ function EditProjectPage() {
                 }}
                 updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
                 projectId={formData.projectId}
+                isEditPage={true}
                 isLastPhaseCompleted={
                   formData.fundraisingInfo?.phases?.length > 0 &&
                   formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED'

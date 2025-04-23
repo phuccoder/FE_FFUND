@@ -23,6 +23,9 @@ var until = webdriver.until;
 
         console.log('Button clicked!');
 
+        let sendKeyEmail = 'phanthienan@gmail.com';
+        let senKeyPassword = '123456';
+
         let emailField = await browser.wait(
             until.elementLocated(By.css('#email')),
             10000
@@ -30,7 +33,7 @@ var until = webdriver.until;
         await emailField.click();
         await browser.sleep(2000);
         await emailField.clear();
-        await emailField.sendKeys('phanthienan@gmail.com');
+        await emailField.sendKeys(sendKeyEmail);
 
         console.log('Email entered successfully!');
 
@@ -40,7 +43,7 @@ var until = webdriver.until;
         );
         await passwordField.click();
         await passwordField.clear();
-        await passwordField.sendKeys('123456');
+        await passwordField.sendKeys(senKeyPassword);
 
         console.log('Password entered successfully!');
 

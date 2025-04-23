@@ -46,13 +46,16 @@ var until = webdriver.until;
 
         await browser.sleep(2000);
 
+        let sendKeyEmail = 'phucnmtde170689@fpt.edu.vn';
+        let senKeyPassword = '123456';
+
         let emailField = await browser.wait(
             until.elementLocated(By.css("input[placeholder='Enter your email']")),
             10000
         );
         await emailField.click();
         await emailField.clear();
-        await emailField.sendKeys('phucnmtde170689@fpt.edu.vn');
+        await emailField.sendKeys(sendKeyEmail);
         console.log('Email entered successfully!');
 
         await browser.sleep(2000);
@@ -114,7 +117,7 @@ var until = webdriver.until;
         );
         await passwordField.click();
         await passwordField.clear();
-        await passwordField.sendKeys('123456');
+        await passwordField.sendKeys(senKeyPassword);
         console.log('Password entered successfully!');
 
         let confirmPasswordField = await browser.wait(
@@ -123,7 +126,7 @@ var until = webdriver.until;
         );
         await confirmPasswordField.click();
         await confirmPasswordField.clear();
-        await confirmPasswordField.sendKeys('123456');
+        await confirmPasswordField.sendKeys(senKeyPassword);
         console.log('Confirm password entered successfully!');
 
         await browser.sleep(2000);
@@ -157,7 +160,7 @@ var until = webdriver.until;
                     until.elementLocated(By.css("input[type='email']")),
                     10000
                 );
-                await emailField.sendKeys('phucnmtde170689@fpt.edu.vn');
+                await emailField.sendKeys(sendKeyEmail);
                 await emailField.sendKeys(webdriver.Key.ENTER);
                 console.log('Email entered.');
 
@@ -198,7 +201,7 @@ var until = webdriver.until;
                     await emailField.click();
                     await browser.sleep(2000);
                     await emailField.clear();
-                    await emailField.sendKeys('phucnmtde170689@fpt.edu.vn');
+                    await emailField.sendKeys(sendKeyEmail);
 
                     console.log('Email entered successfully!');
 
@@ -208,7 +211,7 @@ var until = webdriver.until;
                     );
                     await passwordField.click();
                     await passwordField.clear();
-                    await passwordField.sendKeys('123456');
+                    await passwordField.sendKeys(senKeyPassword);
 
                     console.log('Password entered successfully!');
 

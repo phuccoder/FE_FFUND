@@ -115,6 +115,42 @@ export default function RequiredDocuments({ formData, updateFormData, projectId 
     loadExistingDocuments();
   }, [projectId]);
 
+  useEffect(() => {
+    // Skip calculation if no updateFormData function is provided
+    if (typeof updateFormData !== 'function') return;
+
+    const calculateDocumentsCompletion = () => {
+      const requiredDocs = formData || {};
+      const mandatory = requiredDocs.mandatory || {};
+
+      // Count completed mandatory documents
+      let completed = 0;
+      const total = 5; // 5 mandatory documents
+
+      if (mandatory.swotAnalysis) completed++;
+      if (mandatory.businessModelCanvas) completed++;
+      if (mandatory.businessPlan) completed++;
+      if (mandatory.marketResearch) completed++;
+      if (mandatory.financialInformation) completed++;
+
+      return Math.round((completed / total) * 100);
+    };
+
+    // Calculate current percentage
+    const completionPercentage = calculateDocumentsCompletion();
+
+    // Only update if the value has changed to avoid infinite loops
+    if (formData?._completionPercentage !== completionPercentage) {
+      // Create a copy of formData with completion percentage
+      const updatedFormData = {
+        ...formData,
+        _completionPercentage: completionPercentage
+      };
+      // Update parent component
+      updateFormData(updatedFormData);
+    }
+  }, [formData, updateFormData]);
+
   /**
    * Handles document upload to server
    * @param {File} file - File object to upload

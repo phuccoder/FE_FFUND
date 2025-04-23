@@ -16,7 +16,7 @@ const TableOfContents = ({ headings, activeId }) => {
 
   return (
     <div
-      className="bg-white p-4 rounded-lg shadow-md border border-gray-100 ml-auto"
+      className="bg-white p-4 rounded-lg shadow-md border border-gray-100 ml-auto sticky top-24"
       style={{ maxHeight: maxHeight, overflowY: 'auto' }}
     >
       <h3 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">Table of Contents</h3>
@@ -369,7 +369,7 @@ const ProjectDetailsStory = ({ getClassName, project }) => {
 
         {/* Table of Contents sidebar - 1/4 width on larger screens */}
         {headings.length > 0 && (
-          <div className="lg:col-span-1 flex justify-end">
+          <div className="lg:col-span-1 flex justify-end sticky top-8" style={{ height: 'fit-content'  }}>
             <TableOfContents headings={headings} activeId={activeHeading} />
           </div>
         )}

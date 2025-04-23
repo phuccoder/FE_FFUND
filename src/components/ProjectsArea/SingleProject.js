@@ -161,8 +161,14 @@ const SingleProject = React.memo(({ project = {} }) => {
         <div className="mb-2">
           <div className="w-full h-1.5 bg-gray-200 rounded-full">
             <div
-              className={`h-full rounded-full ${fundingPercentage >= 100 ? "bg-yellow-500" : "bg-green-600"}`}
-              style={{ width: `${Math.min(fundingPercentage, 100)}%` }}
+              className={`h-full rounded-full ${fundingPercentage >= 100 ? "bg-yellow-400" : "bg-green-600"
+                }`}
+              style={{
+                width: `${Math.min(fundingPercentage, 100)}%`,
+                background: fundingPercentage >= 100
+                  ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
+                  : "#16a34a",
+              }}
             ></div>
           </div>
 

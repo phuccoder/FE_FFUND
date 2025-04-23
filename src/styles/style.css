@@ -7834,3 +7834,35 @@ p {
   margin: 0 auto; 
   display: block; 
 }
+
+/* Thêm vào file CSS của bạn */
+@keyframes pulse-gradient {
+  0%, 100% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 10px rgba(22, 163, 74, 0.7);
+  }
+  50% {
+    background-position: 100% 50%;
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.9);
+  }
+}
+
+.complete-progress {
+  animation: pulse-gradient 3s ease infinite;
+}
+
+@keyframes text-highlight {
+  0%, 100% {
+    color: #16a34a;
+    text-shadow: 0 0 3px rgba(22, 163, 74, 0.3);
+  }
+  50% {
+    color: #4ade80;
+    text-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+  }
+}
+
+.highlight-text {
+  animation: text-highlight 3s ease infinite;
+  font-weight: bold;
+}
