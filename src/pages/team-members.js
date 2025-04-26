@@ -11,6 +11,10 @@ import { Container, Alert, Spinner } from "react-bootstrap";
 const TeamMembers = () => {
   const { team, loading, error, refreshTeam } = useTeam();
 
+  const isValidTeam = (team) => {
+    return team && team.teamId && team.teamName;
+  };
+
   return (
     <Layout>
       <Header />
@@ -25,13 +29,16 @@ const TeamMembers = () => {
         <Container className="py-4">
           <Alert variant="danger">{error}</Alert>
         </Container>
-      ) : team ? (
-        <TeamManagementSection team={team} onTeamUpdate={refreshTeam} />
+      ) : isValidTeam(team) ? (
+        <>
+          <TeamManagementSection team={team} onTeamUpdate={refreshTeam} />
+          <CtaArea />
+        </>
       ) : (
         <NoTeamSection />
       )}
 
-      <CtaArea />
+
     </Layout>
   );
 };

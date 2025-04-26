@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { FaSortUp, FaSortDown, FaSort, FaDownload, FaEye, FaFilter } from 'react-icons/fa';
+import { FaSortUp, FaSortDown, FaSort, FaDownload, FaEye, FaFilter, FaStripe } from 'react-icons/fa';
 
-export default function TransactionTable({ transactions, onSort }) {
+export default function TransactionTable({
+  transactions,
+  onSort,
+  onViewDashboard,
+  projectPaymentInfo,
+  dashboardLoading
+}) {
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [hoveredRow, setHoveredRow] = useState(null);
+  const [showDashboardMenu, setShowDashboardMenu] = useState(false);
 
   const formatDate = (dateValue) => {
     if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -28,7 +35,7 @@ export default function TransactionTable({ transactions, onSort }) {
     const newDirection = field === sortField && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
-    
+
     if (onSort) {
       onSort(field, newDirection);
     }
@@ -37,24 +44,24 @@ export default function TransactionTable({ transactions, onSort }) {
   // Render sort indicator
   const renderSortIcon = (field) => {
     if (sortField !== field) return <FaSort className="inline ml-1 opacity-50" />;
-    return sortDirection === 'asc' ? 
-      <FaSortUp className="inline ml-1 text-blue-500" /> : 
+    return sortDirection === 'asc' ?
+      <FaSortUp className="inline ml-1 text-blue-500" /> :
       <FaSortDown className="inline ml-1 text-blue-500" />;
   };
 
   // Function to export table data to CSV
   const exportToCSV = () => {
     const headers = [
-      'Investment ID', 
-      'Investor', 
-      'Project', 
-      'Date', 
-      'Amount', 
-      'Profit', 
-      'Platform Fee', 
+      'Investment ID',
+      'Investor',
+      'Project',
+      'Date',
+      'Amount',
+      'Profit',
+      'Platform Fee',
       'Stripe Fee'
     ];
-    
+
     const csvRows = transactions.map(transaction => [
       transaction.investmentId,
       transaction.investorName,
@@ -65,24 +72,36 @@ export default function TransactionTable({ transactions, onSort }) {
       transaction.platformFee,
       transaction.stripeFee
     ]);
-    
+
     const csvContent = [
       headers.join(','),
       ...csvRows.map(row => row.join(','))
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
-    link.setAttribute('download', `transactions_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
     link.style.visibility = 'hidden';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  const groupedProjects = transactions.reduce((acc, transaction) => {
+    if (!acc[transaction.projectId]) {
+      acc[transaction.projectId] = {
+        projectId: transaction.projectId,
+        projectTitle: transaction.projectTitle,
+        transactions: []
+      };
+    }
+    acc[transaction.projectId].transactions.push(transaction);
+    return acc;
+  }, {});
 
   return (
     <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden border border-gray-200">
@@ -98,17 +117,61 @@ export default function TransactionTable({ transactions, onSort }) {
             </p>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
-          <button 
+          <button
             onClick={exportToCSV}
             className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm font-medium"
           >
             <FaDownload className="mr-2" /> Export CSV
           </button>
+
+          {Object.keys(groupedProjects).length > 0 && (
+            <div className="relative inline-block text-left">
+              <div>
+                <button type="button"
+                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors shadow-sm font-medium"
+                  onClick={() => setShowDashboardMenu(!showDashboardMenu)}
+                >
+                  <FaStripe className="mr-2" /> Stripe Dashboards
+                </button>
+              </div>
+
+              {showDashboardMenu && (
+                <div className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="py-1">
+                    {Object.values(groupedProjects).map(project => (
+                      <button
+                        key={project.projectId}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 disabled:opacity-50 flex items-center justify-between"
+                        onClick={() => {
+                          onViewDashboard(project.projectId);
+                          setShowDashboardMenu(false);
+                        }}
+                        disabled={!projectPaymentInfo[project.projectId] || dashboardLoading[project.projectId]}
+                      >
+                        <span>{project.projectTitle}</span>
+                        {dashboardLoading[project.projectId] ? (
+                          <svg className="animate-spin h-4 w-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <FaEye className="text-purple-600" />
+                        )}
+                      </button>
+                    ))}
+                    {Object.keys(groupedProjects).length === 0 && (
+                      <p className="px-4 py-2 text-sm text-gray-500">No projects available</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead className="text-xs uppercase bg-gradient-to-r from-blue-700 to-blue-500 text-white sticky top-0">
@@ -154,18 +217,19 @@ export default function TransactionTable({ transactions, onSort }) {
                 </div>
               </th>
               <th className="px-6 py-4">
-                <span className="sr-only">Actions</span>
+                <div className="flex items-center">
+                  Actions
+                </div>
               </th>
             </tr>
           </thead>
           <tbody>
             {transactions.length > 0 ? (
               transactions.map((transaction, index) => (
-                <tr 
-                  key={transaction.investmentId} 
-                  className={`border-b hover:bg-blue-50 transition-colors ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                  } ${hoveredRow === transaction.investmentId ? 'bg-blue-50' : ''}`}
+                <tr
+                  key={transaction.investmentId}
+                  className={`border-b hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                    } ${hoveredRow === transaction.investmentId ? 'bg-blue-50' : ''}`}
                   onMouseEnter={() => setHoveredRow(transaction.investmentId)}
                   onMouseLeave={() => setHoveredRow(null)}
                 >
@@ -206,9 +270,21 @@ export default function TransactionTable({ transactions, onSort }) {
                       {formatCurrency(transaction.stripeFee)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100 transition-colors">
-                      <FaEye className="w-4 h-4" />
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => onViewDashboard(transaction.projectId)}
+                      disabled={!projectPaymentInfo[transaction.projectId] || dashboardLoading[transaction.projectId]}
+                      className="p-2 text-purple-600 bg-purple-50 rounded-full hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={projectPaymentInfo[transaction.projectId] ? "View Stripe Dashboard" : "Stripe not connected"}
+                    >
+                      {dashboardLoading[transaction.projectId] ? (
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      ) : (
+                        <FaStripe className="h-5 w-5" />
+                      )}
                     </button>
                   </td>
                 </tr>
@@ -232,7 +308,7 @@ export default function TransactionTable({ transactions, onSort }) {
           </tbody>
         </table>
       </div>
-      
+
       {transactions.length > 0 && (
         <div className="px-6 py-4 bg-gray-50 border-t flex justify-between items-center text-sm">
           <div className="text-gray-600">

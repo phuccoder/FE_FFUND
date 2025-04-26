@@ -255,5 +255,52 @@ export const paymentInfoService = {
             // Return null instead of throwing to make component more resilient
             return null;
         }
+    },
+
+    createDashboardLink: async (paymentInfoId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(`${API_BASE_URL}/project-payment-information/dashboard/${paymentInfoId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            if (response.status === 204) {
+                return { success: true };
+            }
+
+            // Handle non-JSON responses
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status} ${response.statusText}`);
+                }
+                return { success: true, message: "Operation completed successfully" };
+            }
+
+            if (!response.ok) {
+                try {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Failed with status: ${response.status}`);
+                } catch (jsonError) {
+                    throw new Error(`Failed with status: ${response.status} ${response.statusText}`);
+                }
+            }
+
+            // Try to parse JSON, but handle cases where it might not be JSON
+            try {
+                const result = await response.json();
+                return result;
+            } catch (jsonError) {
+                console.warn("Response wasn't valid JSON, returning success");
+                return { success: true };
+            }
+        } catch (error) {
+            console.error('Error creating Stripe onboarding link:', error);
+            throw error;
+        }
     }
 };

@@ -87,8 +87,15 @@ const projectService = {
      * @returns {Promise<Array>} Array of category objects
      */
     getAllCategories: async () => {
+        const token = await tokenManager.getValidToken();
         try {
-            const response = await fetch(CATEGORIES_ENDPOINT);
+            const response = await fetch(CATEGORIES_ENDPOINT,{
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
