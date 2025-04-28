@@ -18,6 +18,10 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
   const [activeFilters, setActiveFilters] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isPotentialProject, setIsPotentialProject] = useState(false);
+  const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState(false);
+  const categoryPanelRef = React.useRef(null);
+
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -74,14 +78,18 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       filters.push({ type: 'fundingStatus', value: selectedFundingStatus });
     }
 
+    if (isPotentialProject) {
+      filters.push({ type: 'potentialProject', value: 'Potential Project' });
+    }
+
     setActiveFilters(filters);
-  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus]);
+  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject]);
 
   useEffect(() => {
     if (initialLoadComplete) {
       handleSearch();
     }
-  }, [searchTerm, sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus]);
+  }, [searchTerm, sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject]);
 
   useEffect(() => {
     const handleExternalFilters = (event) => {
@@ -118,6 +126,19 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     }
   }, [categories]);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (categoryPanelRef.current && !categoryPanelRef.current.contains(event.target)) {
+        setIsCategoryPanelOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [categoryPanelRef]);
+
   const handleCategoryChange = (event) => {
     const category = event.target.value;
     if (selectedCategory.includes(category)) {
@@ -127,8 +148,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     }
   };
 
-  const handleMainCategoryChange = (event) => {
-    const categoryName = event.target.value;
+  const handleSelectCategory = (categoryName) => {
     setSelectedMainCategory(categoryName);
     setSelectedCategory([]);
     setSelectedSubCategories([]);
@@ -143,12 +163,29 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     }
   };
 
+  const toggleCategoryPanel = () => {
+    setIsCategoryPanelOpen(!isCategoryPanelOpen);
+  };
+
+  const closeCategoryPanel = () => {
+    setIsCategoryPanelOpen(false);
+  };
   const handleSubCategoryChange = (event, subCategoryName) => {
     if (event.target.checked) {
       setSelectedSubCategories([...selectedSubCategories, subCategoryName]);
+      setSelectedMainCategory(subCategoryName);
     } else {
       setSelectedSubCategories(selectedSubCategories.filter(name => name !== subCategoryName));
+      if (selectedMainCategory === subCategoryName) {
+        setSelectedMainCategory("All");
+      }
     }
+  };
+
+  const handleSubCategorySelect = (subCategoryName) => {
+    setSelectedSubCategories([subCategoryName]);
+    setSelectedMainCategory(subCategoryName);
+    setIsCategoryPanelOpen(false);
   };
 
   const handleLocationChange = (event) => {
@@ -172,6 +209,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       setSelectedFundingStatus("");
     } else if (filterType === 'searchTerm') {
       setSearchTerm("");
+    } else if (filterType === 'potentialProject') {
+      setIsPotentialProject(false);
     }
   };
 
@@ -196,6 +235,10 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
 
     if (selectedLocation) {
       queryParts.push(`location:eq:${encodeURIComponent(selectedLocation)}`);
+    }
+
+    if (isPotentialProject) {
+      queryParts.push(`isClassPotential:true`);
     }
 
     if (
@@ -235,185 +278,261 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
         <div className="search-header flex items-center space-x-3">
           <h2 className="text-xl font-semibold">Show me</h2>
 
-          <div className="active-filters flex flex-wrap gap-2">
-            {searchTerm && (
-              <div className="filter-tag flex items-center px-3 py-1 bg-gray-100 border border-gray-300 rounded-full text-sm">
-                <span>{searchTerm}</span>
-                <button
-                  onClick={() => removeFilter('searchTerm', searchTerm)}
-                  className="ml-2 text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes size={12} />
-                </button>
-              </div>
-            )}
-
-            {activeFilters.map((filter, index) => (
-              <div
-                key={index}
-                className="filter-tag flex items-center px-3 py-1 bg-gray-100 border border-gray-300 rounded-full text-sm"
-              >
-                <span>{filter.value}</span>
-                <button
-                  onClick={() => removeFilter(filter.type, filter.value)}
-                  className="ml-2 text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes size={12} />
-                </button>
-              </div>
-            ))}
-
-            {activeFilters.length === 0 && !searchTerm && (
-              <div className="filter-tag px-3 py-1 bg-gray-100 border border-gray-300 rounded-full text-sm">
-                All projects
-              </div>
-            )}
-          </div>
-
-          <div className="sort-control flex items-center space-x-2">
-            <span>sorted by</span>
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              className="px-3 py-1 bg-gray-100 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-green-400"
+          <div className="relative" ref={categoryPanelRef}>
+            {/* Category Button */}
+            <div
+              onClick={() => {
+                if (selectedMainCategory === "All") {
+                  toggleCategoryPanel(); // Mở panel nếu chưa chọn Category/SubCategory
+                }
+              }}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-md cursor-pointer flex items-center justify-between w-auto"
             >
-              <option value="+createdAt">Creation Date (Oldest to Newest)</option>
-              <option value="-createdAt">Creation Date (Newest to Oldest)</option>
-              <option value="+fundingPhases.startDate">Start Funding Date (Earliest to Latest)</option>
-              <option value="-fundingPhases.startDate">Start Funding Date (Latest to Earliest)</option>
-              <option value="+fundingPhases.endDate">End Funding Date (Earliest to Latest)</option>
-              <option value="-fundingPhases.endDate">End Funding Date (Latest to Earliest)</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          onClick={toggleSearch}
-          className="p-2 bg-green-300 rounded-full shadow-md hover:bg-green-400 transition-colors duration-200"
-        >
-          <FaSearch size={24} />
-        </button>
-      </div>
-
-      {/* Advanced Search Panel */}
-      {isSearchVisible && (
-        <div className="search-container p-6 bg-white rounded-lg shadow-lg mt-1 border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div>
-              <div className="search-form mb-6">
-                <label htmlFor="search" className="block text-lg font-semibold mb-2">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  id="search"
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-                  placeholder="Enter project name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div className="category-filter mb-6">
-                <label className="block text-lg font-semibold mb-2">Category</label>
-                <select
-                  value={selectedMainCategory}
-                  onChange={handleMainCategoryChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+              <span className="text-gray-700 text-base truncate">
+                {selectedMainCategory === "All" ? "All Categories" : selectedMainCategory}
+              </span>
+              {selectedMainCategory !== "All" ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedMainCategory("All");
+                    setSubCategories([]);
+                    setSelectedSubCategories([]);
+                    setIsCategoryPanelOpen(true);
+                  }}
+                  className="ml-2 text-gray-600 hover:text-red-500 focus:outline-none shrink-0"
                 >
-                  <option value="All">All Categories</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedMainCategory !== "All" && subCategories.length > 0 && (
-                <div className="subcategories-filter mb-6">
-                  <label className="block text-lg font-semibold mb-2">Subcategories</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {subCategories.map((subCategory) => (
-                      <div key={subCategory.id} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`subCategory-${subCategory.id}`}
-                          value={subCategory.name}
-                          checked={selectedSubCategories.includes(subCategory.name)}
-                          onChange={(e) => handleSubCategoryChange(e, subCategory.name)}
-                          className="mr-2"
-                        />
-                        <label htmlFor={`subCategory-${subCategory.id}`} className="text-md">{subCategory.name}</label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  <FaTimes />
+                </button>
+              ) : (
+                <span className="ml-2 text-gray-600 shrink-0">
+                  {isCategoryPanelOpen ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </span>
               )}
             </div>
 
-            {/* Right Column */}
-            <div>
-              <div className="location-filter mb-6">
-                <label className="block text-lg font-semibold mb-2">Campus Location</label>
-                <select
-                  value={selectedLocation}
-                  onChange={handleLocationChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-                >
-                  <option value="">All Locations</option>
-                  {locations.map((location) => (
-                    <option key={location} value={location}>
-                      {location.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Panel Wrapper */}
+            {isCategoryPanelOpen && (
+              <div className="absolute left-0 top-full mt-1 flex z-30">
+                {/* Category Panel - Kích thước cố định không phụ thuộc button */}
+                <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64 transition-all duration-200 ease-in-out">
+                  <div className="py-3 px-4">
+                    <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">CATEGORIES</h3>
+                    <div className="max-h-80 overflow-y-auto">
+                      <div className="grid grid-cols-2 gap-x-4">
+                        {/* First column */}
+                        <div className="space-y-3">
+                          <div
+                            className={`text-sm cursor-pointer ${selectedMainCategory === "All" ? "text-green-600 font-medium" : "text-gray-700"}`}
+                            onClick={() => handleSelectCategory("All")}
+                          >
+                            All categories
+                          </div>
+                          {categories.slice(0, Math.ceil(categories.length / 2)).map((category) => (
+                            <div
+                              key={category.id}
+                              className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                              onClick={() => handleSelectCategory(category.name)}
+                            >
+                              {category.name}
+                            </div>
+                          ))}
+                        </div>
 
-              <div className="funding-status-filter mb-6">
-                <label className="block text-lg font-semibold mb-2">Funding Status</label>
-                <select
-                  value={selectedFundingStatus}
-                  onChange={handleFundingStatusChange}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-                >
-                  <option value="">All Statuses</option>
-                  {fundingPhaseStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                        {/* Second column */}
+                        <div className="space-y-3">
+                          {categories.slice(Math.ceil(categories.length / 2)).map((category) => (
+                            <div
+                              key={category.id}
+                              className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                              onClick={() => handleSelectCategory(category.name)}
+                            >
+                              {category.name}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="sort-options mb-6">
-                <label className="block text-lg font-semibold mb-2">Sort By</label>
-                <select
-                  value={sortOption}
-                  onChange={(e) => setSortOption(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-                >
-                  <option value="+createdAt">Creation Date (Oldest to Newest)</option>
-                  <option value="-createdAt">Creation Date (Newest to Oldest)</option>
-                  <option value="+fundingPhases.startDate">Start Funding Date (Earliest to Latest)</option>
-                  <option value="-fundingPhases.startDate">Start Funding Date (Latest to Earliest)</option>
-                  <option value="+fundingPhases.endDate">End Funding Date (Earliest to Latest)</option>
-                  <option value="-fundingPhases.endDate">End Funding Date (Latest to Earliest)</option>
-                  <option value="+fundingPhases.raiseAmount">Funding Amount (Lowest to Highest)</option>
-                  <option value="-fundingPhases.raiseAmount">Funding Amount (Highest to Lowest)</option>
-                </select>
+                {/* Subcategory Panel */}
+                {selectedMainCategory !== "All" && subCategories.length > 0 && (
+                  <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-md shadow-lg z-30 w-64 transition-all duration-200 ease-in-out">
+                    <div className="py-3 px-4">
+                      <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">
+                        {selectedMainCategory.toUpperCase()}
+                      </h3>
+
+                      {/* Subcategory with 2 columns */}
+                      <div className="max-h-80 overflow-y-auto">
+                        <div className="grid grid-cols-2 gap-x-4">
+                          <div className="space-y-3">
+                            {subCategories.slice(0, Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                              <div
+                                key={subCategory.id}
+                                className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                onClick={() => handleSubCategorySelect(subCategory.name)}
+                              >
+                                {subCategory.name}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="space-y-3">
+                            {subCategories.slice(Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                              <div
+                                key={subCategory.id}
+                                className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                onClick={() => handleSubCategorySelect(subCategory.name)}
+                              >
+                                {subCategory.name}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
-          {errorMessage && (
-            <div className="error-message text-red-500 text-center mb-4">
-              {errorMessage}
+
+          <span className="text-gray-700">projects on</span>
+
+          {/* Location Selector */}
+          <select
+            value={selectedLocation}
+            onChange={handleLocationChange}
+            className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+          >
+            <option value="">All Campuses</option>
+            {locations.map((location) => (
+              <option key={location} value={location}>
+                {location.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+
+          <span className="text-gray-700">sorted by</span>
+
+          {/* Sort Option Selector */}
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value)}
+            className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
+          >
+            <option value="+createdAt">Creation Date (Oldest to Newest)</option>
+            <option value="-createdAt">Creation Date (Newest to Oldest)</option>
+            <option value="+fundingPhases.startDate">Start Funding Date (Earliest to Latest)</option>
+            <option value="-fundingPhases.startDate">Start Funding Date (Latest to Earliest)</option>
+            <option value="+fundingPhases.endDate">End Funding Date (Earliest to Latest)</option>
+            <option value="-fundingPhases.endDate">End Funding Date (Latest to Earliest)</option>
+          </select>
+        </div>
+
+        {/* More Filter Button and Dropdown */}
+        <div className="relative">
+          {/* More Filter Button */}
+          <button
+            onClick={toggleSearch}
+            className="px-4 py-2 bg-green-500 text-white rounded-md shadow-md hover:bg-green-600 transition-colors duration-200 flex items-center"
+          >
+            More Filters
+          </button>
+          {/* Advanced Search Panel - Dropdown Design */}
+          {isSearchVisible && (
+            <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-50 transition-all duration-200 ease-in-out">
+              {/* Header */}
+              <div className="py-2 px-4 border-b border-gray-200">
+                <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
+              </div>
+              {/* Content area */}
+              <div className="p-4">
+                {/* Project Name Search input at top */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Project Name</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Enter project name..."
+                      className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <FaSearch className="h-4 w-4 text-gray-500" />
+                    </span>
+                  </div>
+                </div>
+
+                {/* Two columns layout */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Left column */}
+                  <div className="col-span-1">
+                    <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
+                    <div
+                      onClick={() => setIsPotentialProject(!isPotentialProject)}
+                      className={`px-3 py-2 cursor-pointer transition-colors duration-200 ${isPotentialProject
+                          ? "text-green-700 font-medium"
+                          : "text-gray-700 hover:text-green-600"
+                        }`}
+                    >
+                      Projects Have Potential
+                    </div>
+                  </div>
+
+                  {/* Right column: Funding Status */}
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium mb-2 text-gray-700">Funding Status</label>
+                    <select
+                      value={selectedFundingStatus}
+                      onChange={handleFundingStatusChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    >
+                      <option value="">All Statuses</option>
+                      {fundingPhaseStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer with buttons */}
+              <div className="py-2 px-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={toggleSearch}
+                  className="px-4 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    handleSearch();
+                    toggleSearch();
+                  }}
+                  className="px-4 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
+                >
+                  Apply Filters
+                </button>
+              </div>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

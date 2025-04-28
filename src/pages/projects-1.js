@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/router";
 import Header from "@/components/Header/Header";
 import Layout from "@/components/Layout/Layout";
-import PageTitle from "@/components/Reuseable/PageTitle";
+import PageFront from "@/components/Reuseable/PageFront";
 
 // Lazy load các components không cần thiết ngay lập tức
 const AdvancedSearch = lazy(() => import("@/components/ProjectsArea/AdvancedSearch"));
@@ -70,7 +70,7 @@ const Projects = () => {
   return (
     <Layout>
       <Header />
-      <PageTitle title="Explore" />
+      <PageFront/>
       <Suspense fallback={<LoadingFallback />}>
         <AdvancedSearch
           onSearch={handleSearch}
