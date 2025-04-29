@@ -19,6 +19,7 @@ import { milestoneItemService } from 'src/services/milestoneItemService';
 import updatePostService from 'src/services/updatePostService';
 import Header from '@/components/Header/Header';
 import PageTitle from '@/components/Reuseable/PageTitle';
+import ProjectEvaluationPoint from '@/components/CreateProject/ProjectEvaluationPoint';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -1786,6 +1787,11 @@ function EditProjectPage() {
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+            {(['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'FUNDRAISING', 'FUNDRAISING_COMPLETED'].includes(projectStatus)) && (
+              <div className="mt-10">
+                <ProjectEvaluationPoint projectId={formData.projectId} />
               </div>
             )}
           </div>

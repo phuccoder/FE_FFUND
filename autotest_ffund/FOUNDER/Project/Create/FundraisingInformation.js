@@ -170,7 +170,7 @@ const Key = webdriver.Key;
             console.log("Entered duration: 30 days");
             
             // Get minimum allowed start date and set a date slightly after that
-            let startDateField = await browser.findElement(By.id("phaseStartDate"));
+            let startDateField = await browser.findElement(By.id("startDate"));
             let minDate = await startDateField.getAttribute("min");
             console.log(`Minimum allowed start date: ${minDate}`);
             
@@ -295,7 +295,7 @@ const Key = webdriver.Key;
                 await durationField.sendKeys("20");
                 
                 // Get minimum allowed start date and set a date slightly after that
-                let startDateField = await browser.findElement(By.id("phaseStartDate"));
+                let startDateField = await browser.findElement(By.id("startDate"));
                 let minDate = await startDateField.getAttribute("min");
                 
                 // Parse the minimum date and add a few days to ensure it's valid
@@ -389,7 +389,7 @@ const Key = webdriver.Key;
                 await durationField.sendKeys("30");
                 
                 // Get minimum allowed start date and set a date slightly after that
-                let startDateField = await browser.findElement(By.id("phaseStartDate"));
+                let startDateField = await browser.findElement(By.id("startDate"));
                 let minDate = await startDateField.getAttribute("min");
                 
                 // Parse the minimum date and add a few days to ensure it's valid
@@ -465,7 +465,7 @@ const Key = webdriver.Key;
                 await durationField.sendKeys("20");
                 
                 // Get minimum allowed start date and set a date
-                let startDateField = await browser.findElement(By.id("phaseStartDate"));
+                let startDateField = await browser.findElement(By.xpath("//input[@type='date']"));
                 let minDate = await startDateField.getAttribute("min");
                 let minDateObj = new Date(minDate);
                 minDateObj.setDate(minDateObj.getDate() + 2);
@@ -497,7 +497,7 @@ const Key = webdriver.Key;
             await durationField.sendKeys("15");
             
             // Get minimum allowed start date and set a date
-            let startDateField = await browser.findElement(By.id("phaseStartDate"));
+            let startDateField = await browser.findElement(By.xpath("//input[@type='date']"));
             let minDate = await startDateField.getAttribute("min");
             let minDateObj = new Date(minDate);
             minDateObj.setDate(minDateObj.getDate() + 2);

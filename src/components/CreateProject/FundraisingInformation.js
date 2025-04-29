@@ -575,7 +575,18 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         }
       }
 
-      // Your existing code for removing a phase
+      const updatedForm = {
+        ...form,
+        phases: remainingPhases
+      };
+      
+      setForm(updatedForm);
+
+      if (typeof updateFormData === 'function') {
+        updateFormData(updatedForm);
+      }
+      setSuccess('Phase removing...');
+
       if (projectId && phaseToRemove?.savedToServer) {
         console.log("Attempting to delete phase with ID:", phaseId);
 
