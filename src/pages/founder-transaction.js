@@ -35,8 +35,9 @@ function FounderTransaction() {
         totalTransaction: 0
     });
 
-    // Create a mapping of project titles to IDs
     const [projectsMapping, setProjectsMapping] = useState({});
+    const [projectPaymentInfo, setProjectPaymentInfo] = useState({});
+    const [dashboardLoading, setDashboardLoading] = useState({});
 
     // Fetch paginated transactions and update pagination info
     useEffect(() => {
@@ -52,6 +53,32 @@ function FounderTransaction() {
     useEffect(() => {
         fetchTransactionStatistics(null);
     }, []);
+
+    useEffect(() => {
+        const fetchProjectPaymentInfo = async () => {
+            const uniqueProjectIds = [...new Set(transactions.map(t => t.projectId))];
+            const paymentInfoMap = {};
+            
+            for (const projectId of uniqueProjectIds) {
+                if (projectId) {
+                    try {
+                        const paymentInfo = await paymentInfoService.getPaymentInfo(projectId);
+                        if (paymentInfo) {
+                            paymentInfoMap[projectId] = paymentInfo;
+                        }
+                    } catch (err) {
+                        console.error(`Error fetching payment info for project ${projectId}:`, err);
+                    }
+                }
+            }
+            
+            setProjectPaymentInfo(paymentInfoMap);
+        };
+
+        if (transactions.length > 0) {
+            fetchProjectPaymentInfo();
+        }
+    }, [transactions]);
 
     const fetchTransactionStatistics = async (projectId) => {
         try {
@@ -113,6 +140,31 @@ function FounderTransaction() {
         }
     };
 
+    const handleViewDashboard = async (projectId) => {
+        try {
+            if (!projectPaymentInfo[projectId]) {
+                throw new Error("Payment information not available for this project");
+            }
+
+            const paymentInfoId = projectPaymentInfo[projectId].id;
+            setDashboardLoading(prev => ({ ...prev, [projectId]: true }));
+            
+            const response = await paymentInfoService.createDashboardLink(paymentInfoId);
+            
+            if (response && response.data) {
+                // Open the dashboard URL in a new tab
+                window.open(response.data, '_blank');
+            } else {
+                throw new Error("Could not generate dashboard link");
+            }
+        } catch (err) {
+            console.error("Error opening Stripe dashboard:", err);
+            alert(`Error: ${err.message || "Failed to open Stripe dashboard"}`);
+        } finally {
+            setDashboardLoading(prev => ({ ...prev, [projectId]: false }));
+        }
+    };
+
     const handlePageChange = (page) => {
         setPagination(prev => ({ ...prev, currentPage: page }));
     };
@@ -168,6 +220,9 @@ function FounderTransaction() {
                     <TransactionTable
                         transactions={transactions}
                         onSort={handleSortChange}
+                        onViewDashboard={handleViewDashboard}
+                        projectPaymentInfo={projectPaymentInfo}
+                        dashboardLoading={dashboardLoading}
                     />
 
                     <Pagination
