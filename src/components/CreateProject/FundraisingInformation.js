@@ -26,6 +26,10 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const isLastPhaseCompleted = form.phases?.length > 0 && form.phases[form.phases.length - 1].status === 'COMPLETED';
   const [editingPhase, setEditingPhase] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [phaseRule, setPhaseRule] = useState(null);
+  const [loadingPhaseRule, setLoadingPhaseRule] = useState(false);
+  const [phaseRuleError, setPhaseRuleError] = useState(null);
+
   // Add debugging logs
   useEffect(() => {
     console.log("Current form state:", form);
@@ -57,16 +61,16 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
   useEffect(() => {
     if (typeof updateFormData !== 'function') return;
-    
+
     const calculateFundraisingCompletion = () => {
       const phases = form.phases || [];
-      
+
       // If no phases, return 0%
       if (!phases.length) return 0;
-      
+
       let completedPhaseFields = 0;
       let totalPhaseFields = 0;
-      
+
       phases.forEach(phase => {
         if (!phase) return;
         const requiredFields = ['fundingGoal', 'startDate', 'duration'];
@@ -75,12 +79,12 @@ export default function FundraisingInformation({ formData, updateFormData, proje
           if (phase[field]) completedPhaseFields++;
         });
       });
-      
+
       return totalPhaseFields > 0 ? Math.round((completedPhaseFields / totalPhaseFields) * 100) : 0;
     };
 
     const completionPercentage = calculateFundraisingCompletion();
-    
+
     // Only update if the value has changed to avoid infinite loops
     if (formData?._completionPercentage !== completionPercentage) {
       // Create a copy of form data with completion percentage
@@ -88,6 +92,12 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       updateFormData(updatedFormData);
     }
   }, [form, formData?._completionPercentage, updateFormData]);
+
+  useEffect(() => {
+    if (!isEditPage && formData?.totalTargetAmount && formData.totalTargetAmount > 0) {
+      fetchPhaseRule(formData.totalTargetAmount);
+    }
+  }, [formData?.totalTargetAmount, isEditPage]);
 
   const fetchProjectPhases = async () => {
     if (!projectId) return;
@@ -148,6 +158,27 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       setError('Failed to load project phases. Please try again. Error: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPhaseRule = async (totalAmount) => {
+    try {
+      setLoadingPhaseRule(true);
+      setPhaseRuleError(null);
+
+      console.log("Fetching phase rule for total amount:", totalAmount);
+
+      const ruleData = await projectService.getPhaseRuleByTotalTargetAmount(totalAmount);
+      console.log("Phase rule data:", ruleData);
+
+      if (ruleData) {
+        setPhaseRule(ruleData);
+      }
+    } catch (err) {
+      console.error("Error fetching phase rule:", err);
+      setPhaseRuleError("Failed to load phase requirements. Please try again later.");
+    } finally {
+      setLoadingPhaseRule(false);
     }
   };
 
@@ -453,14 +484,42 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
         console.log("Sending phase data to API:", apiPhaseData);
 
-        // Send to API
-        await projectService.createProjectPhase(projectId, apiPhaseData);
-        setSuccess('Funding phase added successfully!');
+        try {
+          // Send to API
+          await projectService.createProjectPhase(projectId, apiPhaseData);
+          setSuccess('Funding phase added successfully!');
+          await fetchProjectPhases();
+        } catch (apiError) {
+          console.error('API Error when adding phase:', apiError);
 
-        // Refetch to get server-generated IDs
-        await fetchProjectPhases();
+          // Handle nested error object
+          if (apiError.message && typeof apiError.message === 'string') {
+            try {
+              const errorObj = JSON.parse(apiError.message);
+              if (errorObj && typeof errorObj === 'object') {
+                const formattedError = Object.entries(errorObj)
+                  .map(([key, value]) => `${key}: ${value}`)
+                  .join(', ');
+                setError(`Failed to add funding phase: ${formattedError}`);
+              } else {
+                setError(`Failed to add funding phase: ${apiError.message}`);
+              }
+            } catch (parseError) {
+              setError(`Failed to add funding phase: ${apiError.message}`);
+            }
+          } else if (apiError.error && typeof apiError.error === 'object') {
+            const formattedError = Object.entries(apiError.error)
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(', ');
+            setError(`Failed to add funding phase: ${formattedError}`);
+          } else {
+            // Fallback error message
+            setError('Failed to add funding phase: Unknown error');
+          }
+          return;
+        }
       } else {
-        // Only use local state if no projectId
+
         const updatedForm = {
           ...form,
           phases: [...(form.phases || []), newPhase]
@@ -470,7 +529,6 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         updateFormData(updatedForm);
       }
 
-      // Reset the form for a new phase
       setCurrentPhase({
         fundingGoal: '',
         duration: 30,
@@ -481,66 +539,29 @@ export default function FundraisingInformation({ formData, updateFormData, proje
       setShowPhaseForm(false);
     } catch (err) {
       console.error('Error adding phase:', err);
-      setError('Failed to add funding phase: ' + (err.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const updatePhase = async () => {
-    console.log("updatePhase function called", {
-      currentPhase,
-      editingPhase,
-      projectId
-    });
+      let errorMessage = 'Failed to add funding phase';
 
-    if (!currentPhase.fundingGoal || !currentPhase.startDate) {
-      setError('Please fill in all required fields');
-      return;
-    }
+      if (err.message) {
+        if (typeof err.message === 'string') {
+          try {
+            const errorObj = JSON.parse(err.message);
+            if (errorObj && typeof errorObj === 'object') {
+              errorMessage += ': ' + Object.entries(errorObj)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            } else {
+              errorMessage += ': ' + err.message;
+            }
+          } catch (parseError) {
+            errorMessage += ': ' + err.message;
+          }
+        } else if (typeof err.message === 'object') {
+          errorMessage += ': ' + JSON.stringify(err.message);
+        }
+      }
 
-    // Validate minimum duration
-    if (parseInt(currentPhase.duration) < 14) {
-      setError('Phase duration must be at least 14 days');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-
-      // Map to API expected format
-      const phaseData = {
-        targetAmount: parseFloat(currentPhase.fundingGoal),
-        startDate: currentPhase.startDate,
-        endDate: currentPhase.endDate
-      };
-
-      console.log("Sending updated phase data to API:", phaseData);
-
-      // Update the phase using the API
-      const result = await projectService.updateProjectPhase(editingPhase.id, phaseData);
-
-      setSuccess('Phase updated successfully!');
-      console.log("Phase update result:", result);
-
-      // Refetch to get the updated data from the server
-      await fetchProjectPhases();
-
-      // Reset the form and editing state
-      setCurrentPhase({
-        fundingGoal: '',
-        duration: 30,
-        startDate: '',
-        endDate: '',
-      });
-      setEditingPhase(null);
-      setIsEditing(false);
-      setShowPhaseForm(false);
-    } catch (err) {
-      console.error('Error updating phase:', err);
-      setError('Failed to update phase: ' + (err.message || 'Unknown error'));
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -579,7 +600,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         ...form,
         phases: remainingPhases
       };
-      
+
       setForm(updatedForm);
 
       if (typeof updateFormData === 'function') {
@@ -693,6 +714,22 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         </div>
       )}
 
+      {/* Display phase rule errors */}
+      {phaseRuleError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{phaseRuleError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Display success message */}
       {success && (
         <div className="bg-green-50 border-l-4 border-green-400 p-4">
@@ -709,24 +746,55 @@ export default function FundraisingInformation({ formData, updateFormData, proje
         </div>
       )}
 
-      <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Multi-Phase Fundraising</h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <p>
-                Break your project into multiple funding phases. Each phase can have its own funding goal and timeline.
-                {!projectId && " Complete the Basic Information section first to enable saving phases to the server."}
-              </p>
+      {/* Display phase rules information */}
+      {!isEditPage && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">Multi-Phase Fundraising</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>Break your project into multiple funding phases. Each phase can have its own funding goal and timeline.</p>
+
+                {loadingPhaseRule ? (
+                  <div className="mt-2 flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading phase requirements...</span>
+                  </div>
+                ) : phaseRule ? (
+                  <div className="mt-2 p-2 bg-white rounded-md border border-blue-200">
+                    <p className="font-semibold text-blue-800">Phase Requirements:</p>
+                    <p>For projects with a total target amount of ${phaseRule.minTotal.toLocaleString()} or more, you need to create at least <span className="font-bold">{phaseRule.totalPhaseCount} phases</span>.</p>
+
+                    {(form.phases?.length || 0) < phaseRule.totalPhaseCount && (
+                      <p className="mt-1 text-yellow-700 font-medium">
+                        You need to create {phaseRule.totalPhaseCount - (form.phases?.length || 0)} more phase(s).
+                      </p>
+                    )}
+
+                    {(form.phases?.length || 0) >= phaseRule.totalPhaseCount && (
+                      <p className="mt-1 text-green-700 font-medium">
+                        ✓ You&apos;ve met the minimum phase requirement.
+                      </p>
+                    )}
+                  </div>
+                ) : formData?.totalTargetAmount ? (
+                  <p className="mt-2">No specific phase requirements for this project size.</p>
+                ) : (
+                  <p className="mt-2">Please set a total target amount in the Basic Information section to see phase requirements.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Project Phases Overview */}
       <div className="border-b border-gray-200 pb-6">
