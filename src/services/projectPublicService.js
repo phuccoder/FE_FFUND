@@ -1,6 +1,6 @@
 // API endpoints
 const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1'; // Replace with your actual API base URL
-const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
+const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const CATEGORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/category/${id}`;
 const SUBCATEGORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/sub-category/${id}`;

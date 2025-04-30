@@ -172,6 +172,13 @@ const ExploreArea = ({ searchParams }) => {
                     <div className="alert alert-warning text-center">{error}</div>
                 ) : (
                     <>
+                        {/* Header with total projects */}
+                        <div className="text-center mb-4">
+                            <h2 className="text-2xl font-bold text-gray-800">
+                                Explore {paginationData.totalElements} Projects
+                            </h2>
+                        </div>
+
                         {projects.length > 0 ? (
                             <>
                                 <Row>
@@ -208,7 +215,6 @@ const ExploreArea = ({ searchParams }) => {
                                         onPageChange={handlePageChange}
                                     />
                                 )}
-
                             </>
                         ) : (
                             <div className="text-center py-8">
