@@ -13,6 +13,28 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
 
   const { id } = project;
 
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "N/A";
+
+    try {
+
+      if (Array.isArray(dateValue)) {
+        return `${String(dateValue[2]).padStart(2, '0')}/${String(dateValue[1]).padStart(2, '0')}/${dateValue[0]}`;
+      }
+      if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const date = new Date(dateValue);
+        if (!isNaN(date.getTime())) {
+          return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+        }
+      }
+
+      return dateValue;
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "Invalid date";
+    }
+  };
+
   useEffect(() => {
     const fetchPhases = async () => {
       setLoading(true);
@@ -131,15 +153,15 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                     key={phase.id}
                     onClick={() => handlePhaseClick(phase.id)}
                     className={`p-3 rounded-md cursor-pointer transition-colors ${selectedPhaseId === phase.id
-                        ? 'bg-blue-100 border border-yellow-300'
-                        : 'hover:bg-gray-100 border border-gray-200'
+                      ? 'bg-blue-100 border border-yellow-300'
+                      : 'hover:bg-gray-100 border border-gray-200'
                       }`}
                   >
                     <div className="flex justify-between items-center">
                       <h5 className="font-medium text-yellow-700">Phase {phase.phaseNumber}</h5>
                       <span className={`text-xs px-2 py-1 rounded-full ${phase.status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
                         }`}>
                         {phase.status}
                       </span>
@@ -147,7 +169,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                     <div className="mt-2 text-sm">
                       <p className="text-gray-700"><span className="font-medium">Target:</span> ${phase.targetAmount ? Number(phase.targetAmount).toLocaleString() : "0"} </p>
                       <p className="text-gray-700">
-                        <span className="font-medium">Timeline:</span> {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
+                        <span className="font-medium">Timeline:</span> {formatDate(phase.startDate)} - {formatDate(phase.endDate)}
                       </p>
                     </div>
                     {phase.status === 'PROCESS' && (
@@ -179,8 +201,8 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
               </h4>
               {selectedPhase && (
                 <span className={`text-xs px-2 py-1 rounded-full ${selectedPhase.status === 'ACTIVE'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-700'
                   }`}>
                   {selectedPhase.status}
                 </span>
@@ -195,8 +217,8 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                       key={milestone.id}
                       onClick={() => handleMilestoneClick(milestone)}
                       className={`p-3 rounded-md border cursor-pointer transition-colors ${selectedMilestone?.id === milestone.id
-                          ? 'bg-blue-50 border-blue-300'
-                          : 'hover:bg-gray-50 border-gray-200'
+                        ? 'bg-blue-50 border-blue-300'
+                        : 'hover:bg-gray-50 border-gray-200'
                         }`}
                     >
                       <h5 className="font-semibold text-yellow-700-700 mb-1">{milestone.title}</h5>
@@ -234,13 +256,15 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                   <h5 className="font-medium text-yellow-700 mb-1">{selectedMilestone.title}</h5>
                   <p className="text-sm text-gray-700 mb-2">{selectedMilestone.description}</p>
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>
-                    <button
-                      onClick={() => handleContinueClick(selectedPhaseId)}
-                      className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors"
-                    >
-                      Back This Milestone
-                    </button>
+                    <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>                    
+                    {phases[selectedPhaseId]?.status === 'PROCESS' && selectedMilestone.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => handleContinueClick(selectedPhaseId)}
+                        className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors"
+                      >
+                        Back This Milestone
+                      </button>
+                    )}
                   </div>
                 </div>
 
