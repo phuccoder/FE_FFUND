@@ -62,7 +62,7 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         };
 
         // Count only required fields for completion percentage
-        const requiredFields = ['title', 'category', 'subCategory', 'shortDescription', 'location', 'isClassPotential'];
+        const requiredFields = ['title', 'category', 'subCategory', 'shortDescription', 'location'];
         requiredFields.forEach(field => {
           if (checks[field]) completed++;
         });
@@ -389,7 +389,6 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
       )),
       shortDescription: !!basicInfo.shortDescription,
       location: !!locationValue,
-      isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false
     };
 
     // Only check required fields for completion
