@@ -1344,7 +1344,9 @@ function EditProjectPage() {
       'PENDING_APPROVAL',
       'APPROVED',
       'FUNDRAISING_COMPLETED',
-      'REJECTED' // Including REJECTED so users can fix and resubmit
+      'REJECTED',
+      'RESUBMIT',
+      'UNDER_REVIEW',
     ];
 
     return allowedStatuses.includes(normalizedStatus);
@@ -1636,6 +1638,8 @@ function EditProjectPage() {
       'FUNDRAISING_COMPLETED': { label: 'Fundraising Completed', color: 'bg-purple-200 text-purple-800' },
       'CANCELLED': { label: 'Cancelled', color: 'bg-red-100 text-red-800' },
       'SUSPENDED': { label: 'Suspended', color: 'bg-orange-200 text-orange-800' },
+      'UNDER_REVIEW': { label: 'Under Review', color: 'bg-blue-100 text-blue-800' },
+      'RESUBMIT': { label: 'Resubmit', color: 'bg-yellow-100 text-yellow-800' },
     };
 
     console.log("Getting status display for:", normalizedStatus);
@@ -1789,7 +1793,7 @@ function EditProjectPage() {
                 </div>
               </div>
             )}
-            {(['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'FUNDRAISING', 'FUNDRAISING_COMPLETED'].includes(projectStatus)) && (
+            {(['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'FUNDRAISING', 'FUNDRAISING_COMPLETED', 'RESUBMIT'].includes(projectStatus)) && (
               <div className="mt-10">
                 <ProjectEvaluationPoint projectId={formData.projectId} />
               </div>
