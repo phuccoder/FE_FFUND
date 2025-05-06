@@ -157,26 +157,38 @@ const SingleProject = React.memo(({ project = {} }) => {
           </div>
         </div>
 
-        {/* Progress Bar - Thinner */}
-        <div className="mb-2">
-          <div className="w-full h-1.5 bg-gray-200 rounded-full">
-            <div
-              className={`h-full rounded-full ${fundingPercentage >= 100 ? "bg-yellow-400" : "bg-green-600"
-                }`}
-              style={{
-                width: `${Math.min(fundingPercentage, 100)}%`,
-                background: fundingPercentage >= 100
-                  ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
-                  : "#16a34a",
-              }}
-            ></div>
-          </div>
+        {/* Progress Bar or Not Currently Funding Status */}
+        {currentPhase ? (
+          <div className="mb-2">
+            <div className="w-full h-1.5 bg-gray-200 rounded-full">
+              <div
+                className={`h-full rounded-full ${fundingPercentage >= 100 ? "bg-yellow-400" : "bg-green-600"
+                  }`}
+                style={{
+                  width: `${Math.min(fundingPercentage, 100)}%`,
+                  background: fundingPercentage >= 100
+                    ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
+                    : "#16a34a",
+                }}
+              ></div>
+            </div>
 
-          <div className="flex justify-between text-sm text-gray-700 mt-1">
-            <span className="font-medium">{fundingPercentage}% funded</span>
-            <span>{daysLeft} days left</span>
+            <div className="flex justify-between text-sm text-gray-700 mt-1">
+              <span className="font-medium">{fundingPercentage}% funded</span>
+              <span>{daysLeft} days left</span>
+            </div>
           </div>
-        </div>
+        ) : (
+            <div className="mb-2 flex items-center">
+              <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Investment Opens Soon
+              </span>
+            </div>
+
+        )}
 
         {/* Description - Fixed height */}
         <div className="mb-2">

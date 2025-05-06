@@ -50,7 +50,7 @@ const ProjectsArea = ({ className = "" }) => {
 
       try {
         const searchParams = {
-          query: "",
+          query: "isClassPotential:eq:true",
           sort: "+createdAt",
         };
         const response = await projectService.searchProjects(0, 4, searchParams);
@@ -72,7 +72,7 @@ const ProjectsArea = ({ className = "" }) => {
       <Container>
         <Row className="justify-content-center">
           <Col lg={8}>
-            <Title tagline="Businesses You Can Back" title="Explore Projects" className="text-center" />
+            <Title tagline="High-Impact Opportunities" title="Projects With Potential" className="text-center"/>
           </Col>
         </Row>
         <div className="explore-project-active">
