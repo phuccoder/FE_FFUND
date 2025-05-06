@@ -6,3 +6,11 @@ node_modules/
 
 # Ignore environment files
 .env
+
+# Ignore media files
+/FOUNDER/Project/Media/
+
+# Keep the Media directory structure but ignore its contents
+!/FOUNDER/Project/Media/
+/FOUNDER/Project/Media/*
+!/FOUNDER/Project/Media/.gitkeep

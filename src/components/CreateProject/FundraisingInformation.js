@@ -567,6 +567,108 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
+  const updatePhase = async () => {
+    if (!currentPhase.fundingGoal || !currentPhase.startDate) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate minimum duration
+    if (parseInt(currentPhase.duration) < 14) {
+      setError('Phase duration must be at least 14 days');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      // Find the phase index in the array
+      const phaseIndex = form.phases.findIndex(phase => phase.id === currentPhase.id);
+      if (phaseIndex === -1) {
+        setError('Phase not found');
+        return;
+      }
+
+      // Update the phase in the local array
+      const updatedPhases = [...form.phases];
+      updatedPhases[phaseIndex] = {
+        ...updatedPhases[phaseIndex],
+        fundingGoal: currentPhase.fundingGoal,
+        duration: currentPhase.duration,
+        startDate: currentPhase.startDate,
+        endDate: currentPhase.endDate
+      };
+
+      if (projectId && editingPhase?.savedToServer) {
+        console.log("Attempting to update phase for project ID:", projectId);
+
+        // Map to API expected format
+        const apiPhaseData = {
+          id: currentPhase.id,
+          targetAmount: parseFloat(currentPhase.fundingGoal),
+          startDate: currentPhase.startDate,
+          endDate: currentPhase.endDate
+        };
+
+        console.log("Sending updated phase data to API:", apiPhaseData);
+
+        // Send to API
+        await projectService.updateProjectPhase(currentPhase.id, apiPhaseData);
+        setSuccess('Funding phase updated successfully!');
+        await fetchProjectPhases();
+      } else {
+        const updatedForm = {
+          ...form,
+          phases: updatedPhases
+        };
+
+        setForm(updatedForm);
+        updateFormData(updatedForm);
+        setSuccess('Funding phase updated!');
+      }
+
+      // Reset and close form
+      setShowPhaseForm(false);
+      setIsEditing(false);
+      setEditingPhase(null);
+      setCurrentPhase({
+        fundingGoal: '',
+        duration: 14,
+        startDate: '',
+        endDate: '',
+      });
+    } catch (err) {
+      console.error('Error updating phase:', err);
+
+      let errorMessage = 'Failed to update funding phase';
+
+      if (err.message) {
+        if (typeof err.message === 'string') {
+          try {
+            const errorObj = JSON.parse(err.message);
+            if (errorObj && typeof errorObj === 'object') {
+              errorMessage += ': ' + Object.entries(errorObj)
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(', ');
+            } else {
+              errorMessage += ': ' + err.message;
+            }
+          } catch (parseError) {
+            errorMessage += ': ' + err.message;
+          }
+        } else if (typeof err.message === 'object') {
+          errorMessage += ': ' + JSON.stringify(err.message);
+        }
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Updated removePhase function
   const removePhase = async (phaseId) => {
     try {
