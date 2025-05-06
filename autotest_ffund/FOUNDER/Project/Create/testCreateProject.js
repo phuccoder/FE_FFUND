@@ -4,571 +4,53 @@ var By = webdriver.By;
 var until = webdriver.until;
 var readline = require('readline');
 var fs = require('fs');
+var path = require('path');
 var { loginFounder } = require('../../../Login-Register/Login/loginHelper');
-
 /**
  * Helper function to scroll to an element and click it safely
  * @param {webdriver.WebDriver} browser - The Selenium WebDriver instance
  * @param {webdriver.WebElement} element - The element to scroll to and click
  * @param {string} elementDescription - Description for logging
+ * @returns {Promise<boolean>} - Returns true if successful, false otherwise
  */
-
-async function addFundingPhase(browser, phaseDetails = {}) {
-    try {
-        console.log('Adding new funding phase with details:', phaseDetails);
-
-        // Default values with randomization for testing variety
-        const defaultDetails = {
-            fundingGoal: Math.floor(Math.random() * 4000) + 1000, // Random amount between 1000-5000
-            duration: Math.floor(Math.random() * (30 - 14 + 1)) + 14, // Random between 14-30 days
-            daysInFuture: Math.floor(Math.random() * 30) + 7 // Start between 7-37 days in future
-        };
-
-        // Merge provided details with defaults
-        const details = { ...defaultDetails, ...phaseDetails };
-
-        // Wait for page to be ready and stable before proceeding
-        await browser.sleep(2000);
-
-        // Handle any pending alerts before proceeding
-        await handleAlert(browser, true, "Pre-existing alert");
-
-        // Take a screenshot of the state before adding a new phase
-        try {
-            const beforeScreenshot = await browser.takeScreenshot();
-            fs.writeFileSync(`phase-before-add-${Date.now()}.png`, beforeScreenshot, 'base64');
-            console.log("Screenshot taken before looking for Add Funding Phase button");
-        } catch (screenshotErr) {
-            console.log("Screenshot failed:", screenshotErr.message);
-        }
-
-        // Try multiple strategies to find the "Add Funding Phase" button
-        let addPhaseButton = null;
-        const buttonLocators = [
-            By.xpath("//button[contains(text(), 'Add Funding Phase')]"),
-            By.xpath("//button[contains(text(), 'Add Phase')]"),
-            By.css("button.add-phase-btn, button.btn-primary"),
-            By.xpath("//button[contains(@class, 'add') and contains(@class, 'phase')]"),
-            By.xpath("//button[contains(.,'phase') and contains(.,'add')]")
-        ];
-
-        // Try each locator with a short timeout
-        for (const locator of buttonLocators) {
-            try {
-                console.log(`Trying to locate Add Funding Phase button with: ${locator}`);
-                addPhaseButton = await browser.wait(until.elementLocated(locator), 3000);
-                console.log(`Found Add Funding Phase button using: ${locator}`);
-                break;
-            } catch (error) {
-                console.log(`Strategy failed: ${error.message}`);
-            }
-        }
-
-        // If button not found with locators, try a broader approach
-        if (!addPhaseButton) {
-            console.log("Standard locators failed. Trying a broader scan...");
-
-            // Find all buttons on the page
-            const allButtons = await browser.findElements(By.css('button'));
-            console.log(`Found ${allButtons.length} buttons on the page`);
-
-            // Check each button for relevant text
-            for (const button of allButtons) {
-                try {
-                    const buttonText = await button.getText();
-                    const buttonClass = await button.getAttribute('class');
-
-                    if (buttonText.toLowerCase().includes('add') && buttonText.toLowerCase().includes('phase')) {
-                        addPhaseButton = button;
-                        console.log(`Found button through text scan: "${buttonText}" with class: ${buttonClass}`);
-                        break;
-                    }
-                } catch (error) {
-                    // Ignore errors for individual buttons
-                }
-            }
-        }
-
-        // If still not found, take a screenshot and throw an error
-        if (!addPhaseButton) {
-            console.error("Failed to find Add Funding Phase button after multiple attempts");
-            const pageScreenshot = await browser.takeScreenshot();
-            fs.writeFileSync(`phase-button-missing-${Date.now()}.png`, pageScreenshot, 'base64');
-            throw new Error("Add Funding Phase button not found on the page");
-        }
-
-        // Click the "Add Funding Phase" button with increased stability
-        await browser.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", addPhaseButton);
-        await browser.sleep(1000);
-
-        try {
-            await addPhaseButton.click();
-            console.log("Add Funding Phase button clicked successfully");
-        } catch (clickError) {
-            console.log(`Direct click failed: ${clickError.message}, trying JavaScript click`);
-            await browser.executeScript("arguments[0].click();", addPhaseButton);
-            console.log("Add Funding Phase button clicked via JavaScript");
-        }
-
-        await browser.sleep(1500);
-
-        // Verify the phase form appeared
-        try {
-            // Look for funding goal field to confirm the form opened
-            const fundingGoalField = await browser.wait(
-                until.elementLocated(By.xpath("//input[@name='fundingGoal' or @id='phaseFundingGoal']")),
-                10000
-            );
-            console.log("Phase form opened successfully");
-
-            // More thorough field clearing
-            await fundingGoalField.clear();
-            await browser.sleep(500);
-            await browser.executeScript("arguments[0].value = '';", fundingGoalField);
-            await browser.sleep(500);
-
-            // Set the funding goal value
-            await fundingGoalField.sendKeys(details.fundingGoal.toString());
-
-            // Trigger events to ensure value is registered
-            await browser.executeScript(
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));",
-                fundingGoalField
-            );
-            console.log(`Set funding goal to: $${details.fundingGoal}`);
-            await browser.sleep(1000);
-
-            // Set duration with careful approach to avoid the 144/300 issue
-            const durationField = await browser.wait(
-                until.elementLocated(By.xpath("//input[@name='duration' or @id='phaseDuration']")),
-                5000
-            );
-
-            // Use digit-by-digit approach for duration to avoid numeric input issues
-            await durationField.clear();
-            await browser.sleep(500);
-
-            // Clear with JavaScript and then send keys directly
-            await browser.executeScript("arguments[0].value = '';", durationField);
-            await browser.sleep(500);
-
-            // Send one digit at a time with small pauses to ensure input is captured correctly
-            for (let digit of details.duration.toString()) {
-                await durationField.sendKeys(digit);
-                await browser.sleep(200);
-            }
-
-            // Ensure proper events are triggered and check the actual value
-            await browser.executeScript(
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));",
-                durationField
-            );
-
-            // Double-check the duration was set correctly
-            const actualDuration = await durationField.getAttribute('value');
-            console.log(`Set duration to: ${actualDuration} days (Target: ${details.duration})`);
-
-            if (actualDuration !== details.duration.toString()) {
-                console.warn(`⚠️ Duration mismatch! Expected ${details.duration}, got ${actualDuration}`);
-                // Try one more time with direct JavaScript setting
-                await browser.executeScript(`arguments[0].value = ${details.duration};`, durationField);
-                await browser.sleep(500);
-                // Check again
-                const finalDuration = await durationField.getAttribute('value');
-                console.log(`Final duration check: ${finalDuration}`);
-            }
-
-            // Set start date with improved approach to avoid year 502550 issue
-            const startDateField = await browser.wait(
-                until.elementLocated(By.xpath("//input[@name='startDate' or @id='phaseStartDate']")),
-                5000
-            );
-
-            // Calculate the future date we want to select
-            const targetDate = new Date();
-            targetDate.setDate(targetDate.getDate() + details.daysInFuture);
-
-            // Format date as YYYY-MM-DD with explicit year
-            const year = targetDate.getFullYear(); // This should be 2025
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            const formattedDate = `${year}-${month}-${day}`;
-
-            console.log(`Target start date: ${formattedDate}`);
-
-            // First try interacting with the date picker UI
-            try {
-                await startDateField.click();
-                await browser.sleep(1000);
-
-                // Check if date picker is visible
-                const datePicker = await browser.findElements(
-                    By.css('.date-picker, .react-datepicker, .calendar, [role="dialog"]')
-                );
-
-                if (datePicker.length > 0) {
-                    console.log("Date picker opened, using UI interaction");
-                    // Close it for now and use direct input as more reliable
-                    await browser.executeScript("document.body.click()");
-                    await browser.sleep(500);
-                }
-
-                // Use direct input as more reliable
-                await startDateField.clear();
-                await browser.sleep(500);
-
-                // Send the date one character at a time
-                for (let char of formattedDate) {
-                    await startDateField.sendKeys(char);
-                    await browser.sleep(100);
-                }
-
-                // Ensure field loses focus to trigger validation
-                await browser.executeScript("document.body.click()");
-                await browser.sleep(1000);
-
-            } catch (datePickerError) {
-                console.log(`Date picker interaction failed: ${datePickerError.message}`);
-
-                // Fallback to direct value setting
-                await browser.executeScript(`arguments[0].value = "${formattedDate}";`, startDateField);
-                await browser.sleep(500);
-            }
-
-            // Trigger events to ensure value is registered
-            await browser.executeScript(
-                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));" +
-                "arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));",
-                startDateField
-            );
-
-            // Verify the date was set correctly
-            const actualStartDate = await startDateField.getAttribute('value');
-            console.log(`Start date set to: ${actualStartDate}`);
-
-            if (actualStartDate !== formattedDate) {
-                console.warn(`⚠️ Date mismatch! Expected ${formattedDate}, got ${actualStartDate}`);
-                // Try one more time with direct JavaScript setting
-                await browser.executeScript(`arguments[0].value = "${formattedDate}";`, startDateField);
-                // Make sure we click somewhere else to trigger any calculations
-                await browser.executeScript("document.body.click()");
-                await browser.sleep(1000);
-            }
-
-            // Actively try to trigger end date calculation
-            await durationField.click();
-            await browser.sleep(500);
-            await startDateField.click();
-            await browser.sleep(500);
-            await browser.executeScript("document.body.click()");
-            await browser.sleep(1500);
-
-            // Verify end date was calculated properly
-            try {
-                const endDateField = await browser.findElement(
-                    By.xpath("//input[@name='endDate' or @id='phaseEndDate']")
-                );
-                const endDateValue = await endDateField.getAttribute('value');
-                console.log(`End date calculated as: ${endDateValue || 'not set'}`);
-
-                // If end date isn't calculated, manually calculate and set it
-                if (!endDateValue || endDateValue.trim() === '') {
-                    console.log("End date not calculated automatically, calculating manually");
-
-                    // Get current values from fields
-                    const startDateValue = await startDateField.getAttribute('value');
-                    const durationValue = await durationField.getAttribute('value');
-
-                    if (startDateValue && durationValue) {
-                        // Parse values
-                        const startDate = new Date(startDateValue);
-                        const durationDays = parseInt(durationValue);
-
-                        if (!isNaN(startDate.getTime()) && !isNaN(durationDays)) {
-                            // Calculate end date
-                            const endDate = new Date(startDate);
-                            endDate.setDate(startDate.getDate() + durationDays);
-
-                            // Format end date
-                            const endYear = endDate.getFullYear();
-                            const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
-                            const endDay = String(endDate.getDate()).padStart(2, '0');
-                            const manualEndDate = `${endYear}-${endMonth}-${endDay}`;
-
-                            console.log(`Manually calculated end date: ${manualEndDate}`);
-
-                            // Set it directly
-                            await browser.executeScript(`arguments[0].value = "${manualEndDate}";`, endDateField);
-                            await browser.sleep(500);
-                            await browser.executeScript(
-                                "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));" +
-                                "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));" +
-                                "arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));",
-                                endDateField
-                            );
-
-                            console.log("End date set manually");
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log("Could not verify end date:", error.message);
-            }
-
-            // Take screenshot before submission
-            try {
-                const screenshot = await browser.takeScreenshot();
-                fs.writeFileSync(`phase-before-submit-${Date.now()}.png`, screenshot, 'base64');
-                console.log("Screenshot taken before phase submission");
-            } catch (screenshotErr) {
-                console.log("Screenshot failed:", screenshotErr.message);
-            }
-
-            // Submit the phase with improved detection of the submit button
-            const submitButtonLocators = [
-                By.xpath("//button[contains(text(), 'Add Phase')]"),
-                By.xpath("//button[contains(text(), 'Submit Phase')]"),
-                By.xpath("//button[contains(@class, 'submit') and contains(@class, 'phase')]"),
-                By.css("form button[type='submit']"),
-                By.css("form button.primary")
-            ];
-
-            let submitButton = null;
-            for (const locator of submitButtonLocators) {
-                try {
-                    submitButton = await browser.wait(until.elementLocated(locator), 3000);
-                    console.log(`Found submit button using: ${locator}`);
-                    break;
-                } catch (error) {
-                    // Try next locator
-                }
-            }
-
-            if (!submitButton) {
-                // If still not found, get all buttons and find one with relevant text
-                const formButtons = await browser.findElements(By.css('form button'));
-                for (const button of formButtons) {
-                    const text = await button.getText();
-                    if (text.toLowerCase().includes('add') || text.toLowerCase().includes('submit') ||
-                        text.toLowerCase().includes('save') || text.toLowerCase().includes('confirm')) {
-                        submitButton = button;
-                        console.log(`Found submit button with text: ${text}`);
-                        break;
-                    }
-                }
-            }
-
-            if (!submitButton) {
-                throw new Error("Could not find phase submission button");
-            }
-
-            // Submit the form
-            await browser.executeScript("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submitButton);
-            await browser.sleep(1000);
-
-            try {
-                await submitButton.click();
-                console.log("Add Phase button clicked successfully");
-            } catch (clickError) {
-                console.log(`Direct click failed: ${clickError.message}, trying JavaScript click`);
-                await browser.executeScript("arguments[0].click();", submitButton);
-                console.log("Add Phase button clicked via JavaScript");
-            }
-
-            // Wait longer for processing (form submission, potential redirects, etc.)
-            await browser.sleep(5000);
-
-            // Handle any alerts that may appear
-            const alertText = await handleAlert(browser, true, "Phase submission alert");
-            if (alertText) {
-                if (alertText.toLowerCase().includes('error') ||
-                    alertText.toLowerCase().includes('invalid') ||
-                    alertText.toLowerCase().includes('fail')) {
-                    throw new Error(`Phase submission failed with alert: ${alertText}`);
-                } else {
-                    console.log(`Alert accepted: ${alertText}`);
-                }
-            }
-
-            // Verify the phase was actually added with multiple detection methods
-            let phaseAdded = false;
-
-            // Try multiple ways to check if phase was added
-            try {
-                // Method 1: Look for phase containers or cards
-                const phaseContainers = await browser.findElements(
-                    By.xpath("//div[contains(@class, 'phase-card') or contains(@class, 'phase-item')]")
-                );
-
-                if (phaseContainers.length > 0) {
-                    console.log(`Found ${phaseContainers.length} phase containers/cards`);
-                    phaseAdded = true;
-                } else {
-                    // Method 2: Look for table rows if phases are displayed in a table
-                    const phaseRows = await browser.findElements(
-                        By.xpath("//table//tr[contains(., 'Phase') or .//td[contains(., '$')]]")
-                    );
-
-                    if (phaseRows.length > 0) {
-                        console.log(`Found ${phaseRows.length} phase table rows`);
-                        phaseAdded = true;
-                    } else {
-                        // Method 3: Look for generic phase elements with funding amount
-                        const phaseItems = await browser.findElements(
-                            By.xpath("//*[contains(text(), '$') and (contains(text(), 'Phase') or ancestor::*[contains(text(), 'Phase')])]")
-                        );
-
-                        if (phaseItems.length > 0) {
-                            console.log(`Found ${phaseItems.length} phase elements with funding info`);
-                            phaseAdded = true;
-                        }
-                    }
-                }
-
-                // Method 4: Check for success message
-                const successIndicators = await browser.findElements(
-                    By.xpath("//div[contains(@class, 'success') or contains(@class, 'alert-success') or contains(text(), 'success')]")
-                );
-
-                if (successIndicators.length > 0) {
-                    console.log("Found success indicator after adding phase");
-                    phaseAdded = true;
-                }
-
-                // If none of the direct methods worked, check for Add Funding Phase button again
-                // If it's available, we're likely back at the main interface and can add another phase
-                if (!phaseAdded) {
-                    const addButtons = await browser.findElements(
-                        By.xpath("//button[contains(text(), 'Add Funding Phase') or contains(text(), 'Add Another Phase')]")
-                    );
-
-                    if (addButtons.length > 0) {
-                        console.log("Found Add Funding Phase button again, suggesting we can add another phase");
-                        phaseAdded = true;
-                    } else {
-                        console.warn("WARNING: Could not definitively confirm phase was added");
-                        // Take a screenshot to diagnose the issue
-                        const verificationScreenshot = await browser.takeScreenshot();
-                        fs.writeFileSync(`phase-verification-${Date.now()}.png`, verificationScreenshot, 'base64');
-                    }
-                }
-            } catch (error) {
-                console.log("Error during phase verification:", error.message);
-
-                // Take a screenshot to show the current state
-                try {
-                    const errorScreenshot = await browser.takeScreenshot();
-                    fs.writeFileSync(`phase-verification-error-${Date.now()}.png`, errorScreenshot, 'base64');
-                } catch (screenshotErr) {
-                    console.log("Screenshot failed:", screenshotErr.message);
-                }
-            }
-
-            if (!phaseAdded) {
-                // Instead of failing, log a warning and continue
-                console.warn("⚠️ WARNING: Could not confirm phase was added, but continuing test");
-            } else {
-                console.log("✅ Successfully verified phase was added");
-            }
-
-            return true;
-
-        } catch (formInteractionError) {
-            console.error("Error interacting with phase form:", formInteractionError.message);
-
-            // Take error screenshot
-            try {
-                const errorScreenshot = await browser.takeScreenshot();
-                fs.writeFileSync(`phase-form-error-${Date.now()}.png`, errorScreenshot, 'base64');
-            } catch (screenshotErr) {
-                console.error("Failed to capture error screenshot:", screenshotErr.message);
-            }
-
-            throw formInteractionError;
-        }
-    } catch (error) {
-        console.error("ERROR ADDING FUNDING PHASE:", error.message);
-        // Take error screenshot
-        try {
-            const errorScreenshot = await browser.takeScreenshot();
-            fs.writeFileSync(`phase-error-${Date.now()}.png`, errorScreenshot, 'base64');
-        } catch (screenshotErr) {
-            console.error("Failed to capture error screenshot:", screenshotErr.message);
-        }
-        return false;
-    }
-}
-async function handleAlert(browser, accept = true, description = "Alert") {
-    try {
-        // Wait briefly for an alert
-        await browser.wait(until.alertIsPresent(), 3000);
-        let alert = await browser.switchTo().alert();
-        const alertText = await alert.getText();
-        console.log(`${description}: "${alertText}"`);
-
-        if (accept) {
-            await alert.accept();
-            console.log(`${description} accepted`);
-        } else {
-            await alert.dismiss();
-            console.log(`${description} dismissed`);
-        }
-        await browser.sleep(1000);
-        return alertText;
-    } catch (error) {
-        if (error.name !== 'TimeoutError') {
-            console.error(`Error handling alert: ${error.message}`);
-        } else {
-            console.log(`No ${description.toLowerCase()} appeared`);
-        }
-        return null;
-    }
-}
 async function scrollAndClick(browser, element, elementDescription) {
     try {
-        // Scroll the element into view in the middle of the viewport
+        // First check if the element is present
+        if (!element) {
+            console.error(`${elementDescription} not found`);
+            return false;
+        }
+
+        // Scroll the element into view in the center of the viewport
         await browser.executeScript(
-            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center', inline: 'center'});",
-            element
-        );
-        await browser.sleep(1000); // Wait for scroll to complete
-
-        // Check if element is clickable
-        const isClickable = await browser.executeScript(
-            "var rect = arguments[0].getBoundingClientRect();" +
-            "var windowHeight = window.innerHeight || document.documentElement.clientHeight;" +
-            "var windowWidth = window.innerWidth || document.documentElement.clientWidth;" +
-            "var vertInView = (rect.top <= windowHeight) && ((rect.top + rect.height) >= 0);" +
-            "var horInView = (rect.left <= windowWidth) && ((rect.left + rect.width) >= 0);" +
-            "return (vertInView && horInView);",
+            "arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });",
             element
         );
 
-        if (!isClickable) {
-            console.log(`${elementDescription} not fully visible after scroll, adjusting...`);
-            // Try to scroll more precisely
-            await browser.executeScript("window.scrollBy(0, -100);"); // Scroll up a bit
-            await browser.sleep(500);
+        // Short pause to allow the page to settle after scrolling
+        await browser.sleep(500);
+
+        // Check if element is visible and enabled before clicking
+        const isDisplayed = await element.isDisplayed();
+        const isEnabled = await element.isEnabled();
+
+        if (!isDisplayed) {
+            console.error(`${elementDescription} is not visible`);
+            return false;
+        }
+
+        if (!isEnabled) {
+            console.error(`${elementDescription} is not enabled`);
+            return false;
         }
 
         // Click the element
         await element.click();
-        console.log(`${elementDescription} clicked successfully`);
+        console.log(`Successfully clicked on ${elementDescription}`);
+        return true;
     } catch (error) {
-        console.error(`Error clicking ${elementDescription}:`, error.message);
-
-        // Fallback click using JavaScript
-        try {
-            await browser.executeScript("arguments[0].click();", element);
-            console.log(`${elementDescription} clicked using JavaScript executor`);
-        } catch (jsError) {
-            throw new Error(`Failed to click ${elementDescription} after scroll: ${error.message}`);
-        }
+        console.error(`Failed to scroll and click ${elementDescription}: ${error.message}`);
+        return false;
     }
 }
 
@@ -597,6 +79,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         // Login as founder
         const email = 'phanthienan01072003@gmail.com';
         const password = '123456';
+        const totalAmount = 8000;
         const isLoggedIn = await loginFounder(browser, email, password);
 
         if (!isLoggedIn) {
@@ -615,14 +98,16 @@ async function scrollAndClick(browser, element, elementDescription) {
             until.elementLocated(By.xpath("//button[@aria-label='User menu']")),
             10000
         );
-        await scrollAndClick(browser, userMenuButton, "User menu button");
+        await userMenuButton.click();
+
+        await browser.sleep(1000);
 
         // Then click the Manage Team option
         let manageTeamButton = await browser.wait(
             until.elementLocated(By.xpath("//a[normalize-space()='Manage Team']")),
             10000
         );
-        await scrollAndClick(browser, manageTeamButton, "Manage Team button");
+        await manageTeamButton.click();
 
         await browser.sleep(3000);
 
@@ -785,7 +270,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         console.log('11. Project description added');
 
         // Select category
-        let categoryDropdown = await browser.findElement(By.id('categoryId'));
+        let categoryDropdown = await browser.findElement(By.xpath("//select[@id='categoryId']"));
         await scrollAndClick(browser, categoryDropdown, "Category dropdown");
         await browser.sleep(1000);
 
@@ -825,17 +310,12 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.executeScript("arguments[0].value = '';", amountField);
         await browser.sleep(500);
         // Now enter the desired amount
-        await amountField.sendKeys('10000');
+        await amountField.sendKeys(totalAmount);
         await browser.sleep(1000);
 
         // Verify the value was set correctly
         const actualAmount = await amountField.getAttribute('value');
         console.log(`15. Target amount set to ${actualAmount}`);
-
-        // Check "Class Potential Project" if needed
-        let classProjectCheckbox = await browser.findElement(By.id('isClassPotential'));
-        await scrollAndClick(browser, classProjectCheckbox, "Class potential project checkbox");
-        console.log('16. Class potential project checkbox selected');
 
         // Fill optional fields
         let projectUrlField = await browser.findElement(By.id('projectUrl'));
@@ -853,29 +333,25 @@ async function scrollAndClick(browser, element, elementDescription) {
         await videoField.sendKeys('https://youtube.com/watch?v=abcd1234');
         console.log('19. Video demo URL added');
 
+        await browser.sleep(2000);
+
+        let projectImageField = await browser.findElement(By.xpath("//span[normalize-space()='Upload an image']"));
+        await browser.executeScript("arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });", projectImageField);
+        await browser.sleep(2000);
+        await projectImageField.click();
+        await browser.sleep(9000);
+
         // Submit basic information form
         let createProjectButton = await browser.findElement(
-            By.xpath("//button[contains(text(),'Create Project')]")
+            By.xpath("(//button[normalize-space()='Continue'])[1]")
         );
         await scrollAndClick(browser, createProjectButton, "Create Project button");
         console.log('20. Basic information submitted');
 
         await browser.sleep(5000);
 
-        // Look for success message or continue button
-        try {
-            let successElement = await browser.findElement(
-                By.xpath("//div[contains(@class, 'bg-green') or contains(@class, 'success')]")
-            );
-            console.log('21. Basic information saved successfully');
-        } catch (error) {
-            console.log('No explicit success message found, continuing with test');
-        }
-
         // Continue to next section
-        let continueToFundraising = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Continue')]")
-        );
+        let continueToFundraising = await browser.findElement(By.xpath("//button[@title='Go to Fundraising Information']"));
         await scrollAndClick(browser, continueToFundraising, "Continue to Fundraising button");
         console.log('22. Proceeding to Fundraising Information');
 
@@ -885,7 +361,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         console.log('23. Completing Fundraising Information section');
 
         const firstPhaseAdded = await addFundingPhase(browser, {
-            fundingGoal: 5000,
+            fundingGoal: 3500,
             duration: 14,
             daysInFuture: 10
         });
@@ -903,7 +379,7 @@ async function scrollAndClick(browser, element, elementDescription) {
 
         // Add second phase - more funding with longer duration
         const secondPhaseAdded = await addFundingPhase(browser, {
-            fundingGoal: 5000,
+            fundingGoal: 4500,
             duration: 30,
             daysInFuture: 30
         });
@@ -919,256 +395,323 @@ async function scrollAndClick(browser, element, elementDescription) {
         // Step 7: Reward Information section
         console.log('30. Completing Reward Information section');
 
-        // Add reward
-        let addRewardButton = await browser.wait(
-            until.elementLocated(By.xpath("//button[contains(text(), 'Add Reward')]")),
-            10000
-        );
-        await addRewardButton.click();
-        console.log('31. Adding a reward');
+        let rewardButton = await browser.findElement(By.xpath("//button[@title='Go to Reward Information']"));
+        await scrollAndClick(browser, rewardButton, "Reward Information button");
+        console.log('31. Proceeding to Reward Information');
 
-        // Fill reward details
-        let rewardTitleField = await browser.wait(
-            until.elementLocated(By.xpath("//input[@name='title']")),
-            10000
-        );
-        await rewardTitleField.clear();
-        await rewardTitleField.sendKeys('Basic Supporter Package');
-        console.log('32. Reward title set');
+        await browser.sleep(2000);
 
-        let rewardDescriptionField = await browser.findElement(By.xpath("//textarea[@name='description']"));
-        await rewardDescriptionField.clear();
-        await rewardDescriptionField.sendKeys('Support our project and receive a thank you message and digital certificate.');
-        console.log('33. Reward description set');
+        let selectPhase1 = await browser.findElement(By.xpath("//button[normalize-space()='Select Phase']"));
+        await selectPhase1.click();
+        await browser.sleep(1000);
 
-        let rewardAmountField = await browser.findElement(By.xpath("//input[@name='amount']"));
-        await rewardAmountField.clear();
-        await rewardAmountField.sendKeys('50');
-        console.log('34. Reward amount set to 50');
+        let phase1Option = await browser.findElement(By.xpath("//div[@class='py-1']/button[contains(., 'Phase 1')]"));
+        await phase1Option.click();
+        await browser.sleep(1000);
 
-        // Select the first available phase
-        let phaseDropdown = await browser.findElement(By.xpath("//select[@name='phaseId']"));
-        await phaseDropdown.click();
-        await browser.sleep(500);
-        let phaseOptions = await browser.findElements(By.css('select[name="phaseId"] option'));
-        if (phaseOptions.length > 1) {
-            await phaseOptions[1].click();
-            console.log('35. Phase selected for reward');
-        }
+        let selectedPhaseText = await browser.findElement(By.xpath("//button[contains(@class, 'inline-flex items-center px-3 py-1.5 border')]")).getText();
+        console.log(`Selected phase: ${selectedPhaseText}`);
 
-        // Set estimated delivery date (today + 60 days)
-        const deliveryDate = new Date(today);
-        deliveryDate.setDate(today.getDate() + 60);
-        const deliveryDateString = deliveryDate.toISOString().split('T')[0];
+        let phase1AddMilestoneButton = await browser.findElement(By.xpath("//button[normalize-space()='Add First Milestone']"));
+        await phase1AddMilestoneButton.click();
+        await browser.sleep(1000);
 
-        let deliveryDateField = await browser.findElement(By.xpath("//input[@name='estimatedDelivery']"));
-        await browser.executeScript(`arguments[0].value = '${deliveryDateString}';`, deliveryDateField);
-        await deliveryDateField.click(); // Trigger any onchange events
-        console.log(`36. Delivery date set to ${deliveryDateString}`);
-
-        // Add reward items
-        let addItemButton = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Add Item')]")
-        );
-        await addItemButton.click();
-        console.log('37. Adding reward item');
-
-        let itemNameField = await browser.wait(
-            until.elementLocated(By.xpath("//input[@name='itemName']")),
-            10000
-        );
-        await itemNameField.clear();
-        await itemNameField.sendKeys('Digital Certificate');
-        console.log('38. Item name set');
-
-        let itemQuantityField = await browser.findElement(By.xpath("//input[@name='quantity']"));
-        await itemQuantityField.clear();
-        await itemQuantityField.sendKeys('1');
-        console.log('39. Item quantity set');
-
-        let addItemSubmitButton = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Add') and contains(@class, 'bg-blue')]")
-        );
-        await addItemSubmitButton.click();
-        console.log('40. Item added to reward');
+        let phase1_milestoneTitleField = await browser.findElement(By.xpath("//input[@id='milestone-title']"));
+        await phase1_milestoneTitleField.clear();
+        await phase1_milestoneTitleField.sendKeys('Phase 1 Milestone 1');
 
         await browser.sleep(1000);
 
-        // Save reward
-        let saveRewardButton = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Save Reward')]")
-        );
-        await saveRewardButton.click();
-        console.log('41. Reward saved');
+        let phase1_milestoneDescriptionField = await browser.findElement(By.xpath("//textarea[@id='milestone-description']"));
+        await phase1_milestoneDescriptionField.clear();
+        await phase1_milestoneDescriptionField.sendKeys('Phase 1 Milestone 1 Description');
+        await browser.sleep(1000);
 
-        await browser.sleep(3000);
+        let phase1_milestoneAmountField = await browser.findElement(By.xpath("//input[@id='milestone-price']"));
+        await phase1_milestoneAmountField.clear();
+        await phase1_milestoneAmountField.sendKeys('600');
 
-        // Continue to next section
-        let continueToStory = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Continue')]")
-        );
-        await continueToStory.click();
+        await browser.sleep(1000);
+
+        let phase1_mileStoneCreateButton = await browser.findElement(By.xpath("//button[normalize-space()='Create Milestone']"));
+        await phase1_mileStoneCreateButton.click();
+        await browser.sleep(1000);
+
+        let phase1_milestone1_rewardButton = await browser.findElement(By.xpath("//button[normalize-space()='Add Item']"));
+        await phase1_milestone1_rewardButton.click();
+        await browser.sleep(1000);
+
+        let phase1_milestone1_rewardTitleField = await browser.findElement(By.xpath("//input[@id='item-name']"));
+        await phase1_milestone1_rewardTitleField.clear();
+        await phase1_milestone1_rewardTitleField.sendKeys('Phase 1 Milestone 1 Reward Item');
+
+        await browser.sleep(1000);
+
+        let phase1_milestone1_rewardQuantityField = await browser.findElement(By.xpath("//input[@id='item-quantity']"));
+        await phase1_milestone1_rewardQuantityField.clear();
+        await phase1_milestone1_rewardQuantityField.sendKeys('1');
+        await browser.sleep(1000);
+
+        let phase1_milestone1_rewardImageField = await browser.findElement(By.xpath("(//label[@class='cursor-pointer flex flex-col items-center justify-center h-24 w-24 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50'])[1]"));
+        await phase1_milestone1_rewardImageField.isDisplayed();
+        await browser.sleep(1000);
+
+        const rewardImagePath = path.resolve(__dirname, '../Media/img/test.jpg');
+        await phase1_milestone1_rewardImageField.sendKeys(rewardImagePath);
+        console.log('Attachment uploaded:', rewardImagePath);
+
+        await browser.sleep(2000);
+
+        let phase1_milestone1_rewardAddButton = await browser.findElement(By.xpath("//button[@type='submit'][normalize-space()='Add Item']"));
+        await phase1_milestone1_rewardAddButton.click();
+        await browser.sleep(8000);
+
+        let successMessage = await browser.findElement(By.xpath("(//div[@class='mb-4 bg-green-50 border-l-4 border-green-400 p-4'])[1]"));
+        let successText = await successMessage.getText();
+        console.log(`Success message: ${successText}`);
+
+        //phase 2
+        let selectPhase2 = await browser.findElement(By.xpath("//button[normalize-space()='Select Phase']"));
+        await selectPhase2.click();
+        await browser.sleep(1000);
+
+        let phase2Option = await browser.findElement(By.xpath("//div[@class='py-1']/button[contains(., 'Phase 2')]"));
+        await phase2Option.click();
+        await browser.sleep(1000);
+
+        let selectedPhase2Text = await browser.findElement(By.xpath("//button[contains(@class, 'inline-flex items-center px-3 py-1.5 border')]")).getText();
+        console.log(`Selected phase: ${selectedPhase2Text}`);
+
+        let phase2AddMilestoneButton = await browser.findElement(By.xpath("//button[normalize-space()='Add First Milestone']"));
+        await phase2AddMilestoneButton.click();
+        await browser.sleep(1000);
+
+        let phase2_milestoneTitleField = await browser.findElement(By.xpath("//input[@id='milestone-title']"));
+        await phase2_milestoneTitleField.clear();
+        await phase2_milestoneTitleField.sendKeys('Phase 2 Milestone 1');
+
+        await browser.sleep(1000);
+
+        let phase2_milestoneDescriptionField = await browser.findElement(By.xpath("//textarea[@id='milestone-description']"));
+        await phase2_milestoneDescriptionField.clear();
+        await phase2_milestoneDescriptionField.sendKeys('Phase 2 Milestone 1 Description');
+        await browser.sleep(1000);
+
+        let phase2_milestoneAmountField = await browser.findElement(By.xpath("//input[@id='milestone-price']"));
+        await phase2_milestoneAmountField.clear();
+        await phase2_milestoneAmountField.sendKeys('700');
+
+        await browser.sleep(1000);
+
+        let phase2_mileStoneCreateButton = await browser.findElement(By.xpath("//button[normalize-space()='Create Milestone']"));
+        await phase2_mileStoneCreateButton.click();
+        await browser.sleep(1000);
+
+        let phase2_milestone1_rewardButton = await browser.findElement(By.xpath("//button[normalize-space()='Add Item']"));
+        await phase2_milestone1_rewardButton.click();
+        await browser.sleep(1000);
+
+        let phase2_milestone1_rewardTitleField = await browser.findElement(By.xpath("//input[@id='item-name']"));
+        await phase2_milestone1_rewardTitleField.clear();
+        await phase2_milestone1_rewardTitleField.sendKeys('Phase 2 Milestone 1 Reward Item');
+
+        await browser.sleep(1000);
+
+        let phase2_milestone1_rewardQuantityField = await browser.findElement(By.xpath("//input[@id='item-quantity']"));
+        await phase2_milestone1_rewardQuantityField.clear();
+        await phase2_milestone1_rewardQuantityField.sendKeys('1');
+
+        await browser.sleep(1000);
+
+        let phase2_milestone1_rewardImageField = await browser.findElement(By.xpath("(//label[@class='cursor-pointer flex flex-col items-center justify-center h-24 w-24 border-2 border-gray-300 border-dashed rounded-md hover:bg-gray-50'])[1]"));
+        await phase2_milestone1_rewardImageField.isDisplayed();
+        await browser.sleep(1000);
+
+        const phase2RewardImagePath = path.resolve(__dirname, '../Media/img/item1.jpg');
+        await phase2_milestone1_rewardImageField.sendKeys(phase2RewardImagePath);
+        console.log('Attachment uploaded:', phase2RewardImagePath);
+
+        await browser.sleep(2000);
+
+        let phase2_milestone1_rewardAddButton = await browser.findElement(By.xpath("//button[@type='submit'][normalize-space()='Add Item']"));
+        await phase2_milestone1_rewardAddButton.click();
+        await browser.sleep(8000);
+
+        let phase2SuccessMessage = await browser.findElement(By.xpath("(//div[@class='mb-4 bg-green-50 border-l-4 border-green-400 p-4'])[1]"));
+        let phase2SuccessText = await phase2SuccessMessage.getText();
+        console.log(`Success message: ${phase2SuccessText}`);
+
+        // Continue to Project Story section
+        let continueToStory = await browser.findElement(By.xpath("//button[@title='Go to Project Story']"));
+        await scrollAndClick(browser, continueToStory, "Continue to Project Story button");
         console.log('42. Proceeding to Project Story');
 
         await browser.sleep(3000);
 
-        // Step 8: Project Story section
-        console.log('43. Completing Project Story section');
+        let storyField = await browser.findElement(By.xpath("//body/div[@id='__next']/main[@id='wrapper']/div[@class='min-h-screen bg-gray-50']/div[@class='max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8']/div[@class='bg-white shadow rounded-lg p-6 mb-8']/div[@class='space-y-4']/div[@class='space-y-6']/div/div[@class='mt-1']/div[@class='flex flex-col h-full border rounded-md shadow-sm overflow-hidden']/div[2]"));
+        await browser.executeScript("arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });", storyField);
 
-        // Switch to the editor frame if it's using a rich text editor iframe
-        try {
-            // Try to locate the editor (could be a contenteditable div or an iframe)
-            let storyEditor = await browser.wait(
-                until.elementLocated(By.css('[contenteditable="true"], iframe.editor')),
-                10000
-            );
+        await browser.sleep(4000);
 
-            // If it's an iframe, switch to it
-            if (await storyEditor.getTagName() === 'iframe') {
-                await browser.switchTo().frame(storyEditor);
-                storyEditor = await browser.findElement(By.css('body'));
-            }
+        let createStoryButton = await browser.findElement(By.xpath("//button[normalize-space()='Create Story']"));
+        await scrollAndClick(browser, createStoryButton, "Create Story button");
+        await browser.sleep(1000);
 
-            await storyEditor.click();
-            await storyEditor.clear();
-            await storyEditor.sendKeys(`# Project Overview
+        // go to team info
+        let teamInfoButton = await browser.findElement(By.xpath("//button[@title='Go to Founder Profile']"));
+        await scrollAndClick(browser, teamInfoButton, "Team Info button");
+        console.log('43. Proceeding to Team Information');
+        await browser.sleep(10000);
 
-This project aims to demonstrate the automated test flow for project creation on the F-Fund platform.
 
-## Our Mission
+        // go to documents
+        let documentsButton = await browser.findElement(By.xpath("//div[normalize-space()='7. Required Documents']"));
+        await scrollAndClick(browser, documentsButton, "Documents button");
+        console.log('44. Proceeding to Required Documents');
+        await browser.sleep(3000);
 
-We are focused on creating innovative solutions for common problems. 
+        let swotAnalysisButton = await browser.findElement(By.xpath("//label[@for='swotAnalysis'][normalize-space()='Upload document']"));
+        await swotAnalysisButton.isDisplayed();
+        await browser.sleep(1000);
 
-## What We'll Achieve
+        let swotFile = path.resolve(__dirname, '../Media/documents/SWOT and GAP Analyses and Worksheet Example.pdf');
+        await swotAnalysisButton.sendKeys(swotFile);
+        await browser.sleep(5000);
+        
+        let swotSuccessMessage = await browser.findElement(By.xpath("(//div[@class='rounded-md px-3 py-1 text-sm flex items-center bg-green-50 text-green-800'])[1]"));
+        let swotSuccessText = await swotSuccessMessage.getText();
+        console.log(`Success message: ${swotSuccessText}`);
 
-With your support, we'll develop and release a product that addresses key market needs.
+        await browser.sleep(2000);
 
-## Timeline
+        let bussinessModelCanvasButton = await browser.findElement(By.xpath("//label[@for='businessModelCanvas'][normalize-space()='Upload document']"));
+        await bussinessModelCanvasButton.isDisplayed();
+        await browser.sleep(1000);
 
-1. Design phase - 1 month
-2. Development - 3 months
-3. Testing - 1 month
-4. Release - 2 weeks
+        let businessModelFile = path.resolve(__dirname, '../Media/documents/Business Model Canvas.pdf');
+        await bussinessModelCanvasButton.sendKeys(businessModelFile);
+        await browser.sleep(5000);
 
-Thank you for your support!`);
+        let businessModelSuccessMessage = await browser.findElement(By.xpath("(//div)[32]"));
+        let businessModelSuccessText = await businessModelSuccessMessage.getText();
+        console.log(`Success message: ${businessModelSuccessText}`);
 
-            console.log('44. Project story content added');
+        await browser.sleep(2000);
 
-            // Switch back to main content if we were in an iframe
-            if (await storyEditor.getTagName() !== 'body') {
-                await browser.switchTo().defaultContent();
-            }
-        } catch (error) {
-            console.log('Error interacting with story editor:', error.message);
+        let businessPlanButton = await browser.findElement(By.xpath("//label[@for='businessPlan'][normalize-space()='Upload document']"));
+        await businessPlanButton.isDisplayed();
+        await browser.sleep(1000);
 
-            // Alternative approach for text areas
-            try {
-                let storyTextarea = await browser.findElement(By.css('textarea[name="story"]'));
-                await storyTextarea.clear();
-                await storyTextarea.sendKeys('This is our project story. It describes what we aim to achieve and how we plan to do it.');
-                console.log('44. Project story added via textarea');
-            } catch (textareaError) {
-                console.log('Could not interact with story editor or textarea');
-            }
-        }
+        let businessPlanFile = path.resolve(__dirname, '../Media/documents/Business Plan.pdf');
+        await businessPlanButton.sendKeys(businessPlanFile);
+        await browser.sleep(5000);
 
-        // Add risks section
-        try {
-            let risksTextarea = await browser.findElement(By.css('textarea[name="risks"], [contenteditable="true"][aria-label="risks"]'));
-            await risksTextarea.clear();
-            await risksTextarea.sendKeys('Potential risks include market conditions and development delays. We plan to mitigate these through careful planning and regular updates.');
-            console.log('45. Project risks added');
-        } catch (error) {
-            console.log('Could not directly interact with risks textarea, trying alternative approach');
+        let businessPlanSuccessMessage = await browser.findElement(By.xpath("(//div)[37]"));
+        let businessPlanSuccessText = await businessPlanSuccessMessage.getText();
+        console.log(`Success message: ${businessPlanSuccessText}`);
 
-            // Try clicking a risks tab first
-            try {
-                let risksTab = await browser.findElement(By.xpath("//button[contains(text(), 'Risks')]"));
-                await risksTab.click();
-                await browser.sleep(1000);
+        await browser.sleep(2000);
 
-                let risksEditor = await browser.findElement(By.css('[contenteditable="true"]'));
-                await risksEditor.clear();
-                await risksEditor.sendKeys('Potential risks include market conditions and development delays.');
-                console.log('45. Project risks added via tab interface');
-            } catch (tabError) {
-                console.log('Could not interact with risks section');
-            }
-        }
+        let marketResearchButton = await browser.findElement(By.xpath("//label[@for='marketResearch'][normalize-space()='Upload document']"));
+        await marketResearchButton.isDisplayed();
+        await browser.sleep(1000);
 
-        // Save story
-        try {
-            let saveStoryButton = await browser.findElement(
-                By.xpath("//button[contains(text(), 'Save')]")
-            );
-            await saveStoryButton.click();
-            console.log('46. Project story saved');
-            await browser.sleep(3000);
-        } catch (error) {
-            console.log('Could not find save button for story, content may auto-save');
-        }
+        let marketResearchFile = path.resolve(__dirname, '../Media/documents/market.pdf');
+        await marketResearchButton.sendKeys(marketResearchFile);
+        await browser.sleep(5000);
 
-        // Continue to next section
-        let continueToFounder = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Continue')]")
-        );
-        await continueToFounder.click();
-        console.log('47. Proceeding to Founder Profile');
+        let marketResearchSuccessMessage = await browser.findElement(By.xpath("(//div)[42]"));
+        let marketResearchSuccessText = await marketResearchSuccessMessage.getText();
+        console.log(`Success message: ${marketResearchSuccessText}`);
+
+        await browser.sleep(2000);
+
+        let financialPlanButton = await browser.findElement(By.xpath("//label[@for='financialInformation'][normalize-space()='Upload document']"));
+        await financialPlanButton.isDisplayed();
+        await browser.sleep(1000);
+
+        let financialPlanFile = path.resolve(__dirname, '../Media/documents/Financial Information.pdf');
+        await financialPlanButton.sendKeys(financialPlanFile);
+        await browser.sleep(5000);
+
+        let financialPlanSuccessMessage = await browser.findElement(By.xpath("(//div)[47]"));
+        let financialPlanSuccessText = await financialPlanSuccessMessage.getText();
+        console.log(`Success message: ${financialPlanSuccessText}`);
+
+        await browser.sleep(2000);
+
+        //go to payment account
+        let paymentAccountButton = await browser.findElement(By.xpath("//button[@title='Go to Payment Information']"));
+        await scrollAndClick(browser, paymentAccountButton, "Payment Account button");
+        console.log('50. Proceeding to Payment Account Information');
 
         await browser.sleep(3000);
 
-        // Skip Founder Profile for now (often pre-filled)
-        console.log('48. Skipping Founder Profile (usually pre-filled)');
-        let continueToDocuments = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Continue')]")
-        );
-        await continueToDocuments.click();
-        console.log('49. Proceeding to Required Documents');
+        let stripeConnectButton = await browser.findElement(By.xpath("//button[normalize-space()='Connect with Stripe']"));
+        await scrollAndClick(browser, stripeConnectButton, "Stripe Connect button");
+        console.log('51. Stripe Connect button clicked');
 
-        await browser.sleep(3000);
+        await browser.sleep(5000);
 
-        // Step 9: Required Documents section
-        console.log('50. Uploading Required Documents');
+        let checkStripeSuccess = await browser.findElement(By.xpath("//div[@class='mb-6 bg-blue-50 p-4 rounded-md']"));
+        await checkStripeSuccess.isDisplayed();
+        await browser.sleep(1000);
+        let stripeStatusText = await browser.findElement(By.xpath("//span[@class='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800']")).getText();
+        console.log(`Stripe status: ${stripeStatusText}`);
 
-        // For test purposes, we'll just acknowledge that documents need to be uploaded
-        console.log('51. Document upload would need actual file inputs - skipping in test');
+        await browser.sleep(2000);
 
-        // Continue to next section
-        let continueToPayment = await browser.findElement(
-            By.xpath("//button[contains(text(), 'Continue')]")
-        );
-        await continueToPayment.click();
-        console.log('52. Proceeding to Payment Information');
+        let stripeButton = await browser.findElement(By.xpath("//button[normalize-space()='Continue Stripe Setup']"));
+        await scrollAndClick(browser, stripeButton, "Continue Stripe Setup button");
+        console.log('52. Continue Stripe Setup button clicked');
 
-        await browser.sleep(3000);
+        await browser.sleep(15000);
 
-        // Step 10: Payment Information section
-        console.log('53. Reviewing Payment Information');
+        // check current URL
+        let currentStripeURL = await browser.getCurrentUrl();
 
-        // Check payment section content
-        try {
-            let paymentSection = await browser.findElement(By.xpath("//div[contains(@class, 'payment-info')]"));
-            console.log('54. Payment section found, project creation flow completed');
-        } catch (error) {
-            console.log('Payment section structure differs from expected');
-        }
+        let testPhoneNumberClick = await browser.findElement(By.xpath("(//a[normalize-space()='Use test phone number'])[1]"));
+        await testPhoneNumberClick.click();
+        await browser.sleep(5000);
 
-        // Take screenshot of final state
-        let screenshot = await browser.takeScreenshot();
-        fs.writeFileSync('project-creation-complete.png', screenshot, 'base64');
-        console.log('55. Screenshot saved as project-creation-complete.png');
+        let testCodeInput = await browser.findElement(By.xpath("//a[normalize-space()='Use test code']"));
+        await testCodeInput.click();
+        await browser.sleep(20000);
 
-        console.log('=== PROJECT CREATION TEST COMPLETED SUCCESSFULLY ===');
+        let inputPhoneNumber = await browser.findElement(By.xpath("//fieldset[@id='phone']//div[contains(@class,'rs-5 rs-6 rs-0 rs-1 rs-2 as-7 as-1j as-4l as-4m as-4n as-3t as-3s as-3q as-4o as-3u as-4p as-2c as-3v as-8 as-47 as-48 as-45 as-46 ⚙6x7rus')]"));
+        await inputPhoneNumber.clear();
+        await inputPhoneNumber.send('0000000000');
+        await browser.sleep(1000);
+
+        let inputCode = await browser.findElement(By.xpath("//input[@id='id_number']"));
+        await inputCode.clear();
+        await inputCode.send('000000000');
+
+        await browser.sleep(80000);
+
+        let submitButton = await browser.findElement(By.xpath("//button[normalize-space()='Submit Project']"));
+        await scrollAndClick(browser, submitButton, "Submit Project button");
+        console.log('53. Submit Project button clicked');
+
+        await browser.sleep(10000);
 
     } catch (error) {
         console.error('TEST FAILED:', error);
 
         // Take screenshot on error
         try {
+            const errorDir = 'D:\\FE_FFUND\\autotest_ffund\\FOUNDER\\Project\\Media\\error';
+            if (!fs.existsSync(errorDir)) {
+                fs.mkdirSync(errorDir, { recursive: true });
+                console.log(`Created directory: ${errorDir}`);
+            }
+
+            const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+            const errorImagePath = `${errorDir}\\project-creation-error-${timestamp}.png`;
+
             let errorScreenshot = await browser.takeScreenshot();
-            let fs = require('fs');
-            fs.writeFileSync('project-creation-error.png', errorScreenshot, 'base64');
-            console.log('Error screenshot saved as project-creation-error.png');
+            fs.writeFileSync(errorImagePath, errorScreenshot, 'base64');
+            console.log(`Error screenshot saved as ${errorImagePath}`);
         } catch (screenshotError) {
             console.error('Failed to capture error screenshot:', screenshotError);
         }

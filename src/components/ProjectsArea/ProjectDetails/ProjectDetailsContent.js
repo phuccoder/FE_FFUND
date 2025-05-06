@@ -11,17 +11,16 @@ import updatePostService  from "../../../services/updatePostService";
 
 const ProjectDetailsContent = ({ project }) => {
   const [current, setCurrent] = useState("pills-home");
-  const [commentCount, setCommentCount] = useState(0); // State để lưu số lượng comment
-  const [updatePostCount, setUpdatePostCount] = useState(0); // State để lưu số lượng update post
+  const [commentCount, setCommentCount] = useState(0);
+  const [updatePostCount, setUpdatePostCount] = useState(0);
 
-  // Gọi API để lấy commentCount và updatePostCount
   useEffect(() => {
     const fetchCommentCount = async () => {
       if (project) {
         try {
           const response = await likeCommentProjectService.getCountLikesComments(project.id);
           if (response.status === 200) {
-            setCommentCount(response.data.commentCount); // Lưu commentCount từ API
+            setCommentCount(response.data.commentCount);
           }
         } catch (error) {
           console.error("Error fetching comment count:", error);
@@ -34,7 +33,7 @@ const ProjectDetailsContent = ({ project }) => {
         try {
           const response = await updatePostService.getCountUpdatePost(project.id);
           if (response.status === 200) {
-            setUpdatePostCount(response.data); // Lưu updatePostCount từ API
+            setUpdatePostCount(response.data);
           }
         } catch (error) {
           console.error("Error fetching update post count:", error);

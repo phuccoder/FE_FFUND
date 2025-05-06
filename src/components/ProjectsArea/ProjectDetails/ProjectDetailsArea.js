@@ -284,53 +284,77 @@ const ProjectDetailsArea = ({ project, isAuthenticated }) => {
               </div>
               {description && <p className="description">{description}</p>}
               <div className="project-details-item mt-3">
-                <div className="item text-center">
-                  <h5 className="title">{numberToOrdinal(currentPhase.phaseNumber)}</h5>
-                  <span>Phase</span>
-                </div>
-                <div className="item text-center">
-                  <h5 className="title">${raised}</h5>
-                  <span>Pledged</span>
-                </div>
-                <div className="item text-center">
-                  <h5 className="title">{backers}</h5>
-                  <span>Investors</span>
-                </div>
-                <div className="item text-center">
-                  <h5 className="title">{daysLeft}</h5>
-                  <span>Days Left</span>
-                </div>
-              </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full mt-3">
-                <div
-                  className={`h-full rounded-full ${raisedPercentage >= 100 ? "complete-progress" : ""}`}
-                  style={{
-                    width: `${Math.min(raisedPercentage, 100)}%`,
-                    background: raisedPercentage >= 100
-                      ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
-                      : "#16a34a",
-                    backgroundSize: raisedPercentage >= 100 ? "200% 200%" : "100% 100%",
-                    transition: "width 0.5s ease-in-out",
-                  }}
-                ></div>
+                {currentPhase ? (
+                  <>
+                    <div className="item text-center">
+                      <h5 className="title">{numberToOrdinal(currentPhase.phaseNumber)}</h5>
+                      <span>Phase</span>
+                    </div>
+                    <div className="item text-center">
+                      <h5 className="title">${raised}</h5>
+                      <span>Pledged</span>
+                    </div>
+                    <div className="item text-center">
+                      <h5 className="title">{backers}</h5>
+                      <span>Investors</span>
+                    </div>
+                    <div className="item text-center">
+                      <h5 className="title">{daysLeft}</h5>
+                      <span>Days Left</span>
+                    </div>
+                  </>
+                ) : (
+                    <div className="w-full text-center py-3">
+                      <span className="bg-blue-50 text-blue-700 text-sm font-semibold px-4 py-2 rounded-full inline-flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Investment Opens Soon
+                      </span>
+                    </div>
+                )}
               </div>
 
-              <div className="flex justify-between text-sm text-gray-700 mt-2">
-                <span className={`font-bold ${raisedPercentage >= 100 ? "highlight-text" : ""}`}>
-                  {Math.round(raisedPercentage)}% funded
-                </span>
-                <span>{daysLeft} days left</span>
-              </div>
-              {/* Hiển thị Target Amount và Total Target Amount */}
-              <div className="projects-goal">
-                <span>
-                  Current Phase Goal: <span>{currentPhase.targetAmount ? Number(currentPhase.targetAmount).toLocaleString() : "0"}$</span>
-                </span>
-                <br />
-                <span>
-                  Total Project Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
-                </span>
-              </div>
+              {currentPhase ? (
+                <>
+                  <div className="w-full h-2 bg-gray-200 rounded-full mt-3">
+                    <div
+                      className={`h-full rounded-full ${raisedPercentage >= 100 ? "complete-progress" : ""}`}
+                      style={{
+                        width: `${Math.min(raisedPercentage, 100)}%`,
+                        background: raisedPercentage >= 100
+                          ? "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)"
+                          : "#16a34a",
+                        backgroundSize: raisedPercentage >= 100 ? "200% 200%" : "100% 100%",
+                        transition: "width 0.5s ease-in-out",
+                      }}
+                    ></div>
+                  </div>
+
+                  <div className="flex justify-between text-sm text-gray-700 mt-2">
+                    <span className={`font-bold ${raisedPercentage >= 100 ? "highlight-text" : ""}`}>
+                      {Math.round(raisedPercentage)}% funded
+                    </span>
+                    <span>{daysLeft} days left</span>
+                  </div>
+
+                  <div className="projects-goal">
+                    <span>
+                      Current Phase Goal: <span>{currentPhase.targetAmount ? Number(currentPhase.targetAmount).toLocaleString() : "0"}$</span>
+                    </span>
+                    <br />
+                    <span>
+                      Total Project Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="projects-goal mt-3">
+                  <span>
+                    Total Project Goal: <span>{totalTargetAmount ? Number(totalTargetAmount).toLocaleString() : "0"}$</span>
+                  </span>
+                </div>
+              )}
               <div className="project-btn mt-25">
                 <a className="main-btn" href={`/payment?projectId=${project.id}`} rel="noopener noreferrer">
                   Back this project

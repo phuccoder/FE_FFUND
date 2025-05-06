@@ -31,7 +31,6 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
           setCategories(data);
           console.log("Fetched categories:", data);
 
-          // Áp dụng defaultCategory và defaultSubCategory sau khi đã tải categories
           if (defaultCategory && defaultCategory !== "All") {
             setSelectedMainCategory(defaultCategory);
 
@@ -57,7 +56,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     fetchCategories();
   }, [defaultCategory, defaultSubCategory]);
 
-  
+
 
   useEffect(() => {
     const filters = [];
@@ -75,21 +74,28 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     }
 
     if (selectedFundingStatus) {
-      filters.push({ type: 'fundingStatus', value: selectedFundingStatus });
+      filters.push({
+        type: 'fundingStatus',
+        value: selectedFundingStatus === "PROCESS" ? "In Progress" : selectedFundingStatus === "COMPLETED" ? "Completed" : selectedFundingStatus
+      });
     }
 
     if (isPotentialProject) {
       filters.push({ type: 'potentialProject', value: 'Potential Project' });
     }
 
+    if (searchTerm) {
+      filters.push({ type: 'searchTerm', value: searchTerm });
+    }
+
     setActiveFilters(filters);
-  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject]);
+  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, searchTerm]);
 
   useEffect(() => {
     if (initialLoadComplete) {
       handleSearch();
     }
-  }, [searchTerm, sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject]);
+  }, [sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, searchTerm]);
 
   useEffect(() => {
     const handleExternalFilters = (event) => {
@@ -98,12 +104,10 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       if (category && category !== "All") {
         setSelectedMainCategory(category);
 
-        // Tìm category trong danh sách để lấy subcategories
         const selectedCat = categories.find(cat => cat.name === category);
         if (selectedCat) {
           setSubCategories(selectedCat.subCategories);
 
-          // Nếu có subCategory, thêm vào danh sách đã chọn
           if (subCategory) {
             setSelectedSubCategories([subCategory]);
           }
@@ -238,7 +242,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     }
 
     if (isPotentialProject) {
-      queryParts.push(`isClassPotential:true`);
+      queryParts.push(`isClassPotential:eq:true`);
     }
 
     if (
@@ -271,11 +275,23 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
     setIsSearchVisible(!isSearchVisible);
   };
 
+  // Function to get display text for filter chips
+  const getFilterDisplayText = (filter) => {
+    if (filter.type === 'potentialProject') {
+      return "that are Potential Projects";
+    } else if (filter.type === 'fundingStatus') {
+      return `with funding status "${filter.value}"`;
+    } else if (filter.type === 'searchTerm') {
+      return `named "${filter.value}"`;
+    }
+    return filter.value;
+  };
+
   return (
     <div className="search-component">
       {/* Search Bar and Toggle Button */}
       <div className="flex justify-between items-center p-4 bg-white shadow-sm">
-        <div className="search-header flex items-center space-x-3">
+        <div className="flex flex-wrap justify-between items-start p-4">
           <h2 className="text-xl font-semibold">Show me</h2>
 
           <div className="relative" ref={categoryPanelRef}>
@@ -283,7 +299,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             <div
               onClick={() => {
                 if (selectedMainCategory === "All") {
-                  toggleCategoryPanel(); // Mở panel nếu chưa chọn Category/SubCategory
+                  toggleCategoryPanel();
                 }
               }}
               className="px-3 py-2 bg-white border border-gray-300 rounded-md cursor-pointer flex items-center justify-between w-auto"
@@ -407,7 +423,6 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             )}
           </div>
 
-
           <span className="text-gray-700">projects on</span>
 
           {/* Location Selector */}
@@ -424,6 +439,50 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             ))}
           </select>
 
+          {/* Display active filters as pills */}
+          {activeFilters
+            .filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm')
+            .sort((a, b) => {
+              const order = { 'potentialProject': 1, 'searchTerm': 2, 'fundingStatus': 3 };
+              return order[a.type] - order[b.type];
+            })
+            .map((filter, index) => {
+              let beforeHighlight = "";
+              let highlightedText = "";
+              let afterHighlight = "";
+
+              if (filter.type === 'potentialProject') {
+                beforeHighlight = "that are ";
+                highlightedText = "Potential Projects";
+              } else if (filter.type === 'fundingStatus') {
+                beforeHighlight = "with funding status ";
+                highlightedText = filter.value;
+              } else if (filter.type === 'searchTerm') {
+                beforeHighlight = "named ";
+                highlightedText = `"${filter.value}"`;
+              }
+
+              return (
+                <div
+                  key={`${filter.type}-${index}`}
+                  className="px-3 py-2 bg-white border border-gray-300 rounded-md flex items-center justify-between"
+                >
+                  <span className="text-gray-700 text-base truncate flex-grow">
+                    <span className="text-gray-500 mr-1">{beforeHighlight}</span>
+                    <span className="font-medium text-green-700">{highlightedText}</span>
+                    <span className="text-gray-500">{afterHighlight}</span>
+                  </span>
+                  <button
+                    onClick={() => removeFilter(filter.type, filter.value)}
+                    className="ml-2 text-gray-600 hover:text-red-500 focus:outline-none shrink-0"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              );
+            })
+          }
+
           <span className="text-gray-700">sorted by</span>
 
           {/* Sort Option Selector */}
@@ -432,12 +491,13 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             onChange={(e) => setSortOption(e.target.value)}
             className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
           >
-            <option value="+createdAt">Creation Date (Oldest to Newest)</option>
-            <option value="-createdAt">Creation Date (Newest to Oldest)</option>
-            <option value="+fundingPhases.startDate">Start Funding Date (Earliest to Latest)</option>
-            <option value="-fundingPhases.startDate">Start Funding Date (Latest to Earliest)</option>
-            <option value="+fundingPhases.endDate">End Funding Date (Earliest to Latest)</option>
-            <option value="-fundingPhases.endDate">End Funding Date (Latest to Earliest)</option>
+            <option value="-createdAt">Newest</option>
+            <option value="+createdAt">Oldest</option>
+            <option value="-fundingPhases.raiseAmount">Most Funded</option>
+            <option value="-fundingPhases.startDate">Latest Funding Start</option>
+            <option value="+fundingPhases.startDate">Earliest Funding Start</option>
+            <option value="-fundingPhases.endDate">Latest Funding Deadline</option>
+            <option value="+fundingPhases.endDate">Earliest Funding Deadline</option>
           </select>
         </div>
 
@@ -483,9 +543,9 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
                     <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
                     <div
                       onClick={() => setIsPotentialProject(!isPotentialProject)}
-                      className={`px-3 py-2 cursor-pointer transition-colors duration-200 ${isPotentialProject
-                          ? "text-green-700 font-medium"
-                          : "text-gray-700 hover:text-green-600"
+                      className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
+                          ? "bg-green-50 text-green-700 font-medium"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
                         }`}
                     >
                       Projects Have Potential
