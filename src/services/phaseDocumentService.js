@@ -7,7 +7,7 @@ const PHASE_DOCUMENT_GET_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/phase-documen
 const PHASE_DOCUMENT_CREATE_ENDPOINT = (phaseId) => `${API_BASE_URL}/phase-document/${phaseId}`;
 const PHASE_DOCUMENT_UPDATE_ENDPOINT = (id) => `${API_BASE_URL}/phase-document/${id}`;
 const PHASE_DOCUMENT_GET_BY_FOUNDER_ENDPOINT = (phaseId) => `${API_BASE_URL}/phase-document/founder/${phaseId}`;
-
+const PHASE_DOCUMENT_SUBMIT_ALL_ENDPOINT = (phaseId) => `${API_BASE_URL}/phase-document/submit/${phaseId}`;
 export const phaseDocumentService = {
     getPhaseDocumentByPhase: async (phaseId) => {
         try {
@@ -126,6 +126,30 @@ export const phaseDocumentService = {
             return data;
         } catch (error) {
             console.error('Error in getPhaseDocumentByFounder:', error);
+            throw error;
+        }
+    },
+
+    submitAllPhaseDocuments: async (phaseId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PHASE_DOCUMENT_SUBMIT_ALL_ENDPOINT(phaseId), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to submit all phase documents.");
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error in submitAllPhaseDocuments:', error);
             throw error;
         }
     }
