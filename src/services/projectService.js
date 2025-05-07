@@ -242,6 +242,16 @@ const projectService = {
                 return responseText;
             }
 
+            if (result && result.status === 201 && result.data) {
+                console.log("New project created with ID:", result.data);
+                localStorage.setItem('founderProjectId', result.data);
+                
+                return {
+                    id: result.data,
+                    message: result.message
+                };
+            }
+
             // If response wasn't successful, extract error message from the result
             if (!response.ok) {
                 const errorMessage = result.error ||

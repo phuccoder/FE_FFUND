@@ -211,12 +211,9 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             // Create a new array from formData (if it's an array) with the completion percentage
             if (Array.isArray(formData)) {
                 const updatedFormData = [...formData];
-                // Add the completion percentage as a property
                 updatedFormData._completionPercentage = completionPercentage;
-                // Update parent component
                 updateFormData(updatedFormData);
             } else {
-                // If formData is not an array (maybe it's null or undefined), create a new empty array
                 const updatedFormData = [];
                 updatedFormData._completionPercentage = completionPercentage;
                 updateFormData(updatedFormData);
