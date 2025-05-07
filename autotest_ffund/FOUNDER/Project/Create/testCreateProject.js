@@ -6,6 +6,7 @@ var readline = require('readline');
 var fs = require('fs');
 var path = require('path');
 var { loginFounder } = require('../../../Login-Register/Login/loginHelper');
+const { log } = require('console');
 
 /**
  * Helper function to scroll to an element and click it safely
@@ -876,7 +877,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         let businessModelFile = path.resolve(__dirname, '../Media/documents/Business Model Canvas.pdf');
         await businessModelCanvasInput.sendKeys(businessModelFile);
         console.log('Business Model Canvas document uploaded:', businessModelFile);
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         // Check for success message
         try {
@@ -901,7 +902,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         let businessPlanFile = path.resolve(__dirname, '../Media/documents/Business Plan.pdf');
         await businessPlanInput.sendKeys(businessPlanFile);
         console.log('Business Plan document uploaded:', businessPlanFile);
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         // Check for success message
         try {
@@ -926,7 +927,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         let marketResearchFile = path.resolve(__dirname, '../Media/documents/market.pdf');
         await marketResearchInput.sendKeys(marketResearchFile);
         console.log('Market Research document uploaded:', marketResearchFile);
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         // Check for success message
         try {
@@ -951,7 +952,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         let financialPlanFile = path.resolve(__dirname, '../Media/documents/Financial Information.pdf');
         await financialPlanInput.sendKeys(financialPlanFile);
         console.log('Financial Information document uploaded:', financialPlanFile);
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         // Check for success message
         try {
@@ -974,7 +975,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await scrollAndClick(browser, stripeConnectButton, "Stripe Connect button");
         console.log('51. Stripe Connect button clicked');
 
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         let checkStripeSuccess = await browser.findElement(By.xpath("//div[@class='mb-6 bg-blue-50 p-4 rounded-md']"));
         await checkStripeSuccess.isDisplayed();
@@ -988,29 +989,13 @@ async function scrollAndClick(browser, element, elementDescription) {
         await scrollAndClick(browser, stripeButton, "Continue Stripe Setup button");
         console.log('52. Continue Stripe Setup button clicked');
 
-        await browser.sleep(15000);
+        await browser.sleep(20000);
 
         // check current URL
         let currentStripeURL = await browser.getCurrentUrl();
+        console.log('Current Stripe URL:', currentStripeURL);
 
-        let testPhoneNumberClick = await browser.findElement(By.xpath("(//a[normalize-space()='Use test phone number'])[1]"));
-        await testPhoneNumberClick.click();
-        await browser.sleep(5000);
-
-        let testCodeInput = await browser.findElement(By.xpath("//a[normalize-space()='Use test code']"));
-        await testCodeInput.click();
-        await browser.sleep(20000);
-
-        let inputPhoneNumber = await browser.findElement(By.xpath("//fieldset[@id='phone']//div[contains(@class,'rs-5 rs-6 rs-0 rs-1 rs-2 as-7 as-1j as-4l as-4m as-4n as-3t as-3s as-3q as-4o as-3u as-4p as-2c as-3v as-8 as-47 as-48 as-45 as-46 ⚙6x7rus')]"));
-        await inputPhoneNumber.clear();
-        await inputPhoneNumber.send('0000000000');
-        await browser.sleep(1000);
-
-        let inputCode = await browser.findElement(By.xpath("//input[@id='id_number']"));
-        await inputCode.clear();
-        await inputCode.send('000000000');
-
-        await browser.sleep(80000);
+        await browser.sleep(120000);
 
         let submitButton = await browser.findElement(By.xpath("//button[normalize-space()='Submit Project']"));
         await scrollAndClick(browser, submitButton, "Submit Project button");
