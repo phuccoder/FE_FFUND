@@ -79,7 +79,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         // Login as founder
-        const email = 'phanthienan01072003@gmail.com';
+        const email = 'phucfounder@gmail.com';
         const password = '123456';
         const totalAmount = 8000;
         const isLoggedIn = await loginFounder(browser, email, password);
@@ -971,33 +971,16 @@ async function scrollAndClick(browser, element, elementDescription) {
 
         await browser.sleep(3000);
 
-        let stripeConnectButton = await browser.findElement(By.xpath("//button[normalize-space()='Connect with Stripe']"));
-        await scrollAndClick(browser, stripeConnectButton, "Stripe Connect button");
-        console.log('51. Stripe Connect button clicked');
+        let submitButton;
+        try {
+            submitButton = await browser.findElement(By.xpath("//button[normalize-space()='Submit Project']"));
+        } catch (error) {
+            console.log("Submit button not found, scrolling to bottom to find it");
+            await browser.executeScript("window.scrollTo(0, document.body.scrollHeight)");
+            await browser.sleep(2000);
+            submitButton = await browser.findElement(By.xpath("//button[normalize-space()='Submit Project']"));
+        }
 
-        await browser.sleep(20000);
-
-        let checkStripeSuccess = await browser.findElement(By.xpath("//div[@class='mb-6 bg-blue-50 p-4 rounded-md']"));
-        await checkStripeSuccess.isDisplayed();
-        await browser.sleep(1000);
-        let stripeStatusText = await browser.findElement(By.xpath("//span[@class='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800']")).getText();
-        console.log(`Stripe status: ${stripeStatusText}`);
-
-        await browser.sleep(20000);
-
-        let stripeButton = await browser.findElement(By.xpath("//button[normalize-space()='Continue Stripe Setup']"));
-        await scrollAndClick(browser, stripeButton, "Continue Stripe Setup button");
-        console.log('52. Continue Stripe Setup button clicked');
-
-        await browser.sleep(20000);
-
-        // check current URL
-        let currentStripeURL = await browser.getCurrentUrl();
-        console.log('Current Stripe URL:', currentStripeURL);
-
-        await browser.sleep(120000);
-
-        let submitButton = await browser.findElement(By.xpath("//button[normalize-space()='Submit Project']"));
         await scrollAndClick(browser, submitButton, "Submit Project button");
         console.log('53. Submit Project button clicked');
 
