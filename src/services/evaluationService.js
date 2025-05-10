@@ -9,7 +9,7 @@ export const evaluationService = {
         if (!projectId) {
             return [];
         }
-        
+
         try {
             const token = await tokenManager.getValidToken();
             const response = await fetch(GET_EVALUATION_BY_FOUNDER_ENDPOINT(projectId), {
@@ -20,18 +20,76 @@ export const evaluationService = {
                 },
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return [];
             }
 
-            const result = await response.json();
-            if (result && result.status === 200) {
-                return result.data;
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
             }
-            return [];
+
+            return result;
         } catch (error) {
-            console.error('Error fetching evaluation data:', error);
+            console.error('Error fetching evaluations:', error);
             throw error;
         }
-    }
+    },
+
+    getCurrentEvaluation: async (projectId) => {
+        if (!projectId) {
+            return null;
+        }
+
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(`${API_BASE_URL}/evaluation/latest-graded/${projectId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return [];
+            }
+
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error fetching current evaluation:', error);
+            throw error;
+        }
+    },
 };
