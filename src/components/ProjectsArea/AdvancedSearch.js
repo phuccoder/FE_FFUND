@@ -177,12 +177,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
   const handleSubCategoryChange = (event, subCategoryName) => {
     if (event.target.checked) {
       setSelectedSubCategories([...selectedSubCategories, subCategoryName]);
-      setSelectedMainCategory(subCategoryName);
     } else {
       setSelectedSubCategories(selectedSubCategories.filter(name => name !== subCategoryName));
-      if (selectedMainCategory === subCategoryName) {
-        setSelectedMainCategory("All");
-      }
     }
   };
 
@@ -207,6 +203,16 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       setSelectedSubCategories([]);
     } else if (filterType === 'subCategory') {
       setSelectedSubCategories(selectedSubCategories.filter(sc => sc !== filterValue));
+
+      const parentCategory = categories.find(cat =>
+        cat.subCategories.some(subCat => subCat.name === filterValue)
+      );
+
+      if (parentCategory) {
+        setSelectedMainCategory(parentCategory.name);
+      } else {
+        setSelectedMainCategory("All");
+      }
     } else if (filterType === 'location') {
       setSelectedLocation("");
     } else if (filterType === 'fundingStatus') {
@@ -227,7 +233,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       queryParts.push(`title:eq:${encodeURIComponent(searchTerm)}`);
     }
 
-    if (selectedMainCategory !== "All") {
+    if (selectedMainCategory !== "All" && selectedSubCategories.length === 0) {
       queryParts.push(`category.name:eq:${encodeURIComponent(selectedMainCategory)}`);
     }
 
@@ -290,307 +296,321 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
   return (
     <div className="search-component">
       {/* Search Bar and Toggle Button */}
-      <div className="flex justify-between items-center p-4 bg-white shadow-sm">
-        <div className="flex flex-wrap justify-between items-start p-4">
-          <h2 className="text-xl font-semibold">Show me</h2>
+      <div className="bg-white shadow-sm p-4">
+        {/* Single row layout for all search elements */}
+        <div className="flex items-center justify-between flex-wrap md:flex-nowrap gap-3 md:gap-4">
+          {/* Left side with fixed elements */}
+          <div className="flex items-center flex-nowrap space-x-3 overflow-x-auto">
+            <h2 className="text-xl font-semibold whitespace-nowrap">Show me</h2>
 
-          <div className="relative" ref={categoryPanelRef}>
-            {/* Category Button */}
-            <div
-              onClick={() => {
-                if (selectedMainCategory === "All") {
-                  toggleCategoryPanel();
-                }
-              }}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-md cursor-pointer flex items-center justify-between w-auto"
-            >
-              <span className="text-gray-700 text-base truncate">
-                {selectedMainCategory === "All" ? "All Categories" : selectedMainCategory}
-              </span>
-              {selectedMainCategory !== "All" ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedMainCategory("All");
-                    setSubCategories([]);
-                    setSelectedSubCategories([]);
-                    setIsCategoryPanelOpen(true);
-                  }}
-                  className="ml-2 text-gray-600 hover:text-red-500 focus:outline-none shrink-0"
-                >
-                  <FaTimes />
-                </button>
-              ) : (
-                <span className="ml-2 text-gray-600 shrink-0">
-                  {isCategoryPanelOpen ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  )}
+            {/* Category Selector */}
+            <div className="relative" ref={categoryPanelRef}>
+              {/* Category Button */}
+              <div
+                onClick={() => {
+                  if (selectedMainCategory === "All") {
+                    toggleCategoryPanel();
+                  }
+                }}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-md cursor-pointer flex items-center justify-between min-w-[140px]"
+              >
+                <span className="text-gray-700 text-base truncate">
+                  {selectedMainCategory === "All" ? "All Categories" : selectedMainCategory}
                 </span>
-              )}
-            </div>
-
-            {/* Panel Wrapper */}
-            {isCategoryPanelOpen && (
-              <div className="absolute left-0 top-full mt-1 flex z-30">
-                {/* Category Panel - Kích thước cố định không phụ thuộc button */}
-                <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64 transition-all duration-200 ease-in-out">
-                  <div className="py-3 px-4">
-                    <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">CATEGORIES</h3>
-                    <div className="max-h-80 overflow-y-auto">
-                      <div className="grid grid-cols-2 gap-x-4">
-                        {/* First column */}
-                        <div className="space-y-3">
-                          <div
-                            className={`text-sm cursor-pointer ${selectedMainCategory === "All" ? "text-green-600 font-medium" : "text-gray-700"}`}
-                            onClick={() => handleSelectCategory("All")}
-                          >
-                            All categories
-                          </div>
-                          {categories.slice(0, Math.ceil(categories.length / 2)).map((category) => (
-                            <div
-                              key={category.id}
-                              className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
-                              onClick={() => handleSelectCategory(category.name)}
-                            >
-                              {category.name}
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Second column */}
-                        <div className="space-y-3">
-                          {categories.slice(Math.ceil(categories.length / 2)).map((category) => (
-                            <div
-                              key={category.id}
-                              className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
-                              onClick={() => handleSelectCategory(category.name)}
-                            >
-                              {category.name}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subcategory Panel */}
-                {selectedMainCategory !== "All" && subCategories.length > 0 && (
-                  <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-md shadow-lg z-30 w-64 transition-all duration-200 ease-in-out">
-                    <div className="py-3 px-4">
-                      <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">
-                        {selectedMainCategory.toUpperCase()}
-                      </h3>
-
-                      {/* Subcategory with 2 columns */}
-                      <div className="max-h-80 overflow-y-auto">
-                        <div className="grid grid-cols-2 gap-x-4">
-                          <div className="space-y-3">
-                            {subCategories.slice(0, Math.ceil(subCategories.length / 2)).map((subCategory) => (
-                              <div
-                                key={subCategory.id}
-                                className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                onClick={() => handleSubCategorySelect(subCategory.name)}
-                              >
-                                {subCategory.name}
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="space-y-3">
-                            {subCategories.slice(Math.ceil(subCategories.length / 2)).map((subCategory) => (
-                              <div
-                                key={subCategory.id}
-                                className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                onClick={() => handleSubCategorySelect(subCategory.name)}
-                              >
-                                {subCategory.name}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <span className="text-gray-700">projects on</span>
-
-          {/* Location Selector */}
-          <select
-            value={selectedLocation}
-            onChange={handleLocationChange}
-            className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-          >
-            <option value="">All Campuses</option>
-            {locations.map((location) => (
-              <option key={location} value={location}>
-                {location.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-
-          {/* Display active filters as pills */}
-          {activeFilters
-            .filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm')
-            .sort((a, b) => {
-              const order = { 'potentialProject': 1, 'searchTerm': 2, 'fundingStatus': 3 };
-              return order[a.type] - order[b.type];
-            })
-            .map((filter, index) => {
-              let beforeHighlight = "";
-              let highlightedText = "";
-              let afterHighlight = "";
-
-              if (filter.type === 'potentialProject') {
-                beforeHighlight = "that are ";
-                highlightedText = "Potential Projects";
-              } else if (filter.type === 'fundingStatus') {
-                beforeHighlight = "with funding status ";
-                highlightedText = filter.value;
-              } else if (filter.type === 'searchTerm') {
-                beforeHighlight = "named ";
-                highlightedText = `"${filter.value}"`;
-              }
-
-              return (
-                <div
-                  key={`${filter.type}-${index}`}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-md flex items-center justify-between"
-                >
-                  <span className="text-gray-700 text-base truncate flex-grow">
-                    <span className="text-gray-500 mr-1">{beforeHighlight}</span>
-                    <span className="font-medium text-green-700">{highlightedText}</span>
-                    <span className="text-gray-500">{afterHighlight}</span>
-                  </span>
+                {selectedMainCategory !== "All" ? (
                   <button
-                    onClick={() => removeFilter(filter.type, filter.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMainCategory("All");
+                      setSubCategories([]);
+                      setSelectedSubCategories([]);
+                      setIsCategoryPanelOpen(true);
+                    }}
                     className="ml-2 text-gray-600 hover:text-red-500 focus:outline-none shrink-0"
                   >
                     <FaTimes />
                   </button>
-                </div>
-              );
-            })
-          }
-
-          <span className="text-gray-700">sorted by</span>
-
-          {/* Sort Option Selector */}
-          <select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400"
-          >
-            <option value="-createdAt">Newest</option>
-            <option value="+createdAt">Oldest</option>
-            <option value="-fundingPhases.raiseAmount">Most Funded</option>
-            <option value="-fundingPhases.startDate">Latest Funding Start</option>
-            <option value="+fundingPhases.startDate">Earliest Funding Start</option>
-            <option value="-fundingPhases.endDate">Latest Funding Deadline</option>
-            <option value="+fundingPhases.endDate">Earliest Funding Deadline</option>
-          </select>
-        </div>
-
-        {/* More Filter Button and Dropdown */}
-        <div className="relative">
-          {/* More Filter Button */}
-          <button
-            onClick={toggleSearch}
-            className="px-4 py-2 bg-green-500 text-white rounded-md shadow-md hover:bg-green-600 transition-colors duration-200 flex items-center"
-          >
-            More Filters
-          </button>
-          {/* Advanced Search Panel - Dropdown Design */}
-          {isSearchVisible && (
-            <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-50 transition-all duration-200 ease-in-out">
-              {/* Header */}
-              <div className="py-2 px-4 border-b border-gray-200">
-                <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
+                ) : (
+                  <span className="ml-2 text-gray-600 shrink-0">
+                    {isCategoryPanelOpen ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </span>
+                )}
               </div>
-              {/* Content area */}
-              <div className="p-4">
-                {/* Project Name Search input at top */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Project Name</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Enter project name..."
-                      className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    />
-                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <FaSearch className="h-4 w-4 text-gray-500" />
-                    </span>
-                  </div>
-                </div>
 
-                {/* Two columns layout */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Left column */}
-                  <div className="col-span-1">
-                    <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
-                    <div
-                      onClick={() => setIsPotentialProject(!isPotentialProject)}
-                      className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
-                          ? "bg-green-50 text-green-700 font-medium"
-                          : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
-                        }`}
-                    >
-                      Projects Have Potential
+              {/* Panel Wrapper */}
+              {isCategoryPanelOpen && (
+                <div className="absolute left-0 top-full mt-1 flex z-30">
+                  {/* Category Panel */}
+                  <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64 transition-all duration-200 ease-in-out">
+                    <div className="py-3 px-4">
+                      <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">CATEGORIES</h3>
+                      <div className="max-h-80 overflow-y-auto">
+                        <div className="grid grid-cols-2 gap-x-4">
+                          {/* First column */}
+                          <div className="space-y-3">
+                            <div
+                              className={`text-sm cursor-pointer ${selectedMainCategory === "All" ? "text-green-600 font-medium" : "text-gray-700"}`}
+                              onClick={() => handleSelectCategory("All")}
+                            >
+                              All categories
+                            </div>
+                            {categories.slice(0, Math.ceil(categories.length / 2)).map((category) => (
+                              <div
+                                key={category.id}
+                                className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                onClick={() => handleSelectCategory(category.name)}
+                              >
+                                {category.name}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Second column */}
+                          <div className="space-y-3">
+                            {categories.slice(Math.ceil(categories.length / 2)).map((category) => (
+                              <div
+                                key={category.id}
+                                className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                onClick={() => handleSelectCategory(category.name)}
+                              >
+                                {category.name}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Right column: Funding Status */}
-                  <div className="col-span-1">
-                    <label className="block text-sm font-medium mb-2 text-gray-700">Funding Status</label>
-                    <select
-                      value={selectedFundingStatus}
-                      onChange={handleFundingStatusChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    >
-                      <option value="">All Statuses</option>
-                      {fundingPhaseStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Subcategory Panel */}
+                  {selectedMainCategory !== "All" && subCategories.length > 0 && (
+                    <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-md shadow-lg z-30 w-64 transition-all duration-200 ease-in-out">
+                      <div className="py-3 px-4">
+                        <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">
+                          {selectedMainCategory.toUpperCase()}
+                        </h3>
+
+                        {/* Subcategory with 2 columns */}
+                        <div className="max-h-80 overflow-y-auto">
+                          <div className="grid grid-cols-2 gap-x-4">
+                            <div className="space-y-3">
+                              {subCategories.slice(0, Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                                <div
+                                  key={subCategory.id}
+                                  className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                  onClick={() => handleSubCategorySelect(subCategory.name)}
+                                >
+                                  {subCategory.name}
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="space-y-3">
+                              {subCategories.slice(Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                                <div
+                                  key={subCategory.id}
+                                  className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                  onClick={() => handleSubCategorySelect(subCategory.name)}
+                                >
+                                  {subCategory.name}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Projects text */}
+            <span className="text-gray-700 whitespace-nowrap">projects</span>
+
+            {/* Active filters - MOVED HERE between "projects" and "on" */}
+            {activeFilters.filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm').length > 0 && (
+              <div className="flex items-center flex-wrap gap-2">
+                {activeFilters
+                  .filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm')
+                  .sort((a, b) => {
+                    const order = { 'potentialProject': 1, 'searchTerm': 2, 'fundingStatus': 3 };
+                    return order[a.type] - order[b.type];
+                  })
+                  .map((filter, index) => {
+                    let beforeHighlight = "";
+                    let highlightedText = "";
+                    let afterHighlight = "";
+
+                    if (filter.type === 'potentialProject') {
+                      beforeHighlight = "that are ";
+                      highlightedText = "Potential";
+                    } else if (filter.type === 'fundingStatus') {
+                      beforeHighlight = "with status ";
+                      highlightedText = filter.value;
+                    } else if (filter.type === 'searchTerm') {
+                      beforeHighlight = "named ";
+                      highlightedText = `"${filter.value}"`;
+                    }
+
+                    return (
+                      <div
+                        key={`${filter.type}-${index}`}
+                        className="px-3 py-2 bg-white border border-gray-300 rounded-md flex items-center justify-between min-h-[40px]"
+                      >
+                        <span className="text-gray-700 text-base truncate flex-grow">
+                          <span className="text-gray-500 mr-1">{beforeHighlight}</span>
+                          <span className="font-medium text-green-700">{highlightedText}</span>
+                          <span className="text-gray-500">{afterHighlight}</span>
+                        </span>
+                        <button
+                          onClick={() => removeFilter(filter.type, filter.value)}
+                          className="ml-2 text-gray-600 hover:text-red-500 focus:outline-none shrink-0"
+                        >
+                          <FaTimes />
+                        </button>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            )}
+
+            {/* On text */}
+            <span className="text-gray-700 whitespace-nowrap">on</span>
+
+            {/* Location Selector */}
+            <select
+              value={selectedLocation}
+              onChange={handleLocationChange}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400 min-w-[150px]"
+            >
+              <option value="">All Campuses</option>
+              {locations.map((location) => (
+                <option key={location} value={location}>
+                  {location.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+
+            {/* Sort by section */}
+            <span className="text-gray-700 whitespace-nowrap">sorted by</span>
+
+            {/* Sort Option Selector */}
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-400 min-w-[180px]"
+            >
+              <option value="-createdAt">Newest</option>
+              <option value="+createdAt">Oldest</option>
+              <option value="-fundingPhases.raiseAmount">Most Funded</option>
+              <option value="-fundingPhases.startDate">Latest Funding Start</option>
+              <option value="+fundingPhases.startDate">Earliest Funding Start</option>
+              <option value="-fundingPhases.endDate">Latest Funding Deadline</option>
+              <option value="+fundingPhases.endDate">Earliest Funding Deadline</option>
+            </select>
+          </div>
+
+          {/* Right side with More Filters button */}
+          <div className="relative ml-auto">
+            <button
+              onClick={toggleSearch}
+              className="px-4 py-2 bg-green-500 text-white rounded-md shadow-md hover:bg-green-600 transition-colors duration-200 flex items-center whitespace-nowrap"
+            >
+              More Filters
+            </button>
+
+            {/* Advanced Search Panel - Dropdown Design */}
+            {isSearchVisible && (
+              <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-50 transition-all duration-200 ease-in-out">
+                {/* Header */}
+                <div className="py-2 px-4 border-b border-gray-200">
+                  <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
+                </div>
+                {/* Content area */}
+                <div className="p-4">
+                  {/* Project Name Search input at top */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Project Name</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Enter project name..."
+                        className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <FaSearch className="h-4 w-4 text-gray-500" />
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Two columns layout */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Left column */}
+                    <div className="col-span-1">
+                      <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
+                      <div
+                        onClick={() => setIsPotentialProject(!isPotentialProject)}
+                        className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
+                          ? "bg-green-50 text-green-700 font-medium"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
+                          }`}
+                      >
+                        Projects Have Potential
+                      </div>
+                    </div>
+
+                    {/* Right column: Funding Status */}
+                    <div className="col-span-1">
+                      <label className="block text-sm font-medium mb-2 text-gray-700">Funding Status</label>
+                      <select
+                        value={selectedFundingStatus}
+                        onChange={handleFundingStatusChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                      >
+                        <option value="">All Statuses</option>
+                        {fundingPhaseStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Footer with buttons */}
-              <div className="py-2 px-4 border-t border-gray-200 flex justify-end space-x-3">
-                <button
-                  onClick={toggleSearch}
-                  className="px-4 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    handleSearch();
-                    toggleSearch();
-                  }}
-                  className="px-4 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
-                >
-                  Apply Filters
-                </button>
+                {/* Footer with buttons */}
+                <div className="py-2 px-4 border-t border-gray-200 flex justify-end space-x-3">
+                  <button
+                    onClick={toggleSearch}
+                    className="px-4 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSearch();
+                      toggleSearch();
+                    }}
+                    className="px-4 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
