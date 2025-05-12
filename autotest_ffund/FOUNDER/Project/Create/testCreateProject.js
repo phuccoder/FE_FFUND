@@ -593,7 +593,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         // Step 7: Reward Information section
         console.log('30. Completing Reward Information section');
 
-        let rewardButton = await browser.findElement(By.xpath("//button[@title='Go to Reward Information']"));
+        let rewardButton = await browser.findElement(By.xpath("//button[@title='Go to Reward Information']//div[1]"));
         await scrollAndClick(browser, rewardButton, "Reward Information button");
         console.log('31. Proceeding to Reward Information');
 
@@ -811,7 +811,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         console.log(`Success message: ${phase2SuccessText}`);
 
         // Continue to Project Story section
-        let continueToStory = await browser.findElement(By.xpath("//button[@title='Go to Project Story']"));
+        let continueToStory = await browser.findElement(By.xpath("//button[@title='Go to Project Story']//div[1]"));
         await scrollAndClick(browser, continueToStory, "Continue to Project Story button");
         console.log('42. Proceeding to Project Story');
 
