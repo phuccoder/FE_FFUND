@@ -287,6 +287,27 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     );
   }
 
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "N/A";
+
+    try {
+      if (Array.isArray(dateValue)) {
+        return `${String(dateValue[2]).padStart(2, '0')}/${String(dateValue[1]).padStart(2, '0')}/${dateValue[0]}`;
+      }
+      if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const date = new Date(dateValue);
+        if (!isNaN(date.getTime())) {
+          return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+        }
+      }
+
+      return dateValue;
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "Invalid date";
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       {/* Header section with project title - updated with orange gradient */}
@@ -428,7 +449,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                     Target: ${phase.targetAmount.toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-600">
-                    Timeline: {`${phase.startDate[1]}/${phase.startDate[0]}`} - {`${phase.endDate[1]}/${phase.endDate[0]}`}
+                    Timeline: {formatDate(phase.startDate)} - {formatDate(phase.endDate)}
                   </div>
                   <div className="mt-4 text-right">
                     <button
@@ -833,7 +854,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
                       <div className="text-gray-600">Timeline:</div>
                       <div className="text-right font-semibold text-gray-800">
-                        {`${selectedPhase.startDate[1]}/${selectedPhase.startDate[0]}`} - {`${selectedPhase.endDate[1]}/${selectedPhase.endDate[0]}`}
+                        {formatDate(selectedPhase.startDate)} - {formatDate(selectedPhase.endDate)}
                       </div>
                     </div>
                   </div>
