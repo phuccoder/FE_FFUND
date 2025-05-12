@@ -16,6 +16,7 @@ import { tokenManager } from '@/utils/tokenManager';
 import ProjectStoryHandler from '@/components/CreateProject/ProjectStoryHandler';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import Link from '@/components/Reuseable/Link';
+import { authenticate } from 'src/services/authenticate';
 
 function CreateProject() {
   const [currentSection, setCurrentSection] = useState(0);
@@ -93,10 +94,38 @@ function CreateProject() {
     const checkAuth = async () => {
       try {
         const token = await tokenManager.getValidToken();
-        setAuthStatus({
-          isAuthenticated: !!token,
-          isLoading: false
-        });
+        
+        if (token) {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            try {
+              const refreshResponse = await authenticate.refreshToken(refreshToken);
+              if (refreshResponse && refreshResponse.data) {
+                const { accessToken, refreshToken: newRefreshToken, teamRole } = refreshResponse.data;
+
+                tokenManager.setTokens(accessToken, newRefreshToken);
+
+                if (teamRole) {
+                  localStorage.setItem('teamRole', teamRole);
+                  setUserRole(teamRole);
+                  console.log("Updated teamRole from token refresh:", teamRole);
+                }
+              }
+            } catch (refreshError) {
+              console.error("Error refreshing token to get teamRole:", refreshError);
+            }
+          }
+          
+          setAuthStatus({
+            isAuthenticated: true,
+            isLoading: false
+          });
+        } else {
+          setAuthStatus({
+            isAuthenticated: false,
+            isLoading: false
+          });
+        }
       } catch (error) {
         console.error("Error checking authentication:", error);
         setAuthStatus({
@@ -258,9 +287,10 @@ function CreateProject() {
 
   useEffect(() => {
     const teamRole = localStorage.getItem('teamRole');
-    console.log("User teamRole:", teamRole);
-    setUserRole(teamRole);
-
+    console.log("User teamRole (from localStorage):", teamRole);
+    if (teamRole) {
+      setUserRole(teamRole);
+    }
   }, [authStatus.isAuthenticated, authStatus.isLoading]);
 
   useEffect(() => {

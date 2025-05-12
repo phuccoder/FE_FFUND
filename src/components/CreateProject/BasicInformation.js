@@ -4,6 +4,8 @@ import projectService from 'src/services/projectService';
 import ImageUpload from './ImageUpload';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import { authenticate } from 'src/services/authenticate';
+import { tokenManager } from '@/utils/tokenManager';
 
 /**
  * Basic information form for project creation
@@ -322,10 +324,6 @@ export default function BasicInformation({ formData, updateFormData, editMode })
       validationErrors.shortDescription = 'Project description is required';
     }
 
-    if (!form.location?.trim()) {
-      validationErrors.location = 'Project location is required';
-    }
-
     if (!form.categoryId) {
       validationErrors.categoryId = 'Please select a category';
     }
@@ -345,28 +343,22 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     };
   };
 
-  // Update the handleImageUpdate function:
   const handleImageUpdate = (imageResult) => {
     console.log('Project image updated:', imageResult);
 
     if (imageResult === null) {
-      // Image was removed
       console.log('Removing project image');
 
-      // Start with setting the state for the project image
       setProjectImage(null);
 
-      // Create a new form object with removed image properties
       const updatedForm = {
         ...form,
         projectImage: null,
-        projectImageFile: null // Also clear any stored file
+        projectImageFile: null 
       };
 
-      // Update the form state
       setForm(updatedForm);
 
-      // Update parent component using the new form object (not the old form reference)
       updateFormData(updatedForm);
 
       console.log('Project image removed from form:', updatedForm);
@@ -427,123 +419,130 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     }
   };
 
-  // This focuses only on the handleSubmit function which needs fixing
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Submitting form with data:", form); // Debug log
+  e.preventDefault();
+  console.log("Submitting form with data:", form);
 
-    // Validate the form first
-    const { isValid, errors } = validateForm();
+  const { isValid, errors } = validateForm();
 
-    if (!isValid) {
-      setError(prev => ({
-        ...prev,
-        validation: errors,
-        submit: 'Please correct the errors below before submitting.'
-      }));
-      return;
+  if (!isValid) {
+    setError(prev => ({
+      ...prev,
+      validation: errors,
+      submit: 'Please correct the errors below before submitting.'
+    }));
+    return;
+  }
+
+  setLoading(prev => ({ ...prev, submit: true }));
+  setError(prev => ({ ...prev, submit: null, validation: {} }));
+  setSubmitSuccess(false);
+
+  try {
+    // Create API payload WITHOUT location/campus field
+    const apiPayload = {
+      title: form.title || '',
+      projectDescription: form.shortDescription || 'Brief description of the project',
+      // Removed projectLocation/location field
+      status: form.status || 'DRAFT',
+      projectVideoDemo: form.projectVideoDemo || '',
+      projectUrl: form.projectUrl || '',
+      mainSocialMediaUrl: form.mainSocialMediaUrl || '',
+      totalTargetAmount: parseFloat(form.totalTargetAmount) || 1000,
+      categoryId: parseInt(form.categoryId) || 0,
+      subCategoryIds: form.subCategoryIds.map(id => parseInt(id))
+    };
+
+    console.log("API payload with projectDescription:", apiPayload.projectDescription);
+    console.log("Complete API payload:", apiPayload);
+
+    let result;
+
+    if (form.projectId) {
+      result = await projectService.updateProjectInfo(form.projectId, apiPayload);
+    } else {
+      result = await projectService.createProject(apiPayload);
     }
 
-    setLoading(prev => ({ ...prev, submit: true }));
-    setError(prev => ({ ...prev, submit: null, validation: {} }));
-    setSubmitSuccess(false);
+    console.log("API result:", result);
+    const projectId = result?.projectId || result?.id || result?.data?.projectId || result?.data?.id;
+    console.log("Extracted projectId:", projectId);
 
-    try {
-      // Prepare API payload with field names matching backend expectations
-      const apiPayload = {
-        title: form.title || '',
-        projectDescription: form.shortDescription || 'Brief description of the project',
-        projectLocation: form.location || '',
-        status: form.status || 'DRAFT',
-        projectVideoDemo: form.projectVideoDemo || '',
-        projectUrl: form.projectUrl || '',
-        mainSocialMediaUrl: form.mainSocialMediaUrl || '',
-        totalTargetAmount: parseFloat(form.totalTargetAmount) || 1000,
-        categoryId: parseInt(form.categoryId) || 0,
-        subCategoryIds: form.subCategoryIds.map(id => parseInt(id))
+    if (projectId) {
+      const updatedForm = {
+        ...form,
+        projectId: projectId,
+        title: result.title || form.title,
+        shortDescription: result.projectDescription || form.shortDescription,
+        isClassPotential: form.isClassPotential
       };
 
-      // Explicitly log the projectDescription value
-      console.log("API payload with projectDescription:", apiPayload.projectDescription);
-      console.log("Complete API payload:", apiPayload);
+      console.log("Updated form with projectId:", updatedForm);
+      setForm(updatedForm);
 
-      let result;
+      if (projectId && form.projectImageFile && !form.projectImage.startsWith('http')) {
+        try {
+          console.log('Uploading project image after project creation');
+          const uploadResult = await projectService.uploadProjectImage(projectId, form.projectImageFile);
+          console.log('Image upload result after project creation:', uploadResult);
 
-      if (form.projectId) {
-        // Update existing project
-        result = await projectService.updateProjectInfo(form.projectId, apiPayload);
-      } else {
-        // Create new project
-        result = await projectService.createProject(apiPayload);
-      }
-
-      console.log("API result:", result);
-      const projectId = result?.projectId || result?.id || result?.data?.projectId || result?.data?.id;
-      console.log("Extracted projectId:", projectId);
-
-      if (projectId) {
-        // Update local form state with the projectId and ensure consistent field naming
-        const updatedForm = {
-          ...form,
-          projectId: projectId,
-          // Ensure consistent fields based on what might be returned from API
-          title: result.title || form.title,
-          shortDescription: result.projectDescription || form.shortDescription,
-          location: result.projectLocation || form.location,
-          projectLocation: result.projectLocation || form.location,
-          isClassPotential: form.isClassPotential
-        };
-
-        console.log("Updated form with projectId:", updatedForm);
-        setForm(updatedForm);
-
-        if (projectId && form.projectImageFile && !form.projectImage.startsWith('http')) {
-          try {
-            console.log('Uploading project image after project creation');
-            const uploadResult = await projectService.uploadProjectImage(projectId, form.projectImageFile);
-            console.log('Image upload result after project creation:', uploadResult);
-
-          } catch (imageError) {
-            console.error('Error uploading project image after project creation:', imageError);
-          }
+        } catch (imageError) {
+          console.error('Error uploading project image after project creation:', imageError);
         }
-
-        updateFormData({
-          ...updatedForm,
-          projectId: projectId,
-          location: updatedForm.location,
-          projectLocation: updatedForm.location,
-          shortDescription: updatedForm.shortDescription,
-          projectDescription: updatedForm.shortDescription, // Add this explicitly for other components
-          totalTargetAmount: parseFloat(updatedForm.totalTargetAmount) || 1000,
-          status: updatedForm.status || 'DRAFT',
-          isClassPotential: form.isClassPotential
-        });
       }
 
-      setSubmitSuccess(true);
-    } catch (error) {
-      console.error("Project creation/update error:", error);
+      updateFormData({
+        ...updatedForm,
+        projectId: projectId,
+        shortDescription: updatedForm.shortDescription,
+        projectDescription: updatedForm.shortDescription, // Add this explicitly for other components
+        totalTargetAmount: parseFloat(updatedForm.totalTargetAmount) || 1000,
+        status: updatedForm.status || 'DRAFT',
+        isClassPotential: form.isClassPotential
+      });
 
-      // Handle validation errors from the server
-      if (error.response?.data?.error) {
-        const serverErrors = error.response.data.error;
-        setError(prev => ({
-          ...prev,
-          validation: serverErrors,
-          submit: 'The server reported validation errors. Please correct them and try again.'
-        }));
-      } else {
-        setError(prev => ({
-          ...prev,
-          submit: error.message || `Failed to ${form.projectId ? 'update' : 'create'} project. Please try again later.`
-        }));
+      // AFTER successful project creation/update, refresh token to update teamRole
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        try {
+          console.log("Refreshing token after successful project creation/update");
+          const refreshResponse = await authenticate.refreshToken(refreshToken);
+          if (refreshResponse && refreshResponse.data) {
+            const { accessToken, refreshToken: newRefreshToken, teamRole } = refreshResponse.data;
+            tokenManager.setTokens(accessToken, newRefreshToken);
+            if (teamRole) {
+              localStorage.setItem('teamRole', teamRole);
+              console.log("Updated teamRole after project creation:", teamRole);
+            }
+          }
+        } catch (refreshError) {
+          console.error("Error refreshing token after project creation:", refreshError);
+        }
       }
-    } finally {
-      setLoading(prev => ({ ...prev, submit: false }));
     }
-  };
+
+    setSubmitSuccess(true);
+  } catch (error) {
+    console.error("Project creation/update error:", error);
+
+    if (error.response?.data?.error) {
+      const serverErrors = error.response.data.error;
+      setError(prev => ({
+        ...prev,
+        validation: serverErrors,
+        submit: 'The server reported validation errors. Please correct them and try again.'
+      }));
+    } else {
+      setError(prev => ({
+        ...prev,
+        submit: error.message || `Failed to ${form.projectId ? 'update' : 'create'} project. Please try again later.`
+      }));
+    }
+  } finally {
+    setLoading(prev => ({ ...prev, submit: false }));
+  }
+};
 
   const locationOptions = [
     'HA_NOI', 'HO_CHI_MINH', 'DA_NANG', 'CAN_THO', 'QUY_NHON',
@@ -743,35 +742,6 @@ export default function BasicInformation({ formData, updateFormData, editMode })
           ) : (
             <p className="mt-1 text-sm text-gray-500">
               This will appear in search results and project listings. Max 160 characters.
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="location" className="block text-lg font-medium text-gray-700">
-            FPT Campus<span className="text-red-500">*</span>
-          </label>
-          <select
-            id="location"
-            name="location"
-            value={form.location || ''}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className={`mt-1 block w-full pl-3 pr-10 py-2 text-base ${error.validation.location ? 'border-red-300' : 'border-gray-300'} focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md`}
-            required
-          >
-            <option value="">Select a location</option>
-            {locationOptions.map((location) => (
-              <option key={location} value={location}>
-                {location.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-          {error.validation.location ? (
-            <p className="mt-1 text-sm text-red-600">{error.validation.location}</p>
-          ) : (
-            <p className="mt-1 text-sm text-gray-500">
-              Choose the primary FPT University Campus where your project are based.
             </p>
           )}
         </div>
