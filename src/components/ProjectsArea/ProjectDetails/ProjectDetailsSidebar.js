@@ -257,7 +257,7 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                   <p className="text-sm text-gray-700 mb-2">{selectedMilestone.description}</p>
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>                    
-                    {phases[selectedPhaseId]?.status === 'PROCESS' && selectedMilestone.status === 'ACTIVE' && (
+                    {phases[selectedPhaseId]?.status !== 'PLAN'  && (
                       <button
                         onClick={() => handleContinueClick(selectedPhaseId)}
                         className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors"

@@ -140,7 +140,7 @@ const ReportProjectForm = ({ projectId, onClose, onSuccess }) => {
 
             if (err.response && err.response.status === 403) {
                 const message = err.response.data?.message || 'You need to log in to perform this action.';
-                setError(message); // Hiển thị lỗi trong thanh error
+                setError(message); 
             } else if (err.response && err.response.data?.message === 'You can only submit one report per project per day') {
                 setError('You can only submit one report per project per day');
             } else {
