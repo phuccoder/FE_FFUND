@@ -222,7 +222,6 @@ function CreateProject() {
             categoryId: activeProject.category?.id || '',
             subCategoryIds: activeProject.subCategories?.map(sub => sub.id) || [],
             location: activeProject.location || activeProject.projectLocation || '',
-            projectLocation: activeProject.location || activeProject.projectLocation || '',
             projectUrl: activeProject.projectUrl || '',
             mainSocialMediaUrl: activeProject.mainSocialMediaUrl || '',
             projectVideoDemo: activeProject.projectVideoDemo || '',
@@ -262,7 +261,6 @@ function CreateProject() {
             categoryId: '',
             subCategoryIds: [],
             location: '',
-            projectLocation: '',
             projectUrl: '',
             mainSocialMediaUrl: '',
             projectVideoDemo: '',
@@ -302,7 +300,6 @@ function CreateProject() {
       category: !!(basicInfo.category || basicInfo.categoryId),
       subCategory: !!(basicInfo.subCategory || basicInfo.subCategoryIds),
       shortDescription: !!basicInfo.shortDescription,
-      location: !!(basicInfo.location || basicInfo.locationId),
       projectUrl: !!basicInfo.projectUrl,
       mainSocialMediaUrl: !!basicInfo.mainSocialMediaUrl,
       projectVideoDemo: !!basicInfo.projectVideoDemo,
@@ -385,8 +382,6 @@ function CreateProject() {
           projectId: projectId || data.projectId || prevData.projectId,
           category: data.category || data.categoryId,
           categoryId: data.categoryId || data.category,
-          location: data.location || data.projectLocation,
-          projectLocation: data.projectLocation || data.location,
           shortDescription: data.shortDescription || data.projectDescription,
           projectDescription: data.projectDescription || data.shortDescription,
           projectImage: data.projectImage || prevData.basicInfo?.projectImage,
@@ -486,14 +481,12 @@ function CreateProject() {
 
     const basicInfo = formData.basicInfo || {};
     const categoryValue = basicInfo.category || basicInfo.categoryId;
-    const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.projectLocation;
     const subCategoryValue = basicInfo.subCategory || (Array.isArray(basicInfo.subCategoryIds) && basicInfo.subCategoryIds.length > 0);
     const isBasicInfoComplete = Boolean(
       basicInfo.title &&
       categoryValue &&
       subCategoryValue &&
-      basicInfo.shortDescription &&
-      locationValue
+      basicInfo.shortDescription 
     );
 
     console.log("Terms complete:", isTermsComplete);
@@ -503,7 +496,6 @@ function CreateProject() {
       category: Boolean(categoryValue),
       subCategory: Boolean(subCategoryValue),
       shortDescription: Boolean(basicInfo.shortDescription),
-      location: Boolean(locationValue)
     });
 
     return isTermsComplete && isBasicInfoComplete;
@@ -658,15 +650,13 @@ function CreateProject() {
       if (currentSection === 1) {
         const basicInfo = formData.basicInfo;
         const categoryValue = basicInfo.category || basicInfo.categoryId;
-        const locationValue = basicInfo.location || basicInfo.locationId;
         const subCategoryValue = basicInfo.subCategory || basicInfo.subCategoryIds;
 
         if (
           !basicInfo.title ||
           !categoryValue ||
           !subCategoryValue ||
-          !basicInfo.shortDescription ||
-          !locationValue
+          !basicInfo.shortDescription 
         ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;
