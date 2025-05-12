@@ -14,24 +14,34 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchShippingInfo = useCallback(async () => {
-    if (!investment?.id) return;
+  if (!investment?.id) return;
 
-    try {
-      setIsLoading(true);
-      const response = await shippingInformationService.getShippingInformationById(investment.id);
-      if (response?.data) {
-        setShippingInfo(response.data);
-
-        if (response.data.userAddressId) {
-          setSelectedAddressId(response.data.userAddressId);
-        }
+  try {
+    setIsLoading(true);
+    const response = await shippingInformationService.getShippingInformationById(investment.id);
+    
+    // Check if we got a proper response with data AND userAddress
+    if (response?.data && response.data.userAddress) {
+      setShippingInfo(response.data);
+      
+      if (response.data.userAddressId) {
+        setSelectedAddressId(response.data.userAddressId);
       }
-    } catch (error) {
-      console.log('No shipping information found for this investment');
-    } finally {
-      setIsLoading(false);
+    } else if (response?.status === 200 && !response.data?.userAddress) {
+      console.log('API returned success but no address data');
+      if (response?.data) {
+        setShippingInfo(response.data); 
+      } else {
+        setShippingInfo(null);
+      }
     }
-  }, [investment?.id]);
+  } catch (error) {
+    console.log('No shipping information found for this investment:', error);
+    setShippingInfo(null);
+  } finally {
+    setIsLoading(false);
+  }
+}, [investment?.id]);
 
   const fetchAddresses = useCallback(async () => {
     try {
@@ -204,47 +214,47 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
               </div>
 
               {/* Display shipping address information */}
-              {(shippingInfo.userAddress || selectedAddress) && (
+              {shippingInfo && shippingInfo.userAddress ? (
                 <div className="p-3 bg-white border border-blue-100 rounded-md">
                   <div className="flex justify-between items-start">
                     <h5 className="text-sm font-medium text-blue-900 mb-2">Delivery Address</h5>
                   </div>
 
                   <div className="text-sm text-gray-700">
-                    {shippingInfo.userAddress ? (
-                      <>
-                        <p className="font-medium">{shippingInfo.investorName}</p>
-                        <p>{shippingInfo.userAddress.address}</p>
-                        <p>
-                          {shippingInfo.userAddress.ward && `${shippingInfo.userAddress.ward}, `}
-                          {shippingInfo.userAddress.district && `${shippingInfo.userAddress.district}, `}
-                          {shippingInfo.userAddress.province}
-                        </p>
-                        {shippingInfo.investorPhone && (
-                          <p className="mt-1">Phone: {shippingInfo.investorPhone}</p>
-                        )}
-                        {shippingInfo.userAddress.note && (
-                          <p className="mt-1 italic text-gray-500">Note: {shippingInfo.userAddress.note}</p>
-                        )}
-                      </>
-                    ) : selectedAddress ? (
-                      // Otherwise, use the selected address
-                      <>
-                        <p className="font-medium">{selectedAddress.fullName || selectedAddress.recipientName || investment.investorName}</p>
-                        <p>{selectedAddress.address}</p>
-                        <p>
-                          {selectedAddress.ward && `${selectedAddress.ward}, `}
-                          {selectedAddress.district && `${selectedAddress.district}, `}
-                          {selectedAddress.province}
-                        </p>
-                        {selectedAddress.phoneNumber && (
-                          <p className="mt-1">Phone: {selectedAddress.phoneNumber}</p>
-                        )}
-                        {selectedAddress.note && (
-                          <p className="mt-1 italic text-gray-500">Note: {selectedAddress.note}</p>
-                        )}
-                      </>
-                    ) : null}
+                    <p className="font-medium">{shippingInfo.investorName}</p>
+                    <p>{shippingInfo.userAddress.address}</p>
+                    <p>
+                      {shippingInfo.userAddress.ward && `${shippingInfo.userAddress.ward}, `}
+                      {shippingInfo.userAddress.district && `${shippingInfo.userAddress.district}, `}
+                      {shippingInfo.userAddress.province}
+                    </p>
+                    {shippingInfo.investorPhone && (
+                      <p className="mt-1">Phone: {shippingInfo.investorPhone}</p>
+                    )}
+                    {shippingInfo.userAddress.note && (
+                      <p className="mt-1 italic text-gray-500">Note: {shippingInfo.userAddress.note}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <h5 className="text-sm font-medium text-amber-800 mb-1">Shipping Information Not Available</h5>
+                      <p className="text-sm text-amber-700">
+                        We couldn&apos;t retrieve shipping details at this time. This could be because:
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-amber-700 mt-1 ml-1">
+                        <li>Shipping information has not been processed yet</li>
+                        <li>There was an issue connecting to our shipping system</li>
+                      </ul>
+                      <p className="text-sm text-amber-700 mt-2">
+                        Please try refreshing or check back later.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}

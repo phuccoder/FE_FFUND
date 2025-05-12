@@ -144,7 +144,6 @@ function RewardPage() {
         }
 
         try {
-            // Directly get the milestone by ID
             const response = await fetch(`https://quanbeo.duckdns.org/api/v1/milestone/guest/${investment.milestoneId}`, {
                 method: 'GET',
                 headers: {
@@ -152,10 +151,8 @@ function RewardPage() {
                 }
             });
 
-            // Get response as text first for better error handling
             const responseText = await response.text();
 
-            // Try to parse the response as JSON
             let responseData;
             try {
                 responseData = JSON.parse(responseText);
@@ -164,11 +161,9 @@ function RewardPage() {
                 if (!response.ok) {
                     throw new Error(responseText || `Error: ${response.status}`);
                 }
-                // Set default milestone data for non-JSON success responses
                 responseData = { data: null };
             }
 
-            // If response wasn't successful, extract error message from result
             if (!response.ok) {
                 const errorMessage = responseData.error ||
                     responseData.message ||
@@ -197,13 +192,11 @@ function RewardPage() {
 
                 setSelectedInvestment(updatedInvestment);
 
-                // Try to fetch any existing shipping information
                 try {
                     const shippingResponse = await shippingInformationService.getShippingInformationById(investment.id);
                     if (shippingResponse?.data) {
                         setShippingInfo(shippingResponse.data);
 
-                        // If we have shipping info with an address, select that address
                         if (shippingResponse.data.userAddressId) {
                             const shippingAddress = addresses.find(addr => addr.id === shippingResponse.data.userAddressId);
                             if (shippingAddress) {
@@ -212,18 +205,39 @@ function RewardPage() {
                         }
                     }
                 } catch (error) {
-                    // It's okay if there's no shipping info
                     setShippingInfo(null);
+                    if (investment?.id) {
+                        try {
+                            const shippingResponse = await shippingInformationService.getShippingInformationById(investment.id);
+                            if (shippingResponse?.data?.id) {
+                                console.log('Found shipping info for investment ID:', investment.id, shippingResponse.data);
+                                setShippingInfo(shippingResponse.data);
+
+                                if (shippingResponse.data.userAddress && addresses.length > 0) {
+                                    const matchingAddress = addresses.find(addr =>
+                                        addr.id === shippingResponse.data.userAddress.id ||
+                                        addr.id === shippingResponse.data.userAddressId
+                                    );
+                                    if (matchingAddress) {
+                                        setSelectedAddress(matchingAddress);
+                                    }
+                                }
+                            } else {
+                                console.log('No shipping info found for investment ID:', investment.id);
+                            }
+                        } catch (error) {
+                            console.log('No shipping information found for investment ID:', investment.id);
+                            setShippingInfo(null);
+                        }
+                    }
                 }
             } else {
-                // If no milestone found, just use the investment as is
                 setSelectedInvestment(investment);
             }
         } catch (err) {
             console.error('Error fetching milestone details:', err);
             toast.error('Failed to load milestone details');
 
-            // Still set the investment but with empty milestone data
             setSelectedInvestment({
                 ...investment,
                 milestone: {
@@ -237,7 +251,6 @@ function RewardPage() {
     };
 
     const handleSelectInvestment = async (investment) => {
-        // Fetch milestone details when selecting an investment
         await fetchMilestoneDetails(investment);
     };
 
@@ -247,7 +260,6 @@ function RewardPage() {
 
     const handleAddAddress = async (newAddress) => {
         try {
-            // Use the createUserAddress function from userAddress.js
             const response = await createUserAddress(newAddress);
 
             if (response && response.data) {
@@ -275,62 +287,58 @@ function RewardPage() {
 
         try {
             setSavingShipping(true);
+
+            let currentShippingInfo = null;
+            try {
+                const checkResponse = await shippingInformationService.getShippingInformationById(selectedInvestment.id);
+                if (checkResponse?.data?.id) {
+                    currentShippingInfo = checkResponse.data;
+                }
+            } catch (checkErr) {
+                console.log('No existing shipping info found for investment ID:', selectedInvestment.id);
+            }
+
             let response;
 
-            if (shippingInfo?.id) {
-                // Update existing shipping information
+            if (currentShippingInfo?.id) {
+                console.log('Updating existing shipping info with ID:', currentShippingInfo.id);
                 response = await shippingInformationService.updateShippingInformation(
-                    shippingInfo.id,
+                    currentShippingInfo.id,
                     selectedAddress.id
                 );
-
-                // Check both response formats
-                if (response?.data) {
-                    setShippingInfo(response.data);
-                } else if (response?.status === 200) {
-                    // Handle success response that doesn't include data
-                    // Fetch the updated shipping info
-                    try {
-                        const updatedInfo = await shippingInformationService.getShippingInformationById(selectedInvestment.id);
-                        if (updatedInfo?.data) {
-                            setShippingInfo(updatedInfo.data);
-                        }
-                    } catch (fetchErr) {
-                        console.error('Error fetching updated shipping info:', fetchErr);
-                    }
-                }
             } else {
-                // Create new shipping information
+                console.log('Creating new shipping info for investment ID:', selectedInvestment.id);
                 response = await shippingInformationService.createShippingInformation(
                     selectedInvestment.id,
                     selectedAddress.id
                 );
-
-                if (response?.data) {
-                    setShippingInfo(response.data);
-                } else if (response?.status === 200) {
-                    // Handle success response without data
-                    // Fetch the new shipping info
-                    try {
-                        const newInfo = await shippingInformationService.getShippingInformationById(selectedInvestment.id);
-                        if (newInfo?.data) {
-                            setShippingInfo(newInfo.data);
-                        }
-                    } catch (fetchErr) {
-                        console.error('Error fetching new shipping info:', fetchErr);
-                    }
-                }
             }
 
-            // Check if response is successful
+            if (response?.data) {
+                setShippingInfo(response.data);
+                toast.success('Shipping information saved successfully!');
+            } else if (response?.status === 200) {
+                toast.success('Shipping information saved successfully!');
+
+                try {
+                    const updatedInfo = await shippingInformationService.getShippingInformationById(selectedInvestment.id);
+                    if (updatedInfo?.data) {
+                        setShippingInfo(updatedInfo.data);
+                    }
+                } catch (fetchErr) {
+                    console.error('Error fetching updated shipping info:', fetchErr);
+                }
+            } else {
+                toast.error('Failed to save shipping information');
+            }
+
             if (response?.data || response?.status === 200) {
-                // Update the local state with the shipping information
                 const updatedInvestments = investments.map(inv => {
                     if (inv.id === selectedInvestment.id) {
                         return {
                             ...inv,
                             shippingAddress: selectedAddress,
-                            shippingStatus: (shippingInfo?.status || response?.data?.status || 'PENDING')
+                            shippingStatus: currentShippingInfo?.status || 'PENDING'
                         };
                     }
                     return inv;
@@ -340,21 +348,15 @@ function RewardPage() {
                 setSelectedInvestment({
                     ...selectedInvestment,
                     shippingAddress: selectedAddress,
-                    shippingStatus: (shippingInfo?.status || response?.data?.status || 'PENDING')
+                    shippingStatus: currentShippingInfo?.status || 'PENDING'
                 });
-
-                toast.success('Shipping information saved successfully!');
-            } else {
-                toast.error('Failed to save shipping information');
             }
         } catch (err) {
             console.error('Error saving shipping:', err);
 
-            // Check if the error contains a success message anyway (API inconsistency)
             if (err.response?.data?.status === 200 || err.response?.data?.message?.includes('success')) {
                 toast.success('Shipping information saved successfully!');
 
-                // Fetch the updated info
                 try {
                     const refreshedInfo = await shippingInformationService.getShippingInformationById(selectedInvestment.id);
                     if (refreshedInfo?.data) {
