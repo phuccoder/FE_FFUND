@@ -441,7 +441,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(5000);
 
         // Continue to next section
-        let continueToFundraising = await browser.findElement(By.xpath("//button[@title='Go to Fundraising Information']"));
+        let continueToFundraising = await browser.findElement(By.xpath("//button[@title='Go to Fundraising Information']//div[1]"));
         await scrollAndClick(browser, continueToFundraising, "Continue to Fundraising button");
         console.log('22. Proceeding to Fundraising Information');
 
@@ -827,7 +827,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(1000);
 
         // go to team info
-        let teamInfoButton = await browser.findElement(By.xpath("//button[@title='Go to Founder Profile']"));
+        let teamInfoButton = await browser.findElement(By.xpath("//button[@title='Go to Founder Profile']//div[1]"));
         await scrollAndClick(browser, teamInfoButton, "Team Info button");
         console.log('43. Proceeding to Team Information');
         await browser.sleep(10000);
@@ -965,7 +965,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         //go to payment account
-        let paymentAccountButton = await browser.findElement(By.xpath("//button[@title='Go to Payment Information']"));
+        let paymentAccountButton = await browser.findElement(By.xpath("//button[@title='Go to Payment Information']//div[1]"));
         await scrollAndClick(browser, paymentAccountButton, "Payment Account button");
         console.log('50. Proceeding to Payment Account Information');
 
