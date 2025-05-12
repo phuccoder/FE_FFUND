@@ -79,7 +79,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         // Login as founder
-        const email = 'thanhdat01@gmail.com';
+        const email = 'hoanganh01@gmail.com';
         const password = '123456';
         const totalAmount = 8000;
         const isLoggedIn = await loginFounder(browser, email, password);
@@ -815,7 +815,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await scrollAndClick(browser, continueToStory, "Continue to Project Story button");
         console.log('42. Proceeding to Project Story');
 
-        await browser.sleep(3000);
+        await browser.sleep(8000);
 
         let storyField = await browser.findElement(By.xpath("(//div[@class='flex-grow overflow-y-auto p-4 bg-white'])[1]"));
         await browser.executeScript("arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });", storyField);
