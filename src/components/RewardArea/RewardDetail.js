@@ -204,7 +204,7 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
                   <span className="font-medium">Status:</span>{' '}
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${shippingInfo.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
                     shippingInfo.status === 'SHIPPED' ? 'bg-blue-100 text-blue-800' :
-                      shippingInfo.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                      shippingInfo.status === 'DELIVERY' ? 'bg-green-100 text-green-800' :
                         shippingInfo.status === 'PENDING' ? 'bg-orange-100 text-orange-800' :
                           'bg-gray-100 text-gray-800'
                     }`}>
@@ -259,39 +259,13 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
                 </div>
               )}
 
-              {shippingInfo.status === 'SHIPPED' && (
-                <div className="mt-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        setIsLoading(true);
-                        const response = await shippingInformationService.confirmReceived(shippingInfo.id);
-                        if (response?.data) {
-                          setShippingInfo(response.data);
-                          toast.success('Package confirmed as received!');
-                        }
-                      } catch (err) {
-                        toast.error('Failed to confirm receipt');
-                        console.error(err);
-                      } finally {
-                        setIsLoading(false);
-                      }
-                    }}
-                    disabled={isLoading}
-                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium disabled:bg-green-300 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? 'Processing...' : 'Confirm Receipt of Package'}
-                  </button>
-                </div>
-              )}
-
               {/* Shipping Timeline */}
               <div className="mt-4 pt-4 border-t border-blue-200">
                 <h5 className="text-sm font-medium text-blue-900 mb-3">Shipping Timeline</h5>
                 <div className="relative">
                   {/* Processing Step */}
                   <div className="flex items-center mb-4">
-                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${['PROCESSING', 'SHIPPED', 'DELIVERED'].includes(shippingInfo.status)
+                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${['PROCESSING', 'SHIPPED', 'DELIVERY'].includes(shippingInfo.status)
                       ? 'bg-green-500' : 'bg-gray-300'
                       }`}></div>
                     <div>
@@ -305,11 +279,11 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
 
                   {/* Shipped Step */}
                   <div className="flex items-center mb-4">
-                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${['SHIPPED', 'DELIVERED'].includes(shippingInfo.status)
+                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${['SHIPPED', 'DELIVERY'].includes(shippingInfo.status)
                       ? 'bg-green-500' : 'bg-gray-300'
                       }`}></div>
                     <div>
-                      <p className="text-sm font-medium">Shipped</p>
+                      <p className="text-sm font-medium">Delivery</p>
                       <p className="text-xs text-gray-500">Your package is on its way</p>
                     </div>
                   </div>
@@ -319,7 +293,7 @@ export default function RewardDetails({ investment, onRefreshAddresses }) {
 
                   {/* Delivered Step */}
                   <div className="flex items-center">
-                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${shippingInfo.status === 'DELIVERED'
+                    <div className={`h-4 w-4 rounded-full mr-3 flex-shrink-0 ${shippingInfo.status === 'SHIPPED'
                       ? 'bg-green-500' : 'bg-gray-300'
                       }`}></div>
                     <div>
