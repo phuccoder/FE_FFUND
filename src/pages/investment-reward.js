@@ -346,7 +346,7 @@ export default function InvestmentReward() {
 
                                                             {/* Show confirm shipping button if not yet shipped or received */}
                                                             {reward.shippingInformation &&
-                                                                reward.shippingInformation.status !== 'PENDING' && (
+                                                                reward.shippingInformation.status === 'PENDING' && (
                                                                     <button
                                                                         onClick={() => handleConfirmShipping(reward.shippingInformation?.id)}
                                                                         className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors flex items-center"
