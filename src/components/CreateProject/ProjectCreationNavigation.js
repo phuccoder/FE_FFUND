@@ -25,15 +25,13 @@ export default function ProjectCreationNavigation({
   const isBasicInfoComplete = () => {
     const basicInfo = formData?.basicInfo || {};
     const categoryValue = basicInfo.category || basicInfo.categoryId;
-    const locationValue = basicInfo.location || basicInfo.projectLocation;
     const subCategoryValue = basicInfo.subCategory || (basicInfo.subCategoryIds && basicInfo.subCategoryIds.length > 0);
 
     return Boolean(
       basicInfo.title &&
       categoryValue &&
       subCategoryValue &&
-      (basicInfo.shortDescription || basicInfo.projectDescription) &&
-      locationValue
+      (basicInfo.shortDescription || basicInfo.projectDescription) 
     );
   };
 

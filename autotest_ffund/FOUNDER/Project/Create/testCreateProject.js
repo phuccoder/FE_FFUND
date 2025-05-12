@@ -79,7 +79,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         // Login as founder
-        const email = 'hoanganh01@gmail.com';
+        const email = 'thanhdat01@gmail.com';
         const password = '123456';
         const totalAmount = 8000;
         const isLoggedIn = await loginFounder(browser, email, password);
@@ -294,15 +294,6 @@ async function scrollAndClick(browser, element, elementDescription) {
             }
         }
 
-        // Select location
-        let locationDropdown = await browser.findElement(By.id('location'));
-        await scrollAndClick(browser, locationDropdown, "Location dropdown");
-        let locationOptions = await browser.findElements(By.css('select[id="location"] option'));
-        if (locationOptions.length > 1) {
-            await scrollAndClick(browser, locationOptions[1], "Location option");
-            console.log('14. Project location selected');
-        }
-
         // Set target amount
         let amountField = await browser.findElement(By.id('totalTargetAmount'));
         await amountField.clear();
@@ -441,7 +432,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(5000);
 
         // Continue to next section
-        let continueToFundraising = await browser.findElement(By.xpath("//button[@title='Go to Fundraising Information']//div[1]"));
+        let continueToFundraising = await browser.findElement(By.xpath("//button[3]//div[1]"));
         await scrollAndClick(browser, continueToFundraising, "Continue to Fundraising button");
         console.log('22. Proceeding to Fundraising Information');
 
@@ -593,7 +584,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         // Step 7: Reward Information section
         console.log('30. Completing Reward Information section');
 
-        let rewardButton = await browser.findElement(By.xpath("//button[@title='Go to Reward Information']//div[1]"));
+        let rewardButton = await browser.findElement(By.xpath("//button[4]//div[1]"));
         await scrollAndClick(browser, rewardButton, "Reward Information button");
         console.log('31. Proceeding to Reward Information');
 
@@ -827,14 +818,14 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(1000);
 
         // go to team info
-        let teamInfoButton = await browser.findElement(By.xpath("//button[@title='Go to Founder Profile']//div[1]"));
+        let teamInfoButton = await browser.findElement(By.xpath("//div[normalize-space()='6. Founder Profile']"));
         await scrollAndClick(browser, teamInfoButton, "Team Info button");
         console.log('43. Proceeding to Team Information');
         await browser.sleep(10000);
 
 
         // Navigate to Required Documents section
-        let documentsButton = await browser.findElement(By.xpath("//div[normalize-space()='7. Required Documents']"));
+        let documentsButton = await browser.findElement(By.xpath("//button[7]//div[1]"));
         await scrollAndClick(browser, documentsButton, "Documents button");
         console.log('44. Proceeding to Required Documents');
         await browser.sleep(3000);
@@ -965,7 +956,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         //go to payment account
-        let paymentAccountButton = await browser.findElement(By.xpath("//button[@title='Go to Payment Information']//div[1]"));
+        let paymentAccountButton = await browser.findElement(By.xpath("//button[8]//div[1]"));
         await scrollAndClick(browser, paymentAccountButton, "Payment Account button");
         console.log('50. Proceeding to Payment Account Information');
 
