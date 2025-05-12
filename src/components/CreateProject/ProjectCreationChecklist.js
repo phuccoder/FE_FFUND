@@ -30,12 +30,10 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
         // Extract values with proper fallbacks
         const categoryValue = basicInfo.categoryId || basicInfo.category || basicInfo.category_id;
-        const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.location_id;
         const subCategoryValue = basicInfo.subCategoryIds || basicInfo.subCategory || basicInfo.sub_category_ids;
 
         // Count completed fields - initialize to 0
         let completed = 0;
-        // MODIFIED: Only count required fields in total
         const total = 6; // Reduced from 10, only counting required fields
 
         // Check each field with improved value detection
@@ -51,18 +49,17 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
             (!Array.isArray(subCategoryValue) && subCategoryValue)
           )),
           shortDescription: !!basicInfo.shortDescription,
-          location: !!locationValue,
-          isClassPotential: basicInfo.isClassPotential === true || basicInfo.isClassPotential === false,
+          projectImage: !!basicInfo.projectImage,
+          totalTargetAmount: !!basicInfo.totalTargetAmount,
 
           // Optional fields - don't count these in percentage
           projectUrl: !!basicInfo.projectUrl,
           mainSocialMediaUrl: !!basicInfo.mainSocialMediaUrl,
-          projectVideoDemo: !!basicInfo.projectVideoDemo,
-          projectImage: !!basicInfo.projectImage
+          projectVideoDemo: !!basicInfo.projectVideoDemo,         
         };
 
         // Count only required fields for completion percentage
-        const requiredFields = ['title', 'category', 'subCategory', 'shortDescription', 'location'];
+        const requiredFields = ['title', 'category', 'subCategory', 'shortDescription', 'projectImage', 'totalTargetAmount'];
         requiredFields.forEach(field => {
           if (checks[field]) completed++;
         });
@@ -373,7 +370,6 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
 
     // UPDATED: Check for the specific field names used by BasicInformation.js first
     const categoryValue = basicInfo.categoryId || basicInfo.category || basicInfo.category_id;
-    const locationValue = basicInfo.location || basicInfo.locationId || basicInfo.location_id;
     const subCategoryValue = basicInfo.subCategoryIds || basicInfo.subCategory || basicInfo.sub_category_ids;
 
     // Explicitly check only required fields
@@ -388,7 +384,8 @@ export default function ProjectCreationChecklist({ formData = {}, sections }) {
         (!Array.isArray(subCategoryValue) && subCategoryValue)
       )),
       shortDescription: !!basicInfo.shortDescription,
-      location: !!locationValue,
+      projectImage: !!basicInfo.projectImage,
+      totalTargetAmount: !!basicInfo.totalTargetAmount,
     };
 
     // Only check required fields for completion
