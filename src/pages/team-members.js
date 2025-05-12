@@ -31,14 +31,12 @@ const TeamMembers = () => {
         </Container>
       ) : isValidTeam(team) ? (
         <>
-          <TeamManagementSection team={team} onTeamUpdate={refreshTeam} />
-          <CtaArea />
+          <TeamManagementSection team={team} onTeamUpdate={refreshTeam} />          
         </>
       ) : (
         <NoTeamSection />
       )}
-
-
+      <CtaArea />
     </Layout>
   );
 };
