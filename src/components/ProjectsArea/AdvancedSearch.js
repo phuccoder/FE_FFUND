@@ -303,7 +303,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
           <div className="flex items-center flex-nowrap space-x-3 overflow-x-auto">
             <h2 className="text-xl font-semibold whitespace-nowrap">Show me</h2>
 
-            {/* Category Selector */}
+            {/* Category Selector - UPDATED POSITION AND Z-INDEX */}
             <div className="relative" ref={categoryPanelRef}>
               {/* Category Button */}
               <div
@@ -345,90 +345,107 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
                 )}
               </div>
 
-              {/* Panel Wrapper */}
+              {/* IMPROVED DROPDOWN POSITIONING */}
               {isCategoryPanelOpen && (
-                <div className="absolute left-0 top-full mt-1 flex z-30">
-                  {/* Category Panel */}
-                  <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64 transition-all duration-200 ease-in-out">
-                    <div className="py-3 px-4">
-                      <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">CATEGORIES</h3>
-                      <div className="max-h-80 overflow-y-auto">
-                        <div className="grid grid-cols-2 gap-x-4">
-                          {/* First column */}
-                          <div className="space-y-3">
-                            <div
-                              className={`text-sm cursor-pointer ${selectedMainCategory === "All" ? "text-green-600 font-medium" : "text-gray-700"}`}
-                              onClick={() => handleSelectCategory("All")}
-                            >
-                              All categories
-                            </div>
-                            {categories.slice(0, Math.ceil(categories.length / 2)).map((category) => (
-                              <div
-                                key={category.id}
-                                className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                onClick={() => handleSelectCategory(category.name)}
-                              >
-                                {category.name}
+                <div
+                  className="fixed inset-0 bg-transparent"
+                  style={{ zIndex: 9000 }}
+                  onClick={() => setIsCategoryPanelOpen(false)}
+                >
+                  <div
+                    className="absolute"
+                    style={{
+                      top: categoryPanelRef.current ? categoryPanelRef.current.getBoundingClientRect().bottom + 5 + 'px' : '0',
+                      left: categoryPanelRef.current ? categoryPanelRef.current.getBoundingClientRect().left + 'px' : '0',
+                      zIndex: 9100
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Category Panel Display */}
+                    <div className="flex">
+                      {/* Main Categories Panel */}
+                      <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64">
+                        <div className="py-3 px-4">
+                          <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">CATEGORIES</h3>
+                          <div className="max-h-80 overflow-y-auto">
+                            <div className="grid grid-cols-2 gap-x-4">
+                              {/* First column */}
+                              <div className="space-y-3">
+                                <div
+                                  className={`text-sm cursor-pointer ${selectedMainCategory === "All" ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                  onClick={() => handleSelectCategory("All")}
+                                >
+                                  All categories
+                                </div>
+                                {categories.slice(0, Math.ceil(categories.length / 2)).map((category) => (
+                                  <div
+                                    key={category.id}
+                                    className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                    onClick={() => handleSelectCategory(category.name)}
+                                  >
+                                    {category.name}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
 
-                          {/* Second column */}
-                          <div className="space-y-3">
-                            {categories.slice(Math.ceil(categories.length / 2)).map((category) => (
-                              <div
-                                key={category.id}
-                                className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                onClick={() => handleSelectCategory(category.name)}
-                              >
-                                {category.name}
+                              {/* Second column */}
+                              <div className="space-y-3">
+                                {categories.slice(Math.ceil(categories.length / 2)).map((category) => (
+                                  <div
+                                    key={category.id}
+                                    className={`text-sm cursor-pointer ${selectedMainCategory === category.name ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                    onClick={() => handleSelectCategory(category.name)}
+                                  >
+                                    {category.name}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            </div>
                           </div>
                         </div>
                       </div>
+
+                      {/* Subcategory Panel - With proper spacing and z-index */}
+                      {selectedMainCategory !== "All" && subCategories.length > 0 && (
+                        <div className="bg-white border border-gray-300 rounded-md shadow-lg w-64 ml-2">
+                          <div className="py-3 px-4">
+                            <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">
+                              {selectedMainCategory.toUpperCase()}
+                            </h3>
+
+                            {/* Subcategory with 2 columns */}
+                            <div className="max-h-80 overflow-y-auto">
+                              <div className="grid grid-cols-2 gap-x-4">
+                                <div className="space-y-3">
+                                  {subCategories.slice(0, Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                                    <div
+                                      key={subCategory.id}
+                                      className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                      onClick={() => handleSubCategorySelect(subCategory.name)}
+                                    >
+                                      {subCategory.name}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="space-y-3">
+                                  {subCategories.slice(Math.ceil(subCategories.length / 2)).map((subCategory) => (
+                                    <div
+                                      key={subCategory.id}
+                                      className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
+                                      onClick={() => handleSubCategorySelect(subCategory.name)}
+                                    >
+                                      {subCategory.name}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Subcategory Panel */}
-                  {selectedMainCategory !== "All" && subCategories.length > 0 && (
-                    <div className="absolute left-full top-0 ml-1 bg-white border border-gray-300 rounded-md shadow-lg z-30 w-64 transition-all duration-200 ease-in-out">
-                      <div className="py-3 px-4">
-                        <h3 className="uppercase text-gray-700 font-medium text-sm mb-2">
-                          {selectedMainCategory.toUpperCase()}
-                        </h3>
-
-                        {/* Subcategory with 2 columns */}
-                        <div className="max-h-80 overflow-y-auto">
-                          <div className="grid grid-cols-2 gap-x-4">
-                            <div className="space-y-3">
-                              {subCategories.slice(0, Math.ceil(subCategories.length / 2)).map((subCategory) => (
-                                <div
-                                  key={subCategory.id}
-                                  className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                  onClick={() => handleSubCategorySelect(subCategory.name)}
-                                >
-                                  {subCategory.name}
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="space-y-3">
-                              {subCategories.slice(Math.ceil(subCategories.length / 2)).map((subCategory) => (
-                                <div
-                                  key={subCategory.id}
-                                  className={`text-sm cursor-pointer ${selectedSubCategories.includes(subCategory.name) ? "text-green-600 font-medium" : "text-gray-700"}`}
-                                  onClick={() => handleSubCategorySelect(subCategory.name)}
-                                >
-                                  {subCategory.name}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -436,7 +453,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             {/* Projects text */}
             <span className="text-gray-700 whitespace-nowrap">projects</span>
 
-            {/* Active filters - MOVED HERE between "projects" and "on" */}
+            {/* Active filters section */}
             {activeFilters.filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm').length > 0 && (
               <div className="flex items-center flex-wrap gap-2">
                 {activeFilters
@@ -529,9 +546,9 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
               More Filters
             </button>
 
-            {/* Advanced Search Panel - Dropdown Design */}
+            {/* Advanced Search Panel - Fixed z-index */}
             {isSearchVisible && (
-              <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-50 transition-all duration-200 ease-in-out">
+              <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-[8000] transition-all duration-200 ease-in-out">
                 {/* Header */}
                 <div className="py-2 px-4 border-b border-gray-200">
                   <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
