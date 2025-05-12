@@ -79,7 +79,7 @@ async function scrollAndClick(browser, element, elementDescription) {
         await browser.sleep(2000);
 
         // Login as founder
-        const email = 'phucfounder@gmail.com';
+        const email = 'thanhdat01@gmail.com';
         const password = '123456';
         const totalAmount = 8000;
         const isLoggedIn = await loginFounder(browser, email, password);
@@ -707,7 +707,7 @@ async function scrollAndClick(browser, element, elementDescription) {
 
         await browser.sleep(2000);
         //phase 2
-        let selectPhase2 = await browser.findElement(By.css("button[class='inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500']"));
+        let selectPhase2 = await browser.findElement(By.xpath("button[class='inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500']"));
         await selectPhase2.click();
         await browser.sleep(1000);
 

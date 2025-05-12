@@ -39,7 +39,7 @@ const Key = webdriver.Key;
             until.elementLocated(By.css('#email')),
             10000
         );
-        await emailField.sendKeys('phanthienan01072003@gmail.com');
+        await emailField.sendKeys('hoanganh01@gmail.com');
         
         let passwordField = await browser.findElement(By.css('#password'));
         await passwordField.sendKeys('123456');

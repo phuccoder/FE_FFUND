@@ -205,7 +205,7 @@ async function semiAutomatedStripeSetup() {
         await browser.sleep(2000);
 
         // Login as founder
-        const email = "phanthienan01072003@gmail.com";
+        const email = "hoanganh01@gmail.com";
         const password = "123456";
         const isLoggedIn = await loginFounder(browser, email, password);
 

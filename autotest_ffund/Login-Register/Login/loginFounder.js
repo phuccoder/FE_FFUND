@@ -23,7 +23,7 @@ var until = webdriver.until;
 
         console.log('Button clicked!');
 
-        let sendKeyEmail = 'phanthienan@gmail.com';
+        let sendKeyEmail = 'hoanganh01@gmail.com';
         let senKeyPassword = '123456';
 
         let emailField = await browser.wait(
