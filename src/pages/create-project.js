@@ -94,7 +94,7 @@ function CreateProject() {
     const checkAuth = async () => {
       try {
         const token = await tokenManager.getValidToken();
-        
+
         if (token) {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
@@ -115,7 +115,7 @@ function CreateProject() {
               console.error("Error refreshing token to get teamRole:", refreshError);
             }
           }
-          
+
           setAuthStatus({
             isAuthenticated: true,
             isLoading: false
@@ -197,7 +197,7 @@ function CreateProject() {
         const status = activeProject.status || 'DRAFT';
 
         // Check if editing is allowed based on status
-        const isAllowedStatus = status === 'DRAFT';
+        const isAllowedStatus = status === 'DRAFT' || status === 'RESUBMIT';
         setIsEditAllowed(isAllowedStatus);
 
         // Store the projectId in localStorage for persistence
@@ -486,7 +486,7 @@ function CreateProject() {
       basicInfo.title &&
       categoryValue &&
       subCategoryValue &&
-      basicInfo.shortDescription 
+      basicInfo.shortDescription
     );
 
     console.log("Terms complete:", isTermsComplete);
@@ -656,7 +656,7 @@ function CreateProject() {
           !basicInfo.title ||
           !categoryValue ||
           !subCategoryValue ||
-          !basicInfo.shortDescription 
+          !basicInfo.shortDescription
         ) {
           alert("Please complete all required fields in the Basic Information section.");
           return;
@@ -836,18 +836,18 @@ function CreateProject() {
       { id: 'documents', data: formData.requiredDocuments, weight: 1 },
       { id: 'payment', data: formData.paymentInfo, weight: 1 }
     ];
-  
+
     // Calculate weighted overall completion percentage
     let totalPercentage = 0;
     let totalWeight = 0;
-  
+
     sections.forEach(section => {
       // Skip sections without data
       if (!section.data) return;
-  
+
       // Get completion percentage based on different data structures
       let percentage = 0;
-      
+
       if (section.id === 'terms') {
         // Terms is boolean
         percentage = formData.termsAgreed ? 100 : 0;
@@ -858,23 +858,23 @@ function CreateProject() {
         // For object data
         percentage = section.data._completionPercentage || 0;
       }
-  
+
       console.log(`Section ${section.id} completion: ${percentage}%`);
-      
+
       totalPercentage += percentage * section.weight;
       totalWeight += section.weight;
     });
-  
+
     // Calculate weighted average completion
     const overallCompletion = totalWeight > 0
       ? Math.round(totalPercentage / totalWeight)
       : 0;
-  
+
     console.log("Overall project completion:", overallCompletion + "%");
-  
+
     // Store overall completion in localStorage for persistence
     localStorage.setItem('projectCompletion', overallCompletion);
-  
+
     return overallCompletion;
   };
 
@@ -907,9 +907,8 @@ function CreateProject() {
                     <h3 className="text-sm font-medium text-red-800">Access Restricted</h3>
                     <p className="text-sm text-red-700 mt-1">
                       This project cannot be edited because it is currently in {formData.basicInfo?.status} status.
-                      Only allow projects with DRAFT status.
+                      Only projects with DRAFT or RESUBMIT status can be edited.
                     </p>
-
                     <div className="mt-4 flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
                       <Link href="/" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                         <span>Return Home</span>

@@ -302,5 +302,49 @@ export const paymentInfoService = {
             console.error('Error creating Stripe onboarding link:', error);
             throw error;
         }
+    },
+
+    getPaymentInformationByProjectId : async (projectId) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(`${API_BASE_URL}/project-payment-information/by-project-id/${projectId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            const responseText = await response.text();
+
+            let result;
+
+            if (response.status === 404) {
+                return null; 
+            }
+
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return { success: true, message: "Payment Information retrieved successfully" };
+            }
+
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result;
+        } catch (error) {
+            console.error(`Error getting payment information for project ${projectId}:`, error);
+            throw error;
+        }
     }
 };

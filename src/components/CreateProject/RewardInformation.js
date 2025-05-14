@@ -355,6 +355,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     };
 
     const isMilestoneEditable = (milestone) => {
+        
         if (!milestone || !milestone.phaseId) return false;
 
         // Find the phase this milestone belongs to

@@ -28,9 +28,10 @@ const PROJECT_GET_DOCUMENT_BY_PROJECT_ID_ENDPOINT = (id) => `${API_BASE_URL}/pro
 const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
 const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-image/${id}`;
 const PROJECT_GET_PHASE_RULE_ENDPOINT = (totalTargetAmount) => `${API_BASE_URL}/rule/by-total?total=${totalTargetAmount}`;
-//Guest
+const PROJECT_GET_ALL_PHASE_RULE_ENDPOINT = `${API_BASE_URL}/rule/all`;
 const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
 const PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
+const PROJECT_GET_INVESTMENT_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/investment/all/${id}`
 /**
  * Project related API service methods
  */
@@ -245,7 +246,7 @@ const projectService = {
             if (result && result.status === 201 && result.data) {
                 console.log("New project created with ID:", result.data);
                 localStorage.setItem('founderProjectId', result.data);
-                
+
                 return {
                     id: result.data,
                     message: result.message
@@ -1246,6 +1247,97 @@ const projectService = {
             return result.data || result;
         } catch (error) {
             console.error(`Error getting phase rule for ${totalTargetAmount}:`, error);
+            throw error;
+        }
+    },
+    getInvestmentByPhaseId: async (phaseId, params = {}) => {
+        try {
+            const token = await tokenManager.getValidToken();
+
+            // Build query string from params
+            const queryParams = new URLSearchParams();
+            if (params.page !== undefined) queryParams.append('page', params.page);
+            if (params.size !== undefined) queryParams.append('size', params.size);
+            if (params.sort) queryParams.append('sort', params.sort);
+            if (params.query) queryParams.append('query', params.query);
+            if (params.status) queryParams.append('status', params.status);
+
+            const queryString = queryParams.toString();
+            const url = `${PROJECT_GET_INVESTMENT_BY_PHASEID_ENDPOINT(phaseId)}${queryString ? `?${queryString}` : ''}`;
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return { success: true, message: "Investment retrieved successfully" };
+            }
+
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result;
+        } catch (error) {
+            console.error(`Error getting investments for phase ${phaseId}:`, error);
+            throw error;
+        }
+    },
+
+    getAllPhaseRules: async () => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PROJECT_GET_ALL_PHASE_RULE_ENDPOINT, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return { success: true, message: "Phase rules retrieved successfully" };
+            }
+
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error getting all phase rules:`, error);
             throw error;
         }
     }

@@ -20,7 +20,7 @@ export default function TransactionFilter({ onFilterChange, projects = [], proje
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md mb-4">
-      <h3 className="text-lg font-semibold mb-3">Filter Transactions</h3>
+      <h3 className="text-lg font-semibold mb-3">Filter Investment</h3>
 
       <Form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

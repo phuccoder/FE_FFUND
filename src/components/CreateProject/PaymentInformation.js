@@ -8,13 +8,15 @@ import { paymentInfoService } from 'src/services/paymentInformationService';
  * @param {Object} props.projectData - Current project data
  * @param {Function} props.updateFormData - Function to update parent form data
  * @param {Boolean} props.readOnly - Whether the component is in read-only mode
+ * @param {Boolean} props.isEditPage - Whether component is rendered in edit project page
  * @returns {JSX.Element} - Payment information component
  */
-export default function PaymentInformation({ projectData, updateFormData, readOnly = false }) {
+export default function PaymentInformation({ projectData, updateFormData, readOnly = false, isEditPage = false }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [paymentInfo, setPaymentInfo] = useState(null);
+  const [payoutAvailable, setPayoutAvailable] = useState(false);
 
   // Use refs to store the previous payment info to avoid unnecessary updates
   const prevPaymentInfoRef = useRef(null);
@@ -27,8 +29,16 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
 
     try {
       setLoading(true);
-      // Get payment info from the service
-      const response = await paymentInfoService.getPaymentInfo(projectData.id);
+
+      // Use different API based on whether this is edit page or create page
+      let response;
+      if (isEditPage) {
+        console.log("Fetching payment info using getPaymentInformationByProjectId for edit page");
+        response = await paymentInfoService.getPaymentInformationByProjectId(projectData.id);
+      } else {
+        console.log("Fetching payment info using getPaymentInfo for create page");
+        response = await paymentInfoService.getPaymentInfo(projectData.id);
+      }
 
       if (!mountedRef.current) return;
 
@@ -44,7 +54,9 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
           projectId: response.projectId,
           createdAt: response.createdAt,
           updatedAt: response.updatedAt,
-          status: response.status
+          status: response.status,
+          stripe_balance: response.stripe_balance || 0,
+          pendingBalance: response.pendingBalance || 0
         };
       }
       // Check if response has the nested data structure
@@ -56,20 +68,28 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
           projectId: response.data.projectId,
           createdAt: response.data.createdAt,
           updatedAt: response.data.updatedAt,
-          status: response.data.status  // Use status directly from API response
+          status: response.data.status,
+          stripe_balance: response.data.stripe_balance || 0,
+          pendingBalance: response.data.pendingBalance || 0
         };
       }
 
       if (newPaymentInfo) {
         console.log("Processed payment info:", newPaymentInfo);
         setPaymentInfo(newPaymentInfo);
+
+        // Check if payout is available
+        checkPayoutAvailability(newPaymentInfo);
+
         updateFormData(newPaymentInfo);
         // Only update state if the new info is different from what we already have
         const prevInfo = prevPaymentInfoRef.current;
         const hasChanged = !prevInfo ||
           prevInfo.id !== newPaymentInfo.id ||
           prevInfo.stripeAccountId !== newPaymentInfo.stripeAccountId ||
-          prevInfo.status !== newPaymentInfo.status;
+          prevInfo.status !== newPaymentInfo.status ||
+          prevInfo.stripe_balance !== newPaymentInfo.stripe_balance ||
+          prevInfo.pendingBalance !== newPaymentInfo.pendingBalance;
 
         if (hasChanged) {
           setPaymentInfo(newPaymentInfo);
@@ -101,7 +121,18 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
         setLoading(false);
       }
     }
-  }, [projectData?.id]); // Remove updateFormData from dependencies
+  }, [projectData?.id]); 
+
+  // Check if payout is available (when stripe_balance equals pendingBalance and both are 0)
+  const checkPayoutAvailability = (info) => {
+    if (info &&
+      info.stripe_balance > 0 &&
+      info.pendingBalance === 0) {
+      setPayoutAvailable(true);
+    } else {
+      setPayoutAvailable(false);
+    }
+  };
 
   // Fetch existing payment info on component mount
   useEffect(() => {
@@ -257,6 +288,36 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
     }
   };
 
+  const handleViewStripeDashboard = async () => {
+    if (!paymentInfo || !paymentInfo.id) {
+      setError("Payment information is missing. Cannot access Stripe dashboard.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await paymentInfoService.createDashboardLink(paymentInfo.id);
+      console.log("Dashboard link response:", response);
+
+      if (response && response.data && typeof response.data === 'string' && response.data.startsWith('http')) {
+        // Open the Stripe dashboard link in a new tab
+        window.open(response.data, "_blank");
+        setSuccess("Opening Stripe dashboard in a new tab.");
+      } else if (response && response.message) {
+        setSuccess(response.message);
+      } else {
+        setError("Unable to access Stripe dashboard. Please try again.");
+      }
+    } catch (err) {
+      console.error("Stripe dashboard error:", err);
+      setError(err.message || "Failed to access Stripe dashboard. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Format date from array format [year, month, day, hour, minute, second, nanosecond]
   const formatDateFromArray = (dateInput) => {
     // If dateInput is null or undefined, return 'Unknown date'
@@ -287,6 +348,15 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
     }
 
     return 'Unknown date';
+  };
+
+  // Format currency values
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount || 0);
   };
 
   // Determine if the account is linked based on the payment info status
@@ -360,7 +430,9 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
         projectId: paymentInfo.projectId,
         createdAt: paymentInfo.createdAt,
         updatedAt: paymentInfo.updatedAt,
-        status: paymentInfo.status // Use status directly from API response
+        status: paymentInfo.status, // Use status directly from API response
+        stripe_balance: paymentInfo.stripe_balance,
+        pendingBalance: paymentInfo.pendingBalance
       };
 
       // Send directly to parent without wrapping in paymentInfo object
@@ -417,6 +489,41 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
             </div>
           )}
 
+          {/* Payout Availability Notification */}
+          {isEditPage && isAccountLinked() && (
+            <div className={`mb-4 ${payoutAvailable ? 'bg-green-50 border-l-4 border-green-400' : 'bg-yellow-50 border-l-4 border-yellow-400'} p-4`}>
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  {payoutAvailable ? (
+                    <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">
+                    {payoutAvailable ? 'Payout Available' : 'Payout Status'}
+                  </h3>
+                  <div className="mt-2 text-sm text-gray-600">
+                    {payoutAvailable ? (
+                      <p>Your project is eligible for payouts. You can now withdraw funds from your Stripe balance to your bank account.</p>
+                    ) : (
+                      <p>Your project will be available for payouts when funds transfer from pending balance to your Stripe balance and current phase end. Currently:</p>
+                    )}
+                    <ul className="mt-1 list-disc list-inside">
+                      <li>Stripe Balance: {formatCurrency(paymentInfo?.stripe_balance || 0)}</li>
+                      <li>Pending Balance: {formatCurrency(paymentInfo?.pendingBalance || 0)}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Current payment status information */}
           {!loading && paymentInfo && (
             <div className="mb-6 bg-blue-50 p-4 rounded-md">
@@ -447,8 +554,23 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
                 </p>
               )}
 
+              {isEditPage && isAccountLinked() && (
+                <>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="bg-white p-3 rounded border border-gray-200">
+                      <p className="text-xs text-gray-500">Stripe Balance</p>
+                      <p className="text-lg font-medium">{formatCurrency(paymentInfo.stripe_balance || 0)}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded border border-gray-200">
+                      <p className="text-xs text-gray-500">Pending Balance</p>
+                      <p className="text-lg font-medium">{formatCurrency(paymentInfo.pendingBalance || 0)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {paymentInfo.createdAt && (
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-3">
                   Created: {formatDateFromArray(paymentInfo.createdAt)}
                 </p>
               )}
@@ -459,9 +581,11 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
                 </p>
               )}
 
-              {/* Show the button for both PENDING status and non-LINKED accounts */}
-              {!isAccountLinked() && (
-                <div className="mt-3">
+              {/* Action buttons based on status */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {/* Show different buttons based on account status */}
+                {!isAccountLinked() ? (
+                  // For non-linked accounts (not fully set up)
                   <button
                     type="button"
                     onClick={handleUpdateStripe}
@@ -472,8 +596,18 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
                       ? 'Continue Stripe Setup'
                       : 'Connect Stripe Account'}
                   </button>
-                </div>
-              )}
+                ) : (
+                  // For linked accounts
+                  <button
+                    type="button"
+                    onClick={handleViewStripeDashboard}
+                    disabled={loading}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {loading ? 'Processing...' : 'View Stripe Dashboard'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -531,10 +665,12 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
 PaymentInformation.propTypes = {
   projectData: PropTypes.object,
   updateFormData: PropTypes.func.isRequired,
-  readOnly: PropTypes.bool
+  readOnly: PropTypes.bool,
+  isEditPage: PropTypes.bool
 };
 
 PaymentInformation.defaultProps = {
   projectData: {},
-  readOnly: false
+  readOnly: false,
+  isEditPage: false
 };

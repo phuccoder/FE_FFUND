@@ -58,7 +58,7 @@ const headerData = {
   logo2,
   icon,
   navItems,
-  email: "needhelp@krowd.com",
+  email: "ffundsep490@gmail.com",
   phone: "666 888 0000",
   address: "66 Broklyn Street, USA",
   socials,

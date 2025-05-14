@@ -51,6 +51,6 @@ export const contactInfoArea = [
     id: 3,
     icon: "flaticon-contact",
     title: "About Krowd",
-    lists: ["needhelp@krowd.com", "info@krowd.com", "666 888 0000"],
+    lists: ["ffundsep490@gmail.com", "info@krowd.com", "666 888 0000"],
   },
 ];

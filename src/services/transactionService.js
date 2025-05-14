@@ -4,7 +4,7 @@ const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
 
 const TRANSACTION_GET_BY_INVESTOR_ENDPOINT = `${API_BASE_URL}/investment/user`;
 const TRANSACTION_GET_BY_FOUNDER_ENDPOINT = `${API_BASE_URL}/transactions/current`;
-
+const INVESTMENT_GET_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/investment/${id}`;
 const buildUrl = (baseUrl, params) => {
     try {
         if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.startsWith('http')) {
@@ -194,4 +194,48 @@ export const transactionService = {
             throw error;
         }
     },
+
+    getInvestmentById: async (id) => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const url = INVESTMENT_GET_BY_ID_ENDPOINT(id);
+
+            console.log('Fetching investment by ID from URL:', url);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+           const responseText = await response.text();
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                return { success: true, message: "Investment retrieved successfully" };
+            }
+
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result.data || result;
+        } catch (error) {
+            console.error(`Error getting investment:`, error);
+            throw error;
+        }
+    }
 };
