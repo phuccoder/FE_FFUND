@@ -53,11 +53,14 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     validation: {}
   });
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [phaseRules, setPhaseRules] = useState([]);
+  const [showPhaseRules, setShowPhaseRules] = useState(false);
 
   // Load existing project data if we're in edit mode
   useEffect(() => {
     fetchCategories();
     fetchSubcategories();
+    fetchPhaseRules();
 
     if (editMode) {
       fetchFounderProject();
@@ -246,6 +249,31 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     }
   };
 
+  const fetchPhaseRules = async () => {
+    setLoading(prev => ({ ...prev, phaseRules: true }));
+    setError(prev => ({ ...prev, phaseRules: null }));
+
+    try {
+      const data = await projectService.getAllPhaseRules();
+
+      // Sort phase rules by minTotal in ascending order
+      const sortedRules = Array.isArray(data)
+        ? [...data].sort((a, b) => a.minTotal - b.minTotal)
+        : [];
+
+      console.log("Fetched phase rules:", sortedRules);
+      setPhaseRules(sortedRules);
+    } catch (err) {
+      console.error("Error fetching phase rules:", err);
+      setError(prev => ({
+        ...prev,
+        phaseRules: 'Failed to load phase rules. Please try again later.'
+      }));
+    } finally {
+      setLoading(prev => ({ ...prev, phaseRules: false }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -417,6 +445,34 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     } else {
       console.error('Unexpected image result format:', imageResult);
     }
+  };
+
+  const getApplicablePhaseRule = () => {
+    if (!phaseRules || phaseRules.length === 0) return null;
+
+    const targetAmount = parseFloat(form.totalTargetAmount || 0);
+
+    // Find the highest rule that the target amount meets or exceeds
+    let applicableRule = null;
+
+    for (const rule of phaseRules) {
+      if (targetAmount >= rule.minTotal) {
+        if (!applicableRule || rule.minTotal > applicableRule.minTotal) {
+          applicableRule = rule;
+        }
+      }
+    }
+
+    return applicableRule;
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
   };
 
 
@@ -781,6 +837,132 @@ export default function BasicInformation({ formData, updateFormData, editMode })
             <p className="mt-1 text-sm text-gray-500">
               The total amount you aim to raise for your project. Minimum 1000$.
             </p>
+          )}
+        </div>
+
+        {/* New Phase Rules Table */}
+        <div className="mt-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-md font-medium text-gray-700">Funding Phase Requirements</h3>
+            <button
+              type="button"
+              onClick={() => setShowPhaseRules(!showPhaseRules)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+            >
+              {showPhaseRules ? 'Hide Details' : 'Show Details'}
+              <svg
+                className={`ml-1 h-4 w-4 transition-transform ${showPhaseRules ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {error.phaseRules && (
+            <div className="mt-2 text-sm text-red-600">
+              {error.phaseRules}
+            </div>
+          )}
+
+          {loading.phaseRules ? (
+            <div className="mt-4 flex justify-center">
+              <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="ml-2 text-sm text-gray-500">Loading phase requirements...</span>
+            </div>
+          ) : (
+            <>
+              {/* Current applicable rule highlight */}
+              {!editMode && (
+                <div className="mt-2 bg-blue-50 p-3 rounded-md border border-blue-100">
+                  {getApplicablePhaseRule() ? (
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>
+                        For your target amount of {formatCurrency(form.totalTargetAmount)}, you&apos;ll need to create at least
+                        <span className="font-bold text-blue-800 mx-1">
+                          {getApplicablePhaseRule().totalPhaseCount} funding {getApplicablePhaseRule().totalPhaseCount === 1 ? 'phase' : 'phases'}
+                        </span>
+                        in the Fundraising Information section.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Please enter a valid target amount to see phase requirements.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Collapsible rules table */}
+              {showPhaseRules && phaseRules.length > 0 && (
+                <div className="mt-3 border border-gray-200 rounded-md overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Target Amount
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Required Phases
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {phaseRules.map((rule) => {
+                        const isApplicable = parseFloat(form.totalTargetAmount || 0) >= rule.minTotal;
+                        const isCurrentRule = getApplicablePhaseRule()?.id === rule.id;
+
+                        return (
+                          <tr
+                            key={rule.id}
+                            className={`${isCurrentRule ? 'bg-blue-50' : ''} ${isApplicable ? '' : 'text-gray-400'}`}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {isCurrentRule && (
+                                <span className="inline-flex items-center mr-2">
+                                  <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </span>
+                              )}
+                              {formatCurrency(rule.minTotal)}+
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {rule.totalPhaseCount} {rule.totalPhaseCount === 1 ? 'phase' : 'phases'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {isApplicable ? (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Applicable
+                                </span>
+                              ) : (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                  Not Applicable
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
 

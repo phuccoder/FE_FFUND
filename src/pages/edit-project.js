@@ -20,6 +20,8 @@ import updatePostService from 'src/services/updatePostService';
 import Header from '@/components/Header/Header';
 import PageTitle from '@/components/Reuseable/PageTitle';
 import ProjectEvaluationPoint from '@/components/CreateProject/ProjectEvaluationPoint';
+import PaymentInformation from '@/components/CreateProject/PaymentInformation';
+import ExtendTimeRequestForm from '@/components/Request/RequestExtendTime';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -679,36 +681,22 @@ function EditProjectPage() {
   // Set edit restrictions based on project status
   useEffect(() => {
     if (projectStatus) {
+      // Start with all edits disabled by default
       const restrictions = {
-        basicInfo: true,
-        fundraisingInfo: true,
-        rewardInfo: true,
-        projectStory: true,
-        founderProfile: true,
-        requiredDocuments: true,
+        basicInfo: false,
+        fundraisingInfo: false,
+        rewardInfo: false,
+        projectStory: false,
+        founderProfile: false,
+        requiredDocuments: false,
       };
 
-      // Apply restrictions based on project status
-      if (projectStatus === 'FUNDRAISING') {
-        // During fundraising, only allow editing of specific sections
-        restrictions.fundraisingInfo = false;
-        restrictions.rewardInfo = false;
-      } else if (projectStatus === 'APPROVED') {
-        // When approved but not yet in fundraising, disable fundraising info
-        restrictions.fundraisingInfo = false;
-        restrictions.rewardInfo = false;
-      } else if (projectStatus === 'PENDING_APPROVAL' || projectStatus === 'REJECTED') {
-        // While waiting for approval or after rejection, allow editing all sections
-        // No restrictions needed
-      } else if (projectStatus === 'FUNDRAISING_COMPLETED') {
-        // After fundraising ends, allow editing all sections
-        // No restrictions needed
-      } else if (projectStatus === 'SUSPENDED' || projectStatus === 'CANCELLED') {
-        // For suspended or cancelled projects, restrict all editing
-        Object.keys(restrictions).forEach(key => {
-          restrictions[key] = false;
-        });
+      // Only enable reward edits for PENDING_APPROVAL status
+      // Other sections remain disabled
+      if (projectStatus === 'PENDING_APPROVAL') {
+        restrictions.rewardInfo = true; // Only allow editing rewards when PENDING_APPROVAL
       }
+      // All other statuses keep everything disabled
 
       // Update restriction state
       setEditRestrictions(restrictions);
@@ -905,39 +893,42 @@ function EditProjectPage() {
   };
 
   const isMilestoneEditable = (rewardData) => {
-    // If we don't have a phaseId, it's a new milestone that hasn't been saved yet
-    if (!rewardData.phaseId) return true;
+    // Allow editing if the project is in PENDING_APPROVAL status
+    if (projectStatus === 'PENDING_APPROVAL') {
+      // If we have a phaseId and a phase with PLAN status, allow editing
+      const phase = formData.fundraisingInfo?.phases?.find(p => p.id === rewardData.phaseId);
+      return phase && phase.status === 'PLAN';
+    }
 
-    // Find the phase this milestone belongs to
-    const phase = formData.fundraisingInfo?.phases?.find(p => p.id === rewardData.phaseId);
-
-    // Only allow editing if the phase status is PLAN
-    return phase && phase.status === 'PLAN';
+    // For other statuses, allow viewing but not editing
+    return false;
   };
 
 
   const handleUpdateFormData = (section, data) => {
     console.log(`Updating ${section} data:`, data);
 
-    // Check if we're in fundraising stage and detect changes
-    if (projectStatus === 'FUNDRAISING') {
-      // Check if section is allowed to be updated during fundraising
-      if ((section === 'fundraisingInfo' || section === 'rewardInfo') ||
-        (section === 'requiredDocuments' && hasRestrictedDocumentChanges(data))) {
-        alert("You cannot update this information while the project is in the fundraising stage.");
-        return;
-      }
-
-      // For allowed sections, flag that an update post will be required
-      setUpdateRequired(true);
+    // Allow updates for both fundraisingInfo and rewardInfo sections
+    if (section !== 'fundraisingInfo' && section !== 'rewardInfo' && projectStatus !== 'PENDING_APPROVAL') {
+      console.warn(`Editing ${section} not allowed in ${projectStatus} status`);
+      return;
     }
 
-    // Special check for rewardInfo to enforce phase status restrictions
+    // For rewardInfo, only check phase status restrictions once
     if (section === 'rewardInfo' && Array.isArray(data)) {
-      // If any of the rewards being updated belong to a non-PLAN phase, show warning
+      // Silent mode for initial rendering - only show alert when user actually makes changes
+      const isUserInitiatedChange = formData.rewardInfo.length > 0;
+
+      // If any of the rewards being updated belong to a non-PLAN phase, block
       const nonEditableRewards = data.filter(reward => reward.id && !isMilestoneEditable(reward));
 
-      if (nonEditableRewards.length > 0) {
+      if (nonEditableRewards.length > 0 && isUserInitiatedChange) {
+        // Only show alert once, not for every render cycle
+        if (!window.hasShownPlanPhaseAlert) {
+          alert("You can only edit rewards for phases in 'PLAN' status.");
+          window.hasShownPlanPhaseAlert = true;
+          setTimeout(() => { window.hasShownPlanPhaseAlert = false; }, 5000); // Reset after 5 seconds
+        }
 
         // Filter out the non-editable rewards from the data
         const editableRewards = data.filter(reward => !reward.id || isMilestoneEditable(reward));
@@ -952,6 +943,7 @@ function EditProjectPage() {
       }
     }
 
+    // Rest of the function remains the same...
     let updatedData = data;
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
       updatedData = {
@@ -1345,7 +1337,6 @@ function EditProjectPage() {
       'APPROVED',
       'FUNDRAISING_COMPLETED',
       'REJECTED',
-      'RESUBMIT',
       'UNDER_REVIEW',
     ];
 
@@ -1369,6 +1360,20 @@ function EditProjectPage() {
 
     // If it's not in our allowed list, restrict editing
     return !isStatusAllowedForEditing(projectStatus);
+  };
+
+  const throttledUpdateFormData = (section, newData) => {
+    // Avoid state updates when the data hasn't actually changed
+    if (section === 'fundraisingInfo' && formData.fundraisingInfo) {
+      // Deep comparison for objects
+      if (JSON.stringify(formData.fundraisingInfo) === JSON.stringify(newData)) {
+        console.log('Skipping fundraisingInfo update - no changes detected');
+        return;
+      }
+    }
+
+    // Otherwise proceed with the regular update
+    handleUpdateFormData(section, newData);
   };
 
   // Update the conditional render component:
@@ -1467,16 +1472,41 @@ function EditProjectPage() {
     {
       id: 'basic',
       name: 'Basic Information',
-      component: <BasicInformation
-        formData={{
-          ...formData.basicInfo,
-          projectId: formData.projectId,
-        }}
-        updateFormData={(data) => handleUpdateFormData('basicInfo', data)}
-        editMode={true}
-        readOnly={!editRestrictions.basicInfo}
-        projectId={formData.projectId}
-      />
+      component: (
+        <>
+          <div className="mb-6">
+            <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Information Only</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Basic information cannot be modified in the current project status.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${!editRestrictions.basicInfo ? 'opacity-70 pointer-events-none' : ''}`}>
+            <BasicInformation
+              formData={{
+                ...formData.basicInfo,
+                projectId: formData.projectId,
+              }}
+              updateFormData={(data) => handleUpdateFormData('basicInfo', data)}
+              editMode={true}
+              readOnly={!editRestrictions.basicInfo}
+              projectId={formData.projectId}
+              key="basic-info-component"
+            />
+          </div>
+        </>
+      )
     },
     {
       id: 'fundraising',
@@ -1508,106 +1538,241 @@ function EditProjectPage() {
             </div>
           </div>
 
-          <div className={`relative ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED' || projectStatus === 'COMPLETED') ? 'opacity-70' : ''}`}>
-            <style>{`
-              .fundraising-info-container .normal-elements {
-                ${(!editRestrictions.fundraisingInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED' || projectStatus === 'COMPLETED') ? 'pointer-events: none;' : ''}
+          <div className="normal-elements relative">
+            <FundraisingInformation
+              formData={{
+                projectId: formData.projectId,
+                startDate: formData.fundraisingInfo?.startDate || '',
+                phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : [],
+                totalTargetAmount: formData.basicInfo?.totalTargetAmount
+              }}
+              updateFormData={(data) => throttledUpdateFormData('fundraisingInfo', data)}
+              projectId={formData.projectId}
+              isEditPage={true}
+              isLastPhaseCompleted={
+                formData.fundraisingInfo?.phases?.length > 0 &&
+                formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED' &&
+                (projectStatus === 'FUNDRAISING_COMPLETED' || projectStatus === 'APPROVED')
               }
-              
-              .fundraising-info-container .time-extension-form {
-                pointer-events: auto !important;
-                opacity: 1 !important;
-              }
-            `}</style>
-
-            <div className="fundraising-info-container">
-              <FundraisingInformation
-                formData={{
-                  projectId: formData.projectId,
-                  startDate: formData.fundraisingInfo?.startDate || '',
-                  phases: Array.isArray(formData.fundraisingInfo?.phases) ? formData.fundraisingInfo.phases : [],
-                  totalTargetAmount: formData.basicInfo?.totalTargetAmount
-                }}
-                updateFormData={(data) => handleUpdateFormData('fundraisingInfo', data)}
-                projectId={formData.projectId}
-                isEditPage={true}
-                isLastPhaseCompleted={
-                  formData.fundraisingInfo?.phases?.length > 0 &&
-                  formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED' &&
-                  (projectStatus === 'FUNDRAISING_COMPLETED' || projectStatus === 'APPROVED')
-                }
-                showTimeExtensionRequest={
-                  projectStatus === 'FUNDRAISING_COMPLETED' &&
-                  formData.fundraisingInfo?.phases?.length > 0 &&
-                  formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED'
-                }
-              />
-            </div>
+              readOnly={true}
+              key="fundraising-info-component"
+            />
           </div>
+
+          {/* Separately render the time extension form if applicable */}
+          {projectStatus === 'FUNDRAISING_COMPLETED' &&
+            formData.fundraisingInfo?.phases?.length > 0 &&
+            formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED' && (
+              <div className="mt-6 border-t border-gray-200 pt-6 time-extension-form">
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        Your project has successfully completed its fundraising phase. If you need more time to raise funds, you can request an extension below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Request Time Extension</h3>
+                <ExtendTimeRequestForm projectId={formData.projectId} />
+              </div>
+            )}
         </>
       )
     },
     {
       id: 'rewards',
       name: 'Reward Information',
-      component: <RewardInformation
-        formData={formData.rewardInfo}
-        projectData={{
-          ...formData.fundraisingInfo,
-          projectId: formData.projectId
-        }}
-        updateFormData={(data) => handleUpdateFormData('rewardInfo', data)}
-        readOnly={!editRestrictions.rewardInfo || projectStatus === 'FUNDRAISING' || projectStatus === 'APPROVED'}
-        projectId={formData.projectId}
-      />
+      component: (
+        <>
+          {projectStatus === 'PENDING_APPROVAL' ? (
+            <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">Rewards Editing Enabled</h3>
+                  <div className="mt-1 text-sm text-green-700">
+                    <p>You can edit rewards for phases with &apos;PLAN&apos; status.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-6 bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Editing Restricted</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Rewards cannot be edited in the current project status ({projectStatus}).</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <RewardInformation
+            formData={formData.rewardInfo}
+            projectData={{
+              ...formData.fundraisingInfo,
+              projectId: formData.projectId
+            }}
+            updateFormData={(data) => handleUpdateFormData('rewardInfo', data)}
+            readOnly={projectStatus !== 'PENDING_APPROVAL'} // Only allow editing in PENDING_APPROVAL status
+            projectId={formData.projectId}
+            onlyEditablePlanPhases={true}
+            key="reward-info-component"
+          />
+        </>
+      )
     },
     {
       id: 'story',
       name: 'Project Story',
-      component: <ProjectStoryHandler
-        projectId={formData.projectId}
-        initialStoryData={{
-          ...formData.projectStory,
-          // Ensure these fields exist with proper values
-          id: formData.projectStory?.id || formData.projectStory?.projectStoryId,
-          projectStoryId: formData.projectStory?.projectStoryId || formData.projectStory?.id,
-          story: formData.projectStory?.story || '',
-          risks: formData.projectStory?.risks || '',
-          projectId: formData.projectId,
-          status: formData.projectStory?.status || 'DRAFT',
-          version: formData.projectStory?.version || 1,
-          blocks: formData.projectStory?.blocks || []
-        }}
-        updateFormData={(data) => handleUpdateFormData('projectStory', data)}
-        readOnly={!editRestrictions.projectStory}
-        isEditMode={true}
-        preserveAllBlockTypes={true}
-      />
+      component: (
+        <>
+          <div className="mb-6">
+            <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Information Only</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Project story cannot be modified in the current project status.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${!editRestrictions.projectStory ? 'opacity-70 pointer-events-none' : ''}`}>
+            <ProjectStoryHandler
+              projectId={formData.projectId}
+              initialStoryData={{
+                ...formData.projectStory,
+                // Ensure these fields exist with proper values
+                id: formData.projectStory?.id || formData.projectStory?.projectStoryId,
+                projectStoryId: formData.projectStory?.projectStoryId || formData.projectStory?.id,
+                story: formData.projectStory?.story || '',
+                risks: formData.projectStory?.risks || '',
+                projectId: formData.projectId,
+                status: formData.projectStory?.status || 'DRAFT',
+                version: formData.projectStory?.version || 1,
+                blocks: formData.projectStory?.blocks || []
+              }}
+              updateFormData={(data) => handleUpdateFormData('projectStory', data)}
+              readOnly={!editRestrictions.projectStory}
+              isEditMode={true}
+              preserveAllBlockTypes={true}
+            />
+          </div>
+        </>
+      )
     },
     {
       id: 'founder',
       name: 'Founder Profile',
-      component: <FounderProfile
-        formData={formData.founderProfile}
-        updateFormData={(data) => handleUpdateFormData('founderProfile', data)}
-        projectId={formData.projectId}
-        readOnly={!editRestrictions.founderProfile}
-      />
+      component: (
+        <>
+          <div className="mb-6">
+            <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Information Only</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Founder profile cannot be modified in the current project status.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${!editRestrictions.founderProfile ? 'opacity-70 pointer-events-none' : ''}`}>
+            <FounderProfile
+              formData={formData.founderProfile}
+              updateFormData={(data) => handleUpdateFormData('founderProfile', data)}
+              projectId={formData.projectId}
+              readOnly={!editRestrictions.founderProfile}
+            />
+          </div>
+        </>
+      )
     },
     {
       id: 'documents',
       name: 'Required Documents',
-      component: <RequiredDocuments
-        formData={formData.requiredDocuments}
-        updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)}
-        projectId={formData.projectId}
-        readOnly={!editRestrictions.requiredDocuments}
-        restrictedDocuments={projectStatus === 'FUNDRAISING' ? restrictedDocuments : []}
-      />
+      component: (
+        <>
+          <div className="mb-6">
+            <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-gray-800">Information Only</h3>
+                  <div className="mt-1 text-sm text-gray-700">
+                    <p>Required documents cannot be modified in the current project status.</p>
+                    {projectStatus === 'FUNDRAISING' && (
+                      <p className="mt-1">Some critical documents are locked during the fundraising phase.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className={`${!editRestrictions.requiredDocuments ? 'opacity-70 pointer-events-none' : ''}`}>
+            <RequiredDocuments
+              formData={formData.requiredDocuments}
+              updateFormData={(data) => handleUpdateFormData('requiredDocuments', data)}
+              projectId={formData.projectId}
+              readOnly={!editRestrictions.requiredDocuments}
+              restrictedDocuments={projectStatus === 'FUNDRAISING' ? restrictedDocuments : []}
+            />
+          </div>
+        </>
+      )
     },
+    {
+      id: 'payment',
+      name: 'Payment Information',
+      component: <PaymentInformation
+        projectData={{
+          id: formData.projectId
+        }}
+        updateFormData={(data) => handleUpdateFormData('paymentInfo', data)}
+        readOnly={true}
+        isEditPage={true}
+        key="payment-info-component"
+      />
+    }
   ];
 
-  // Add UpdateBlog section for edit mode
   const updateBlogSection = {
     id: 'update-blog',
     name: 'Post Updates',
@@ -1680,43 +1845,19 @@ function EditProjectPage() {
             </div>
 
             {/* Editing Restrictions Notice */}
-            {projectStatus === 'FUNDRAISING' && !isUpdateBlogSection && (
-              <div className="mb-6 bg-amber-50 border-l-4 border-amber-400 p-4">
+            {projectStatus === 'PENDING_APPROVAL' && (
+              <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <h3 className="text-sm font-medium text-amber-800">Fundraising Editing Restrictions</h3>
-                    <div className="mt-2 text-sm text-amber-700">
-                      <p>Your project is currently in fundraising. During this stage:</p>
-                      <ul className="list-disc pl-5 mt-1">
-                        <li>You can edit basic information, project story and team information</li>
-                        <li>You cannot edit fundraising information or rewards</li>
-                        <li>You cannot edit core financial documents (SWOT, Business Model, Financial Info)</li>
-                        <li>When saving changes, you&apos;ll be asked to post an update to inform your backers</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {projectStatus === 'REJECTED' && !isUpdateBlogSection && (
-              <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Project Rejected</h3>
-                    <div className="mt-2 text-sm text-red-700">
-                      <p>Your project has been rejected by our review team. Please make the necessary changes and resubmit for approval.</p>
-                      <p className="mt-1">Saving your changes will automatically resubmit the project for review.</p>
+                    <h3 className="text-sm font-medium text-blue-800">Limited Editing Mode</h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>While your project is in review, you can only edit rewards for phases with &apos;PLAN&apos; status.</p>
+                      <p>All other sections are view-only until the review is complete.</p>
                     </div>
                   </div>
                 </div>

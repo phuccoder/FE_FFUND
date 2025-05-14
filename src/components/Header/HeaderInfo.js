@@ -17,13 +17,14 @@ const MENU_ITEMS = {
     { label: 'Transaction', icon: FaMoneyBill, href: '/founder-transaction' },
     { label: 'Investment Reward', icon: Container, href: '/investment-reward' },
     { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
+    { label: "Investment", icon: FileText, href: "/founder-investments" },
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
     { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Reward', icon: Mail, href: '/reward' },
-    { label: 'Transaction', icon: FaMoneyBill, href: '/transaction' }
+    { label: 'Investment', icon: FaMoneyBill, href: '/investment' }
   ]
 };
 

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
 import ExtendTimeRequestForm from '../Request/RequestExtendTime';
 import PhaseUploadDocument from './PhaseUploadDocument';
+import InvestmentTable from '../FounderInvestment/InvestmentTable';
 
-export default function FundraisingInformation({ formData, updateFormData, projectId, isEditPage = false }) {
+export default function FundraisingInformation({ formData, updateFormData, projectId, isEditPage = false, readOnly = false }) {
   // Initialize with safe default values
   const [form, setForm] = useState({
     startDate: formData?.startDate || new Date().toISOString().split('T')[0],
@@ -32,7 +33,10 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [phaseRuleError, setPhaseRuleError] = useState(null);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState(null);
-
+  const [expandedPhase, setExpandedPhase] = useState(null);
+  const [phaseInvestments, setPhaseInvestments] = useState({});
+  const [loadingInvestments, setLoadingInvestments] = useState(false);
+  const initialLoadDone = useRef(false);
   // Add debugging logs
   useEffect(() => {
     console.log("Current form state:", form);
@@ -41,11 +45,12 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
   // Fetch project data if projectId is provided (edit mode)
   useEffect(() => {
-    if (projectId) {
+    if (projectId && !initialLoadDone.current) {
       console.log("FundraisingInformation: Attempting to fetch project data with ID:", projectId);
       fetchProjectPhases();
+      initialLoadDone.current = true; // Mark initial load as done
     } else {
-      console.log("FundraisingInformation: No projectId provided, skipping data fetch");
+      console.log("FundraisingInformation: No projectId provided or initial load already done, skipping data fetch");
     }
   }, [projectId]);
 
@@ -368,6 +373,76 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     } catch (err) {
       console.error("Error fetching project data:", err);
       return null;
+    }
+  };
+
+
+  const fetchPhaseInvestments = async (phaseId) => {
+    if (!phaseId) return;
+
+    try {
+      setLoadingInvestments(true);
+
+      console.log("Fetching investments for phase ID:", phaseId);
+      const investmentsData = await projectService.getInvestmentByPhaseId(phaseId);
+
+      console.log("Raw investments API response:", investmentsData);
+      let processedInvestments = [];
+      let paginationInfo = null;
+
+      if (investmentsData && investmentsData.data && investmentsData.data.data) {
+        processedInvestments = investmentsData.data.data;
+        if ('currentPage' in investmentsData.data && 'totalPages' in investmentsData.data) {
+          paginationInfo = {
+            currentPage: investmentsData.data.currentPage,
+            totalPages: investmentsData.data.totalPages,
+            pageSize: investmentsData.data.pageSize,
+            totalElements: investmentsData.data.totalElements
+          };
+        }
+        console.log(`Processed ${processedInvestments.length} investments from nested data structure`);
+      }
+      else if (investmentsData && investmentsData.data && Array.isArray(investmentsData.data)) {
+        processedInvestments = investmentsData.data;
+        console.log(`Processed ${processedInvestments.length} investments from data array`);
+      }
+      else if (investmentsData && Array.isArray(investmentsData)) {
+        processedInvestments = investmentsData;
+        console.log(`Processed ${processedInvestments.length} investments from direct array`);
+      }
+
+      setPhaseInvestments(prev => ({
+        ...prev,
+        [phaseId]: processedInvestments
+      }));
+
+      console.log(`Loaded ${processedInvestments.length} investments for phase ${phaseId}`);
+      console.log("Investment data after processing:", processedInvestments);
+
+      // Log pagination info if available
+      if (paginationInfo) {
+        console.log("Pagination info:", paginationInfo);
+      }
+    } catch (err) {
+      console.error(`Error fetching investments for phase ${phaseId}:`, err);
+      setPhaseInvestments(prev => ({
+        ...prev,
+        [phaseId]: []
+      }));
+    } finally {
+      setLoadingInvestments(false);
+    }
+  };
+
+  const togglePhaseInvestments = (phaseId) => {
+    if (expandedPhase === phaseId) {
+      setExpandedPhase(null);
+    } else {
+      setExpandedPhase(phaseId);
+      // Fetch investments if we haven't already
+      if (!phaseInvestments[phaseId]) {
+        fetchPhaseInvestments(phaseId);
+      }
     }
   };
 
@@ -888,7 +963,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                 ) : phaseRule ? (
                   <div className="mt-2 p-2 bg-white rounded-md border border-blue-200">
                     <p className="font-semibold text-blue-800">Phase Requirements:</p>
-                    <p>For projects with a total target amount of ${phaseRule.minTotal.toLocaleString()} or more, you need to create at least <span className="font-bold">{phaseRule.totalPhaseCount} phases</span>.</p>
+                    <p>For projects with a total target amount of ${phaseRule.minTotal.toLocaleString()} or more, you need to create <span className="font-bold">{phaseRule.totalPhaseCount} phases</span>.</p>
 
                     {(form.phases?.length || 0) < phaseRule.totalPhaseCount && (
                       <p className="mt-1 text-yellow-700 font-medium">
@@ -970,7 +1045,15 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                       </span>
                     )}
                   </div>
-                  <div>
+                  <div className="flex items-center">
+                    {isEditPage && (
+                      <a
+                        href={`/founder-investments?projectId=${projectId}`}
+                        className="text-blue-600 hover:text-blue-900 text-sm mr-4"
+                      >
+                        View All Investments
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={() => editPhase(phase)}
@@ -1038,20 +1121,57 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     )}
                   </div>
                 )}
-                <div className="mt-4 flex justify-between items-center">
-                  {isEditPage && phase.status === 'COMPLETED' && (
-                    <button
-                      type="button"
-                      onClick={() => openDocumentModal(phase)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      Upload Documents
-                    </button>
-                  )}
-                </div>
+
+                {/* Investments section - new code */}
+                {isEditPage && (
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center">
+                      {isEditPage && phase.status === 'COMPLETED' && (
+                        <button
+                          type="button"
+                          onClick={() => openDocumentModal(phase)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Upload Documents
+                        </button>
+                      )}
+
+                      {/* Investment toggle button */}
+                      <button
+                        type="button"
+                        onClick={() => togglePhaseInvestments(phase.id)}
+                        className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className={`h-4 w-4 mr-1 transition-transform ${expandedPhase === phase.id ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                        {expandedPhase === phase.id ? 'Hide Investments' : 'View Investments'}
+                      </button>
+                    </div>
+
+                    {/* Investments accordion content */}
+                    {expandedPhase === phase.id && (
+                      <div className="mt-4 border-t border-gray-200 pt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-2">Phase Investments</h4>
+                        <InvestmentTable
+                          phaseId={phase.id}
+                          investments={phaseInvestments[phase.id] || []}
+                          loading={loadingInvestments}
+                          formatCurrency={formatCurrency}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1062,7 +1182,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
             <button
               type="button"
               onClick={() => setShowPhaseForm(true)}
-              disabled={loading}
+              disabled={loading || readOnly}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
             >
               <svg className="mr-2 -ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -1208,7 +1328,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
         )}
         {/* Show ExtendTimeRequestForm only if the last phase is COMPLETED */}
-        {isEditPage && isLastPhaseCompleted && (
+        {/* {isEditPage && isLastPhaseCompleted && (
           <div className="mt-6 border-t border-gray-200 pt-6">
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
               <div className="flex">
@@ -1227,7 +1347,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
             <h3 className="text-lg font-medium text-gray-900 mb-4">Request Time Extension</h3>
             <ExtendTimeRequestForm projectId={projectId} />
           </div>
-        )}
+        )} */}
         {/* Document Upload Modal */}
         {showDocumentModal && selectedPhase && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -1256,7 +1376,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -1266,6 +1386,7 @@ FundraisingInformation.propTypes = {
   updateFormData: PropTypes.func.isRequired,
   projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   isEditPage: PropTypes.bool,
+  readOnly: PropTypes.bool,
 };
 
 // Default props
@@ -1276,4 +1397,5 @@ FundraisingInformation.defaultProps = {
   },
   projectId: null,
   isEditPage: false,
+  readOnly: false
 };
