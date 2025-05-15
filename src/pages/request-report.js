@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { requestService } from "../services/requestService";
 import { reportService } from "../services/reportService";
 import { message, Modal, Tabs } from "antd";
 import {
@@ -12,6 +11,7 @@ import { format } from 'date-fns';
 import Header from '@/components/Header/Header';
 import Layout from '@/components/Layout/Layout';
 import PageTitle from "@/components/Reuseable/PageTitle";
+import { requestService } from "src/services/RequestService";
 
 const { TabPane } = Tabs;
 

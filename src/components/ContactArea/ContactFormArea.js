@@ -3,7 +3,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { contactFormArea } from "@/data/contactArea";
 import { tokenManager } from "@/utils/tokenManager";
-import { requestService } from "src/services/requestService";
+import { requestService } from "src/services/RequestService";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { Paperclip, Send, AlertCircle } from "lucide-react";
 
