@@ -387,6 +387,31 @@ const projectService = {
             return { message: "Phase updated successfully", success: true };
         } catch (error) {
             console.error('Error updating project phase:', error);
+
+            // Handle complex error objects
+            if (error.response && error.response.data) {
+                // If it's an Axios error with response data
+                throw error.response.data;
+            } else if (typeof error === 'object' && error !== null) {
+                // If it's a complex object but not Axios format
+                if (error.message && typeof error.message === 'object') {
+                    // Format the nested error object into a readable string
+                    let errorMessage = '';
+                    Object.entries(error.message).forEach(([key, value]) => {
+                        errorMessage += `${key}: ${value}\n`;
+                    });
+                    throw new Error(errorMessage);
+                } else if (error.error && typeof error.error === 'object') {
+                    // Handle error.error object format
+                    let errorMessage = '';
+                    Object.entries(error.error).forEach(([key, value]) => {
+                        errorMessage += `${key}: ${value}\n`;
+                    });
+                    throw new Error(errorMessage);
+                }
+            }
+
+            // Default fallback
             throw error;
         }
     },

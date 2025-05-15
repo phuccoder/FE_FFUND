@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { requestService } from "../../services/requestService";
+import { requestService } from "src/services/RequestService";
 import { globalSettingService } from "../../services/globalSettingService";
 
 export default function ExtendTimeRequestForm() {

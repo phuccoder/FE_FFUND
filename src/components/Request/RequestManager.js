@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { requestService } from "../../services/requestService";
+import { requestService } from "src/services/RequestService";
 import { reportService } from "src/services/reportService";
 import { message, Modal, Tabs } from "antd";
 import {

@@ -1524,7 +1524,7 @@ function EditProjectPage() {
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-gray-800">Editing Restricted</h3>
                   <div className="mt-1 text-sm text-gray-700">
-                    <p>Fundraising information cannot be modified for {projectStatus === 'FUNDRAISING_COMPLETED' ? 'a project in fundraising stage' : 'an approved project'}.</p>
+                    <p>Only total amount in Fundraising information can be modified for {projectStatus} project.</p>
                     {(projectStatus === 'FUNDRAISING_COMPLETED' &&
                       formData.fundraisingInfo?.phases?.length > 0 &&
                       formData.fundraisingInfo.phases[formData.fundraisingInfo.phases.length - 1]?.status === 'COMPLETED') && (

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { milestoneService } from 'src/services/milestoneService';
 import { milestoneItemService } from 'src/services/milestoneItemService';
 import { useAuth } from 'src/context/AuthContext';
+import { globalSettingService } from 'src/services/globalSettingService';
 
 /**
  * Reward information form for project creation with enhanced item management
