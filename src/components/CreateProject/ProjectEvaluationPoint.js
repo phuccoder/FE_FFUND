@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { evaluationService } from 'src/services/evaluationService';
+import { globalSettingService } from 'src/services/globalSettingService';
 
 const ProjectEvaluationPoint = ({ projectId }) => {
   const [allEvaluations, setAllEvaluations] = useState([]);
@@ -14,6 +15,55 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   const [versionGroups, setVersionGroups] = useState({});
   const [latestVersion, setLatestVersion] = useState(0);
   const [previousVersion, setPreviousVersion] = useState(0);
+  
+  // Global settings thresholds
+  const [thresholds, setThresholds] = useState({
+    excellent: 0.90, 
+    pass: 0.70,      
+    resubmit: 0.30   
+  });
+  const [loadingThresholds, setLoadingThresholds] = useState(true);
+
+  // Fetch global settings for evaluation thresholds
+  useEffect(() => {
+    const fetchThresholds = async () => {
+      setLoadingThresholds(true);
+      try {
+        const response = await globalSettingService.getGlobalSettingByType('');
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          const settings = response.data;
+
+          const passExcellentSetting = settings.find(s => s.type === 'PASS_EXCELLENT_PERCENTAGE');
+          const passSetting = settings.find(s => s.type === 'PASS_PERCENTAGE');
+          const resubmitSetting = settings.find(s => s.type === 'RESUBMIT_PERCENTAGE');
+          
+          const newThresholds = { ...thresholds };
+          
+          if (passExcellentSetting) {
+            newThresholds.excellent = parseFloat(passExcellentSetting.value);
+          }
+          
+          if (passSetting) {
+            newThresholds.pass = parseFloat(passSetting.value);
+          }
+          
+          if (resubmitSetting) {
+            newThresholds.resubmit = parseFloat(resubmitSetting.value);
+          }
+          
+          setThresholds(newThresholds);
+          console.log('Evaluation thresholds loaded:', newThresholds);
+        }
+      } catch (err) {
+        console.error('Error fetching evaluation thresholds:', err);
+      } finally {
+        setLoadingThresholds(false);
+      }
+    };
+    
+    fetchThresholds();
+  }, []);
 
   useEffect(() => {
     const fetchEvaluations = async () => {
@@ -77,24 +127,31 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   };
 
   const getScoreColor = (percentage) => {
-    if (percentage >= 80) return 'bg-green-500';
-    if (percentage >= 60) return 'bg-blue-500';
-    if (percentage >= 40) return 'bg-yellow-500';
+    const percentageValue = percentage / 100; 
+    
+    if (percentageValue >= thresholds.excellent) return 'bg-green-500';
+    if (percentageValue >= thresholds.pass) return 'bg-blue-500';
+    if (percentageValue >= thresholds.resubmit) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
   const getTextColor = (percentage) => {
-    if (percentage >= 80) return 'text-green-700';
-    if (percentage >= 60) return 'text-blue-700';
-    if (percentage >= 40) return 'text-yellow-700';
+    const percentageValue = percentage / 100; 
+    
+    if (percentageValue >= thresholds.excellent) return 'text-green-700';
+    if (percentageValue >= thresholds.pass) return 'text-blue-700';
+    if (percentageValue >= thresholds.resubmit) return 'text-yellow-700';
     return 'text-red-700';
   };
 
+  // Updated to use dynamically loaded thresholds
   const getScoreDescription = (percentage) => {
-    if (percentage >= 90) return 'Excellent';
-    if (percentage >= 75) return 'Great';
-    if (percentage >= 60) return 'Good';
-    if (percentage >= 40) return 'Needs Improvement';
+    const percentageValue = percentage / 100; 
+    
+    if (percentageValue >= thresholds.excellent) return 'Excellent';
+    if (percentageValue >= thresholds.pass) return 'Great';
+    if (percentageValue >= thresholds.resubmit * 2) return 'Good';
+    if (percentageValue >= thresholds.resubmit) return 'Needs Improvement';
     return 'Requires Attention';
   };
 
@@ -122,14 +179,16 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   };
 
   const getScoreIcon = (percentage) => {
-    if (percentage >= 80) {
+    const percentageValue = percentage / 100; 
+    
+    if (percentageValue >= thresholds.excellent) {
       return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
         </svg>
       );
     }
-    if (percentage >= 60) {
+    if (percentageValue >= thresholds.pass) {
       return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -137,7 +196,7 @@ const ProjectEvaluationPoint = ({ projectId }) => {
         </svg>
       );
     }
-    if (percentage >= 40) {
+    if (percentageValue >= thresholds.resubmit) {
       return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -204,7 +263,7 @@ const ProjectEvaluationPoint = ({ projectId }) => {
     return latestTotal.percentage - previousTotal.percentage;
   };
 
-  if (isLoading) {
+  if (isLoading || loadingThresholds) {
     return (
       <div className="bg-white shadow-md rounded-lg p-6 mb-6 animate-pulse">
         <div className="h-6 bg-gray-200 rounded w-1/3 mb-6"></div>

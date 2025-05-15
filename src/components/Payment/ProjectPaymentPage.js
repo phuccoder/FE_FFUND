@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Tab } from "@headlessui/react";
 import projectService from "src/services/projectService";
 import paymentService from "src/services/paymentService";
+import { globalSettingService } from "src/services/globalSettingService";
 import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaMoneyBillWave, FaSpinner, FaChevronUp, FaChevronDown, FaQuestionCircle, FaArrowRight } from "react-icons/fa";
 import { useRouter } from "next/router";
 import { useAuth } from "@/context/AuthContext";
@@ -33,7 +34,7 @@ const Accordion = ({ title, children }) => {
   );
 };
 
-const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
+const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestoneId = null }) => {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [phases, setPhases] = useState([]);
@@ -42,23 +43,68 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   const [error, setError] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-
+  const [platformChargePercentage, setPlatformChargePercentage] = useState(0.02); // Default value
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [isInvestor, setIsInvestor] = useState(false);
   // Convert selectedPhaseId to number to ensure proper comparison
   const numericPhaseId = selectedPhaseId ? parseInt(selectedPhaseId) : null;
-
+  const numericMilestoneId = selectedMilestoneId ? parseInt(selectedMilestoneId) : null;
   // Step tracking - start at step 1 or 2 depending on if phaseId is provided
-  const [currentStep, setCurrentStep] = useState(numericPhaseId ? 2 : 1);
+  const [currentStep, setCurrentStep] = useState(1);
 
   // Payment selection state
   const [selectedPhase, setSelectedPhase] = useState(null);
   const [selectedMilestone, setSelectedMilestone] = useState(null);
   const [customAmount, setCustomAmount] = useState("");
-  const [paymentType, setPaymentType] = useState("milestone"); // "milestone" or "custom"
+  const [paymentType, setPaymentType] = useState("milestone");
 
   const [showAuthWarning, setShowAuthWarning] = useState(false);
+  const [showRoleWarning, setShowRoleWarning] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
-    setCurrentStep(1);
+    if (typeof window !== 'undefined') {
+      try {
+        const roleValue = localStorage.getItem('role');
+        if (roleValue) {
+          setIsInvestor(roleValue === 'INVESTOR');
+        }
+      } catch (error) {
+        console.error('Error parsing user data from localStorage:', error);
+        setIsInvestor(false);
+      }
+    }
+  }, []);
+
+  // Fetch platform charge percentage from global settings
+  useEffect(() => {
+    const fetchPlatformChargePercentage = async () => {
+      setLoadingSettings(true);
+      try {
+        const response = await globalSettingService.getGlobalSettingByType('PLATFORM_CHARGE_PERCENTAGE');
+
+        if (response && response.data) {
+          // Handle both array and object response formats
+          const setting = Array.isArray(response.data) ? response.data[0] : response.data;
+          const percentageValue = parseFloat(setting.value);
+
+          if (!isNaN(percentageValue)) {
+            console.log(`Setting platform charge percentage to ${percentageValue}`);
+            setPlatformChargePercentage(percentageValue);
+          } else {
+            console.warn('Invalid PLATFORM_CHARGE_PERCENTAGE value received');
+          }
+        } else {
+          console.warn('No PLATFORM_CHARGE_PERCENTAGE setting found, using default');
+        }
+      } catch (error) {
+        console.error('Error fetching PLATFORM_CHARGE_PERCENTAGE setting:', error);
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    fetchPlatformChargePercentage();
   }, []);
 
   useEffect(() => {
@@ -72,7 +118,6 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
         // For each phase, fetch milestones using the guest endpoint
         const milestonesPromises = fetchedPhases.map(async (phase) => {
           try {
-            // Use getMilestoneByPhaseIdForGuest instead of getMilestoneByPhaseId
             const fetchedMilestones = await projectService.getMilestoneByPhaseIdForGuest(phase.id);
             return { phaseId: phase.id, milestones: fetchedMilestones };
           } catch (err) {
@@ -110,20 +155,94 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     }
   }, [project, numericPhaseId]);
 
-  // Fix the terms agreement handler
-  const handleTermsAgreement = () => {
-    setAgreedToTerms(!agreedToTerms);
+  useEffect(() => {
+    const processPreselectedMilestone = async () => {
+      if (numericPhaseId && numericMilestoneId && selectedPhase) {
+        try {
+          console.log("Processing preselected milestone:", numericMilestoneId);
+
+          if (milestones[selectedPhase.id]) {
+            const milestone = milestones[selectedPhase.id].find(
+              (m) => m.id === numericMilestoneId
+            );
+
+            if (milestone) {
+              console.log("Found matching milestone:", milestone.title);
+              setSelectedMilestone(milestone);
+              setPaymentType("milestone");
+
+              // Only proceed to step 4 if terms have been accepted
+              if (termsAccepted) {
+                console.log("Terms accepted, checking authentication...");
+                if (isAuthenticated && isInvestor) {
+                  console.log("User is authenticated investor, moving to step 4");
+                  setCurrentStep(4);
+                } else {
+                  console.log("Auth check failed, moving to step 3 with warnings");
+                  setCurrentStep(3);
+                  if (!isAuthenticated) {
+                    setShowAuthWarning(true);
+                  } else if (!isInvestor) {
+                    setShowRoleWarning(true);
+                  }
+                }
+              } else {
+                console.log("Terms not yet accepted, staying at step 1");
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error selecting milestone:", err);
+        }
+      }
+    };
+
+    if (selectedPhase && Object.keys(milestones).length > 0) {
+      processPreselectedMilestone();
+    }
+  }, [selectedPhase, milestones, numericMilestoneId, numericPhaseId, isAuthenticated, isInvestor, termsAccepted]);
+
+  // Calculate platform fee based on the amount
+  const calculatePlatformFee = (amount) => {
+    const numericAmount = parseFloat(amount) || 0;
+    return numericAmount * platformChargePercentage;
   };
 
-  // Fix the proceed after terms function
+  // Calculate total including platform fee
+  const calculateTotal = (amount) => {
+    const numericAmount = parseFloat(amount) || 0;
+    const fee = calculatePlatformFee(numericAmount);
+    return numericAmount + fee;
+  };
+
+  const handleTermsAgreement = () => {
+    const newValue = !agreedToTerms;
+    setAgreedToTerms(newValue);
+    if (newValue) {
+      setTermsAccepted(true);
+    }
+  };
+
   const handleProceedAfterTerms = () => {
     if (!agreedToTerms) return;
 
-    // If a phase ID was provided AND phase is already selected, go directly to step 3 (milestone selection)
-    if (numericPhaseId && selectedPhase) {
+    // If both milestone and phase are preselected, go directly to step 4
+    if (numericMilestoneId && numericPhaseId && selectedPhase && selectedMilestone) {
+      if (isAuthenticated && isInvestor) {
+        setCurrentStep(4);
+      } else {
+        setCurrentStep(3);
+        if (!isAuthenticated) {
+          setShowAuthWarning(true);
+        } else if (!isInvestor) {
+          setShowRoleWarning(true);
+        }
+      }
+    }
+    else if (numericPhaseId && selectedPhase) {
       setCurrentStep(3);
-    } else {
-      // Otherwise, go to step 2 (phase selection)
+    }
+    else {
       setCurrentStep(2);
     }
   };
@@ -143,9 +262,18 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   const handleMoveToStep4 = () => {
     if (!isAuthenticated) {
       setShowAuthWarning(true);
+      setShowRoleWarning(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
+    if (!isInvestor) {
+      setShowRoleWarning(true);
+      setShowAuthWarning(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setCurrentStep(4);
   };
 
@@ -243,7 +371,14 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
     if (!isAuthenticated) {
       setShowAuthWarning(true);
-      // Scroll to auth warning
+      setShowRoleWarning(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!isInvestor) {
+      setShowRoleWarning(true);
+      setShowAuthWarning(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -265,7 +400,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-96 bg-gray-50 rounded-xl shadow-sm">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500 mb-4"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-yellow-500 mb-4"></div>
         <p className="text-gray-600 font-medium">Loading payment options...</p>
       </div>
     );
@@ -291,16 +426,23 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
     if (!dateValue) return "N/A";
 
     try {
+      // Handle array format (legacy format)
       if (Array.isArray(dateValue)) {
-        return `${String(dateValue[2]).padStart(2, '0')}/${String(dateValue[1]).padStart(2, '0')}/${dateValue[0]}`;
-      }
-      if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const date = new Date(dateValue);
-        if (!isNaN(date.getTime())) {
-          return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
-        }
+        return `${String(dateValue[1]).padStart(2, '0')}/${String(dateValue[2]).padStart(2, '0')}/${dateValue[0]}`;
       }
 
+      // Handle ISO string format (YYYY-MM-DD)
+      if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const [year, month, day] = dateValue.split('-').map(part => parseInt(part, 10));
+        return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
+      }
+
+      // Handle Date object
+      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+        return `${String(dateValue.getMonth() + 1).padStart(2, '0')}/${String(dateValue.getDate()).padStart(2, '0')}/${dateValue.getFullYear()}`;
+      }
+
+      // Return original value if we can't parse it
       return dateValue;
     } catch (err) {
       console.error("Error formatting date:", err);
@@ -324,7 +466,9 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               1
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 1 ? 'text-orange-600' : 'text-gray-500'}`}>Read Terms</span>
+            <span className={`text-sm font-medium ${currentStep >= 1 ? 'text-yellow-600' : 'text-gray-500'}`}>
+              {numericMilestoneId && numericPhaseId ? 'Confirm Terms' : 'Read Terms'}
+            </span>
           </div>
           <div className={`h-1 w-20 ${currentStep >= 2 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
 
@@ -333,7 +477,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               2
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 2 ? 'text-orange-600' : 'text-gray-500'}`}>Choose Phase</span>
+            <span className={`text-sm font-medium ${currentStep >= 2 ? 'text-yellow-600' : 'text-gray-500'}`}>Choose Phase</span>
           </div>
           <div className={`h-1 w-20 ${currentStep >= 3 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
 
@@ -342,7 +486,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               3
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 3 ? 'text-orange-600' : 'text-gray-500'}`}>Select Milestone</span>
+            <span className={`text-sm font-medium ${currentStep >= 3 ? 'text-yellow-600' : 'text-gray-500'}`}>Select Milestone</span>
           </div>
           <div className={`h-1 w-20 ${currentStep >= 4 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600' : 'bg-gray-200'} mx-2 mt-6`}></div>
 
@@ -351,7 +495,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${currentStep >= 4 ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 text-white shadow-md' : 'bg-gray-200 text-gray-600'} font-bold text-lg mb-2`}>
               4
             </div>
-            <span className={`text-sm font-medium ${currentStep >= 4 ? 'text-orange-600' : 'text-gray-500'}`}>Confirm Payment</span>
+            <span className={`text-sm font-medium ${currentStep >= 4 ? 'text-yellow-600' : 'text-gray-500'}`}>Confirm Payment</span>
           </div>
         </div>
       </div>
@@ -359,7 +503,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
       {currentStep === 1 && (
         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-4xl mx-auto">
           <div className="flex items-center mb-6">
-            <FaInfoCircle className="text-orange-500 text-2xl mr-3" />
+            <FaInfoCircle className="text-yellow-500 text-2xl mr-3" />
             <h2 className="text-2xl font-bold text-gray-800">Terms of Use and Privacy Policy</h2>
           </div>
 
@@ -399,7 +543,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
               id="termsAgreement"
               checked={agreedToTerms}
               onChange={handleTermsAgreement}
-              className="w-5 h-5 mr-3 accent-orange-500"
+              className="w-5 h-5 mr-3 accent-yellow-500"
             />
             <label htmlFor="termsAgreement" className="text-gray-700">
               I have read and agree to the Terms of Use and Privacy Policy
@@ -410,7 +554,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             onClick={handleProceedAfterTerms}
             className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center
   ${agreedToTerms
-                ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow-lg'
+                ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 hover:shadow-lg'
                 : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
             disabled={!agreedToTerms}
           >
@@ -423,7 +567,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
       {currentStep === 2 && (
         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-4xl mx-auto">
           <div className="flex items-center mb-6">
-            <FaInfoCircle className="text-orange-500 text-2xl mr-3" />
+            <FaInfoCircle className="text-yellow-500 text-2xl mr-3" />
             <h2 className="text-2xl font-bold text-gray-800">Select a Funding Phase</h2>
           </div>
 
@@ -434,8 +578,8 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                 <div
                   key={phase.id}
                   className={`border p-5 rounded-lg cursor-pointer transition-all ${selectedPhase?.id === phase.id
-                    ? 'border-orange-500 bg-orange-50 shadow-md transform scale-102'
-                    : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:shadow'
+                    ? 'border-yellow-500 bg-yellow-50 shadow-md transform scale-102'
+                    : 'border-gray-200 hover:border-yellow-300 hover:bg-yellow-50 hover:shadow'
                     }`}
                   onClick={() => handlePhaseSelect(phase)}
                 >
@@ -453,7 +597,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                   </div>
                   <div className="mt-4 text-right">
                     <button
-                      className="px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 text-white rounded-lg font-medium flex items-center ml-auto transition-all duration-300 hover:shadow"
+                      className="px-4 py-2 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 text-white rounded-lg font-medium flex items-center ml-auto transition-all duration-300 hover:shadow"
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePhaseSelect(phase);
@@ -468,7 +612,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
           {phases.filter(phase => phase.status === 'PROCESS').length === 0 && (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <FaExclamationTriangle className="mx-auto text-orange-400 text-3xl mb-4" />
+              <FaExclamationTriangle className="mx-auto text-yellow-400 text-3xl mb-4" />
               <h3 className="text-xl font-semibold text-gray-800 mb-2">No Active Funding Phases</h3>
               <p className="text-gray-600">This project doesn&apos;t have any phases open for funding at the moment.</p>
             </div>
@@ -506,12 +650,42 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
         </div>
       )}
 
+      {currentStep === 3 && showRoleWarning && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <FaExclamationTriangle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-600">Investor Role Required</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>Your account doesn&apos;t have permission to make investments. Only users with the Investor role can complete payments.</p>
+                <div className="mt-3">
+                  <button
+                    onClick={() => router.push(`/login-register`)}
+                    className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 mr-2"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setShowRoleWarning(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Step 3: Milestone Selection with Enhanced Item Details */}
       {currentStep === 3 && selectedPhase && (
         <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 mb-8 max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
-              <FaMoneyBillWave className="text-orange-500 text-2xl mr-3" />
+              <FaMoneyBillWave className="text-yellow-500 text-2xl mr-3" />
               <h2 className="text-2xl font-bold text-gray-800">Select Funding Option</h2>
             </div>
             <button
@@ -523,7 +697,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                 // Remove phaseId from URL
                 router.push(`/payment?projectId=${project.id}`, undefined, { shallow: true });
               }}
-              className="text-sm text-gray-600 hover:text-orange-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
+              className="text-sm text-gray-600 hover:text-yellow-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
             >
               Change Phase
             </button>
@@ -531,7 +705,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
           <div className="mb-4 pb-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-700 mb-1">Phase {selectedPhase.phaseNumber}</h3>
-            <p className="text-sm text-gray-500">Target: ${selectedPhase.targetAmount.toLocaleString()} • Timeline: {`${selectedPhase.startDate[1]}/${selectedPhase.startDate[0]}`} - {`${selectedPhase.endDate[1]}/${selectedPhase.endDate[0]}`}</p>
+            <p className="text-sm text-gray-500">
+              Target: ${selectedPhase.targetAmount.toLocaleString()} •
+              Timeline: {formatDate(selectedPhase.startDate)} - {formatDate(selectedPhase.endDate)}
+            </p>
           </div>
 
           <div className="space-y-6">
@@ -544,8 +721,8 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                       key={milestone.id}
                       className={`border rounded-lg transition-all p-5 hover:shadow-md
                 ${selectedMilestone?.id === milestone.id
-                          ? 'border-orange-500 bg-orange-50 shadow-md transform scale-102'
-                          : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'}`}
+                          ? 'border-yellow-500 bg-yellow-50 shadow-md transform scale-102'
+                          : 'border-gray-200 hover:border-yellow-300 hover:bg-yellow-50'}`}
                       onClick={() => {
                         setSelectedMilestone(milestone);
                         setPaymentType("milestone");
@@ -556,8 +733,8 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
                       </div>
 
-                      <div className="bg-orange-50 p-2 rounded-md inline-block mb-3">
-                        <span className="text-orange-700 font-medium">${milestone.price}</span>
+                      <div className="bg-yellow-50 p-2 rounded-md inline-block mb-3">
+                        <span className="text-yellow-700 font-medium">${milestone.price}</span>
                       </div>
 
                       {/* Enhanced Milestone Items - Show all items */}
@@ -582,7 +759,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                                 <div className="flex-1">
                                   <div className="flex justify-between items-start">
                                     <span className="font-medium text-gray-800">{item.name}</span>
-                                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full ml-2">
+                                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full ml-2">
                                       x{item.quantity || 1}
                                     </span>
                                   </div>
@@ -598,7 +775,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
                       {/* Single Pledge Button */}
                       <button
-                        className="w-full py-3 px-4 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 text-white rounded-lg font-medium transition-all duration-300 hover:shadow flex items-center justify-center"
+                        className="w-full py-3 px-4 bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 text-white rounded-lg font-medium transition-all duration-300 hover:shadow flex items-center justify-center"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedMilestone(milestone);
@@ -622,7 +799,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-700 font-medium">$</span>
                         <input
                           type="text"
-                          className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent shadow-sm"
+                          className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent shadow-sm"
                           placeholder="Enter amount"
                           value={customAmount}
                           onChange={handleCustomAmountChange}
@@ -638,10 +815,9 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                             handleMoveToStep4();
                           }
                         }}
-                        className={`w-full md:w-1/3 py-3 px-6 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center
-  ${customAmount
-                            ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
-                            : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
+                        className={`w-full md:w-1/3 py-3 px-6 rounded-lg text-white font-medium transition-all duration-300 flex items-center justify-center ${customAmount
+                          ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 hover:shadow'
+                          : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
                       >
                         Contribute Custom Amount
                       </button>
@@ -651,7 +827,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
               </>
             ) : (
               <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <FaExclamationTriangle className="mx-auto text-orange-400 text-3xl mb-4" />
+                <FaExclamationTriangle className="mx-auto text-yellow-400 text-3xl mb-4" />
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">No Milestones Available</h3>
                 <p className="text-gray-600 mb-8">This phase doesn&apos;t have any milestones yet, but you can still contribute a custom amount.</p>
 
@@ -663,7 +839,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                       <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-700 font-medium">$</span>
                       <input
                         type="text"
-                        className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent shadow-sm"
+                        className="w-full pl-8 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent shadow-sm"
                         placeholder="Enter amount"
                         value={customAmount}
                         onChange={handleCustomAmountChange}
@@ -680,7 +856,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         }
                       }}
                       className={`w-full sm:w-1/3 py-3 px-4 rounded-lg text-white font-medium transition-all duration-300 ${customAmount
-                        ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:shadow'
+                        ? 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 hover:shadow'
                         : 'bg-gray-400 cursor-not-allowed opacity-70'}`}
                     >
                       Continue
@@ -693,7 +869,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         setCurrentStep(1);
                         router.push(`/payment?projectId=${project.id}`, undefined, { shallow: true });
                       }}
-                      className="text-orange-600 hover:text-orange-800 font-medium"
+                      className="text-yellow-600 hover:text-yellow-800 font-medium"
                     >
                       Select Different Phase
                     </button>
@@ -712,15 +888,15 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
           <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
-                <FaMoneyBillWave className="text-orange-500 text-2xl mr-3" />
+                <FaMoneyBillWave className="text-yellow-500 text-2xl mr-3" />
                 <h2 className="text-2xl font-bold text-gray-800">Confirm Your Payment</h2>
               </div>
               <button
                 onClick={() => {
-                  setCurrentStep(2);
+                  setCurrentStep(3);
                   // Keep the phaseId in URL when going back to milestone selection
                 }}
-                className="text-sm text-gray-600 hover:text-orange-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
+                className="text-sm text-gray-600 hover:text-yellow-600 flex items-center hover:bg-gray-100 px-3 py-1 rounded-full transition-all duration-200"
               >
                 Change Selection
               </button>
@@ -741,8 +917,8 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                     <div className="pl-6">
                       <p className="font-medium text-gray-800">{selectedMilestone.title}</p>
                       <p className="text-sm text-gray-600 mt-1 mb-2">{selectedMilestone.description}</p>
-                      <div className="bg-orange-50 inline-block px-3 py-1 rounded-md">
-                        <span className="font-medium text-orange-700">${selectedMilestone.price}</span>
+                      <div className="bg-yellow-50 inline-block px-3 py-1 rounded-md">
+                        <span className="font-medium text-yellow-700">${selectedMilestone.price}</span>
                       </div>
                     </div>
                   </div>
@@ -754,10 +930,52 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                     </div>
                     <div className="pl-6">
                       <p className="text-sm text-gray-600 mb-2">Thank you for your support to Phase {selectedPhase.phaseNumber}</p>
-                      <div className="bg-orange-50 inline-block px-3 py-1 rounded-md">
-                        <span className="font-medium text-orange-700">${parseFloat(customAmount).toFixed(2)}</span>
+                      <div className="bg-yellow-50 inline-block px-3 py-1 rounded-md">
+                        <span className="font-medium text-yellow-700">${parseFloat(customAmount).toFixed(2)}</span>
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Platform Fee Information */}
+              <div className="bg-white p-5 rounded-lg border border-gray-200 mb-4">
+                <h4 className="font-medium text-gray-800 mb-3">Fee Breakdown</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Amount:</span>
+                    <span className="font-medium">
+                      ${paymentType === "milestone" && selectedMilestone
+                        ? selectedMilestone.price
+                        : parseFloat(customAmount).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Platform Fee ({(platformChargePercentage * 100).toFixed(0)}%):</span>
+                    <span className="font-medium">
+                      ${paymentType === "milestone" && selectedMilestone
+                        ? (selectedMilestone.price * platformChargePercentage).toFixed(2)
+                        : calculatePlatformFee(customAmount).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="border-t border-gray-100 pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total:</span>
+                      <span className="text-yellow-600">
+                        ${paymentType === "milestone" && selectedMilestone
+                          ? (parseFloat(selectedMilestone.price) + parseFloat(selectedMilestone.price) * platformChargePercentage).toFixed(2)
+                          : calculateTotal(customAmount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {loadingSettings && (
+                  <div className="mt-2 text-xs text-gray-500 flex items-center">
+                    <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating fee information...
                   </div>
                 )}
               </div>
@@ -770,8 +988,8 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
               disabled={processingPayment}
               className={`w-full py-4 px-6 rounded-lg text-white font-bold text-lg shadow-lg transform transition-all duration-300 flex items-center justify-center
           ${processingPayment
-                  ? 'bg-orange-400 cursor-wait'
-                  : 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-orange-600 hover:to-amber-500 hover:-translate-y-1 hover:shadow-xl'}`}
+                  ? 'bg-yellow-400 cursor-wait'
+                  : 'bg-gradient-to-r from-yellow-300 to-yellow-600 hover:from-yellow-600 hover:to-yellow-400 hover:-translate-y-1 hover:shadow-xl'}`}
             >
               {processingPayment ? (
                 <>
@@ -804,7 +1022,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
             {/* FAQ Accordion Section */}
             <div className="mb-6">
               <div className="flex items-center mb-4">
-                <FaQuestionCircle className="text-orange-500 mr-2" />
+                <FaQuestionCircle className="text-yellow-500 mr-2" />
                 <h3 className="text-lg font-bold text-gray-800">Frequently Asked Questions</h3>
               </div>
 
@@ -833,10 +1051,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
           <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300">
             {/* Checkout */}
             {selectedPhase && (
-              <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 p-5 rounded-lg border border-orange-100 shadow-sm">
-                <div className="flex items-center justify-between mb-4 border-b border-orange-200 pb-3">
-                  <h3 className="text-xl font-bold text-orange-800">Checkout Summary</h3>
-                  <span className="bg-orange-100 text-orange-800 text-xs px-3 py-1 rounded-full font-medium">
+              <div className="mb-6 bg-gradient-to-r from-yellow-50 to-yellow-50 p-5 rounded-lg border border-yellow-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4 border-b border-yellow-200 pb-3">
+                  <h3 className="text-xl font-bold text-yellow-800">Checkout Summary</h3>
+                  <span className="bg-yellow-100 text-yellow-800 text-xs px-3 py-1 rounded-full font-medium">
                     {selectedPhase.status}
                   </span>
                 </div>
@@ -845,7 +1063,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                   {/* Phase Information */}
                   <div className="bg-white p-3 rounded-lg shadow-sm mb-3">
                     <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                      <span className="inline-block w-3 h-3 bg-orange-500 rounded-full mr-2"></span>
+                      <span className="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>
                       Phase {selectedPhase.phaseNumber}
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -871,7 +1089,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                         <div className="text-gray-600 line-clamp-2">{selectedMilestone.description}</div>
                         <div className="flex justify-between mt-1">
                           <span>Price:</span>
-                          <span className="font-bold text-orange-600">${selectedMilestone.price}</span>
+                          <span className="font-bold text-yellow-600">${selectedMilestone.price}</span>
                         </div>
                       </div>
                     </div>
@@ -887,11 +1105,29 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                       <div className="grid grid-cols-1 gap-2 text-sm">
                         <div className="flex justify-between mt-1">
                           <span>Your contribution:</span>
-                          <span className="font-bold text-orange-600">${parseFloat(customAmount).toFixed(2)}</span>
+                          <span className="font-bold text-yellow-600">${parseFloat(customAmount).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Platform Fee */}
+                  <div className="bg-white p-3 rounded-lg shadow-sm mb-3">
+                    <h4 className="font-medium text-gray-800 mb-2 flex items-center">
+                      <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                      Platform Fee
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Fee ({(platformChargePercentage * 100).toFixed(0)}%):</span>
+                        <span className="font-medium text-gray-800">
+                          ${paymentType === "milestone" && selectedMilestone
+                            ? (selectedMilestone.price * platformChargePercentage).toFixed(2)
+                            : calculatePlatformFee(customAmount).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Reward Preview (if milestone selected and has items) */}
                   {selectedMilestone && paymentType === "milestone" && selectedMilestone.items && selectedMilestone.items.length > 0 && (
@@ -907,7 +1143,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                               <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
                             </div>
                             <div className="flex-shrink-0 ml-2">
-                              <span className="px-2 py-1 bg-orange-50 text-orange-800 text-xs rounded-full">
+                              <span className="px-2 py-1 bg-yellow-50 text-yellow-800 text-xs rounded-full">
                                 x{item.quantity}
                               </span>
                             </div>
@@ -918,21 +1154,19 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                   )}
 
                   {/* Total section */}
-                  <div className="flex justify-between items-center pt-3 mt-2 border-t border-orange-200">
+                  <div className="flex justify-between items-center pt-3 mt-2 border-t border-yellow-200">
                     <span className="font-medium text-gray-700">Total:</span>
-                    <span className="text-xl font-bold text-orange-600">
+                    <span className="text-xl font-bold text-yellow-600">
                       ${paymentType === "milestone" && selectedMilestone
-                        ? selectedMilestone.price
-                        : paymentType === "custom" && customAmount
-                          ? parseFloat(customAmount).toFixed(2)
-                          : "0.00"}
+                        ? (parseFloat(selectedMilestone.price) + parseFloat(selectedMilestone.price) * platformChargePercentage).toFixed(2)
+                        : calculateTotal(customAmount).toFixed(2)}
                     </span>
                   </div>
 
                   {/* Payment info */}
-                  <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-orange-100">
+                  <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-yellow-100">
                     <p className="flex items-center">
-                      <FaInfoCircle className="text-orange-400 mr-1" />
+                      <FaInfoCircle className="text-yellow-400 mr-1" />
                       Payment will be processed securely via Stripe
                     </p>
                   </div>
@@ -942,10 +1176,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
 
             {/* Custom Amount Message */}
             {paymentType === "custom" && (
-              <div className="mt-4 bg-orange-50 p-5 rounded-lg border border-orange-100">
+              <div className="mt-4 bg-yellow-50 p-5 rounded-lg border border-yellow-100">
                 <div className="flex items-center mb-3">
-                  <FaCheckCircle className="text-orange-500 text-xl mr-2" />
-                  <h3 className="text-lg font-semibold text-orange-800">Custom Contribution</h3>
+                  <FaCheckCircle className="text-yellow-500 text-xl mr-2" />
+                  <h3 className="text-lg font-semibold text-yellow-800">Custom Contribution</h3>
                 </div>
                 <p className="text-gray-700 mb-4">
                   Thank you for your generous support! Your contribution will help this project reach its funding goals.
@@ -953,7 +1187,13 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null }) => {
                 {customAmount && (
                   <div className="bg-white p-4 rounded-lg shadow-sm">
                     <p className="text-lg font-medium text-gray-800">
-                      Your contribution: <span className="text-orange-600 font-bold">${parseFloat(customAmount).toFixed(2)}</span>
+                      Your contribution: <span className="text-yellow-600 font-bold">${parseFloat(customAmount).toFixed(2)}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Platform fee ({(platformChargePercentage * 100).toFixed(0)}%): <span className="font-medium">${calculatePlatformFee(customAmount).toFixed(2)}</span>
+                    </p>
+                    <p className="text-lg font-medium text-gray-800 mt-3 pt-3 border-t border-gray-100">
+                      Total: <span className="text-yellow-600 font-bold">${calculateTotal(customAmount).toFixed(2)}</span>
                     </p>
                   </div>
                 )}

@@ -5,11 +5,11 @@ import { title } from "process";
 
 // API endpoints
 const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
-const SEND_REQUEST_ENDPOINT = `${API_BASE_URL}/request`;
-const UPLOAD_ATTACHMENT_ENDPOINT = `${API_BASE_URL}/request/upload-attachment/{requestId}`;
-const GET_REQUESTS_BY_REQUEST_ID_ENDPOINT = `${API_BASE_URL}/request/{requestId}`;
-const GET_REQUESTS_BY_USER_ENDPOINT = `${API_BASE_URL}/request/user`;
-const SEND_EXTEND_TIME_REQUEST_ENDPOINT = `${API_BASE_URL}/request/extend-time`;
+const SEND_REQUEST_ENDPOINT = `${API_BASE_URL}/founder-request`;
+const UPLOAD_ATTACHMENT_ENDPOINT = `${API_BASE_URL}/founder-request/upload-attachment/{requestId}`;
+const GET_REQUESTS_BY_REQUEST_ID_ENDPOINT = `${API_BASE_URL}/founder-request/{requestId}`;
+const GET_REQUESTS_BY_USER_ENDPOINT = `${API_BASE_URL}/founder-request/user`;
+const SEND_EXTEND_TIME_REQUEST_ENDPOINT = `${API_BASE_URL}/founder-request/extend-time`;
 
 export const requestService = {
     sendRequest: async (request) => {
