@@ -4,7 +4,7 @@ import Error from 'next/error';
 import { useAuth } from '@/context/AuthContext';
 
 export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
-  const { isAuthenticated, userRole, isLoading } = useAuth();
+  const { isAuthenticated, userRole, isLoading, isRestrictedForManagerAdmin } = useAuth();
   const router = useRouter();
   const [authState, setAuthState] = useState({
     checked: false,
@@ -26,9 +26,17 @@ export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
         return;
       }
       
+      // MANAGER and ADMIN specific restriction - they cannot access certain pages
+      if ((userRole === 'MANAGER' || userRole === 'ADMIN') && 
+          isRestrictedForManagerAdmin(router.pathname)) {
+        router.push('/access-denied');
+        setAuthState({ checked: true, authorized: false });
+        return;
+      }
+      
       // Check role-based access if roles are specified
       if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
-        router.push('/unauthorized');
+        router.push('/access-denied');
         setAuthState({ checked: true, authorized: false });
         return;
       }
@@ -38,17 +46,17 @@ export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
     };
     
     checkAuth();
-  }, [isAuthenticated, userRole, isLoading, router, requiredRoles]);
+  }, [isAuthenticated, userRole, isLoading, router, requiredRoles, isRestrictedForManagerAdmin]);
 
   // Show loading state while checking auth
   if (isLoading || !authState.checked) {
     return (
-      <div className="min-h-screen bg-purple-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading</h2>
             <div className="flex justify-center items-center space-x-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
               <span className="text-gray-600">Verifying authentication...</span>
             </div>
           </div>
@@ -60,6 +68,12 @@ export const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   // Return 401 for unauthenticated users
   if (!isAuthenticated) {
     return <Error statusCode={401} title="Authentication required" />;
+  }
+
+  // Return 403 for MANAGER and ADMIN trying to access restricted pages
+  if ((userRole === 'MANAGER' || userRole === 'ADMIN') && 
+      isRestrictedForManagerAdmin(router.pathname)) {
+    return <Error statusCode={403} title="Managers and administrators cannot access this page" />;
   }
 
   // Return 403 for unauthorized users (wrong role)

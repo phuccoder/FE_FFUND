@@ -8,7 +8,7 @@ import PageTitle from "@/components/Reuseable/PageTitle";
 
 export default function Payment() {
     const router = useRouter();
-    const { projectId, phaseId } = router.query;
+    const { projectId, phaseId, milestoneId } = router.query;
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -17,22 +17,26 @@ export default function Payment() {
     useEffect(() => {
         if (router.isReady) {
             // Check if we have parameters
-            if (projectId || phaseId) {
-                console.log("Captured URL params: projectId=", projectId, "phaseId=", phaseId);
+            if (projectId || phaseId || milestoneId) {
+                console.log("Captured URL params: projectId=", projectId, "phaseId=", phaseId, "milestoneId=", milestoneId);
                 
                 // Save these parameters to local storage so they're available after redirects
                 if (projectId) localStorage.setItem('paymentProjectId', projectId);
                 if (phaseId) localStorage.setItem('paymentPhaseId', phaseId);
+                if (milestoneId) localStorage.setItem('paymentMilestoneId', milestoneId);
             } else {
                 console.log("No URL parameters found, checking localStorage...");
                 const storedProjectId = localStorage.getItem('paymentProjectId');
                 const storedPhaseId = localStorage.getItem('paymentPhaseId');
+                const storedMilestoneId = localStorage.getItem('paymentMilestoneId');
                 if (storedProjectId) {
-                    console.log("Using stored parameters: projectId=", storedProjectId, "phaseId=", storedPhaseId);
+                    console.log("Using stored parameters: projectId=", storedProjectId, 
+                                "phaseId=", storedPhaseId, 
+                                "milestoneId=", storedMilestoneId);
                 }
             }
         }
-    }, [router.isReady, projectId, phaseId]);
+    }, [router.isReady, projectId, phaseId, milestoneId]);
 
     // Fetch project data
     useEffect(() => {
@@ -66,14 +70,22 @@ export default function Payment() {
     }, [projectId, router.isReady]);
 
     useEffect(() => {
-        if (router.isReady && projectId && phaseId) {
-            // Store the phaseId in localStorage for persistence if needed
-            localStorage.setItem('paymentPhaseId', phaseId);
-        } else if (router.isReady && projectId && !phaseId) {
-            // If there's no phaseId in the URL, remove it from localStorage to ensure proper flow
-            localStorage.removeItem('paymentPhaseId');
+        if (router.isReady) {
+            // Handle phaseId
+            if (projectId && phaseId) {
+                localStorage.setItem('paymentPhaseId', phaseId);
+            } else if (projectId && !phaseId) {
+                localStorage.removeItem('paymentPhaseId');
+            }
+
+            // Handle milestoneId
+            if (projectId && phaseId && milestoneId) {
+                localStorage.setItem('paymentMilestoneId', milestoneId);
+            } else if (projectId && phaseId && !milestoneId) {
+                localStorage.removeItem('paymentMilestoneId');
+            }
         }
-    }, [router.isReady, projectId, phaseId]);
+    }, [router.isReady, projectId, phaseId, milestoneId]);
 
     // Show loading state during data fetching
     if (loading) {
@@ -105,6 +117,7 @@ export default function Payment() {
     }
 
     const phaseIdToUse = phaseId || localStorage.getItem('paymentPhaseId');
+    const milestoneIdToUse = milestoneId || localStorage.getItem('paymentMilestoneId');
 
     return (
         <Layout>
@@ -113,6 +126,7 @@ export default function Payment() {
             <ProjectPaymentPage
                 project={project}
                 selectedPhaseId={phaseIdToUse ? parseInt(phaseIdToUse) : null}
+                selectedMilestoneId={milestoneIdToUse ? parseInt(milestoneIdToUse) : null}
             />
         </Layout>
     );
