@@ -416,23 +416,6 @@ const FounderInvestments = () => {
                     <div className="text-sm text-gray-600">
                         Showing {investments.length} of {totalInvestments} investments
                     </div>
-
-                    <div className="text-sm">
-                        <select
-                            value={pageSize}
-                            onChange={(e) => {
-                                setPageSize(Number(e.target.value));
-                                setCurrentPage(0);
-                                fetchInvestments(0);
-                            }}
-                            className="border border-gray-300 rounded-md shadow-sm py-1 px-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        >
-                            <option value="10">10 per page</option>
-                            <option value="25">25 per page</option>
-                            <option value="50">50 per page</option>
-                            <option value="100">100 per page</option>
-                        </select>
-                    </div>
                 </div>
 
                 {/* Investments Table */}

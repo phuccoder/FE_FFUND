@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { milestoneService } from 'src/services/milestoneService';
 import { milestoneItemService } from 'src/services/milestoneItemService';
 import { useAuth } from 'src/context/AuthContext';
+import { globalSettingService } from 'src/services/globalSettingService';
 
 /**
  * Reward information form for project creation with enhanced item management
@@ -45,6 +46,9 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
 
+    const [milestoneMaxPercentage, setMilestoneMaxPercentage] = useState(0.2); // Default fallback
+    const [loadingSettings, setLoadingSettings] = useState(false);
+
     const [showForm, setShowForm] = useState(false);
     const [currentItem, setCurrentItem] = useState({ name: '', image: null, imagePreview: null });
     const [showPhaseFilter, setShowPhaseFilter] = useState(false);
@@ -52,6 +56,36 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     const fileInputRef = useRef(null);
     const milestoneFileInputRef = useRef(null);
     const prevCompletionRef = useRef(null);
+
+    // Fetch the milestone value percentage from global settings
+    useEffect(() => {
+        const fetchMilestoneValuePercentage = async () => {
+            setLoadingSettings(true);
+            try {
+                const settings = await globalSettingService.getGlobalSettingByType('MILESTONE_VALUE_PERCENTAGE');
+
+                console.log('Fetched milestone value percentage setting:', settings);
+
+                if (settings && Array.isArray(settings.data) && settings.data.length > 0) {
+                    const percentageSetting = settings.data[0];
+                    const percentageValue = parseFloat(percentageSetting.value);
+
+                    if (!isNaN(percentageValue)) {
+                        console.log(`Setting milestone max percentage to ${percentageValue}`);
+                        setMilestoneMaxPercentage(percentageValue);
+                    }
+                } else {
+                    console.warn('No milestone value percentage setting found, using default of 0.2');
+                }
+            } catch (error) {
+                console.error('Error fetching milestone value percentage:', error);
+            } finally {
+                setLoadingSettings(false);
+            }
+        };
+
+        fetchMilestoneValuePercentage();
+    }, []);
 
     // Fetch phases from the parent component's formData
     useEffect(() => {
@@ -355,7 +389,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
     };
 
     const isMilestoneEditable = (milestone) => {
-        
+
         if (!milestone || !milestone.phaseId) return false;
 
         // Find the phase this milestone belongs to
@@ -395,13 +429,13 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         const phaseGoal = parseFloat(targetPhase.fundingGoal || targetPhase.targetAmount || 0);
         const milestonePrice = parseFloat(price || 0);
 
-        // Calculate maximum allowed (20% of phase goal)
-        const maxAllowed = phaseGoal * 0.2;
+        // Calculate maximum allowed (using the dynamic percentage from global settings)
+        const maxAllowed = phaseGoal * milestoneMaxPercentage;
 
         if (milestonePrice > maxAllowed) {
             return {
                 isValid: false,
-                message: `A single milestone cannot exceed 20% (${formatCurrency(maxAllowed)}) of the phase's total funding goal (${formatCurrency(phaseGoal)})`
+                message: `A single milestone cannot exceed ${(milestoneMaxPercentage * 100).toFixed(0)}% (${formatCurrency(maxAllowed)}) of the phase's total funding goal (${formatCurrency(phaseGoal)})`
             };
         }
 
@@ -678,7 +712,8 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         );
 
         const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
-        const maxAllowed = phaseGoal * 0.2;
+        const maxAllowed = phaseGoal * milestoneMaxPercentage;
+        const percentText = (milestoneMaxPercentage * 100).toFixed(0);
 
         // Calculate remaining budget
         const remaining = phaseGoal - totalAllocated;
@@ -695,8 +730,8 @@ export default function RewardInformation({ formData, updateFormData, projectDat
             adjustedRemaining = remaining - currentPrice;
         }
 
-        // Add information about the 20% limit
-        const limitInfo = `Maximum single milestone amount: ${formatCurrency(maxAllowed)} (20% of phase goal)`;
+        // Add information about the percentage limit
+        const limitInfo = `Maximum single milestone amount: ${formatCurrency(maxAllowed)} (${percentText}% of phase goal)`;
 
         if (Math.abs(adjustedRemaining) < 0.01) {
             return `${limitInfo}. This phase's budget of ${formatCurrency(phaseGoal)} is fully allocated.`;
@@ -717,7 +752,6 @@ export default function RewardInformation({ formData, updateFormData, projectDat
 
                 return `${limitInfo}. Available for this milestone: ${formatCurrency(availableForThisMilestone)} of ${formatCurrency(phaseGoal)}`;
             } else {
-                // For new milestone or when not editing
                 return `${limitInfo}. Remaining budget to allocate: ${formatCurrency(adjustedRemaining)} of ${formatCurrency(phaseGoal)}`;
             }
         }
@@ -1140,14 +1174,14 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         return true;
     };
 
-    const isPriceExceeding20Percent = () => {
+    const isPriceExceedingMaxPercentage = () => {
         if (!currentMilestone.phaseId || !currentMilestone.price) return false;
 
         const phase = phases.find(p => p.id === currentMilestone.phaseId || p.id === parseInt(currentMilestone.phaseId));
         if (!phase) return false;
 
         const phaseGoal = parseFloat(phase.fundingGoal || phase.targetAmount || 0);
-        const maxAllowed = phaseGoal * 0.2;
+        const maxAllowed = phaseGoal * milestoneMaxPercentage;
         const currentPrice = parseFloat(currentMilestone.price);
 
         return currentPrice > maxAllowed;
@@ -1645,7 +1679,7 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                             name="price"
                                             value={currentMilestone.price}
                                             onChange={handleMilestoneChange}
-                                            className={`mt-1 block w-full border ${isPriceExceeding20Percent() ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                            className={`mt-1 block w-full border ${isPriceExceedingMaxPercentage() ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
                                                 } rounded-md shadow-sm py-2 pl-7 pr-3 focus:outline-none sm:text-sm`}
                                             placeholder="0.00"
                                             step="0.01"
@@ -1653,13 +1687,13 @@ export default function RewardInformation({ formData, updateFormData, projectDat
                                             required
                                         />
                                     </div>
-                                    {isPriceExceeding20Percent() && (
+                                    {isPriceExceedingMaxPercentage() && (
                                         <p className="mt-1 text-xs text-red-600">
-                                            Price exceeds 20% of the phase budget limit.
+                                            Price exceeds {(milestoneMaxPercentage * 100).toFixed(0)}% of the phase budget limit.
                                         </p>
                                     )}
                                     <p className="mt-1 text-xs text-gray-500">
-                                        Enter the budget or cost for this milestone. Maximum 20% of phase total.
+                                        Enter the budget or cost for this milestone. Maximum {(milestoneMaxPercentage * 100).toFixed(0)}% of phase total.
                                     </p>
                                 </div>
 

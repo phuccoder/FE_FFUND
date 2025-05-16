@@ -352,7 +352,6 @@ const projectService = {
 
             const responseText = await response.text();
 
-            // Try to parse the response as JSON
             let result;
             try {
                 result = JSON.parse(responseText);
@@ -361,16 +360,24 @@ const projectService = {
                 if (!response.ok) {
                     throw new Error(responseText || `Error: ${response.status}`);
                 }
-                // Return text for non-JSON success responses
                 return { message: "Phase updated successfully", success: true };
             }
 
-            // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error ||
-                    result.message ||
-                    (typeof result === 'string' ? result : null) ||
-                    `Error: ${response.status}`;
+                console.error("API Error response:", result);
+
+                if (result.status === 400 && result.error && typeof result.error === 'object') {
+                    const errorMessages = Object.entries(result.error)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                    throw new Error(errorMessages);
+                }
+
+                // Handle other error formats
+                const errorMessage =
+                    (result.error && typeof result.error === 'object')
+                        ? Object.entries(result.error).map(([k, v]) => `${k}: ${v}`).join(', ')
+                        : result.error || result.message || `Error: ${response.status}`;
 
                 throw new Error(errorMessage);
             }
@@ -388,7 +395,37 @@ const projectService = {
             return { message: "Phase updated successfully", success: true };
         } catch (error) {
             console.error('Error updating project phase:', error);
-            throw error;
+
+            if (error instanceof Error) {
+                throw error;
+            }
+
+            // Handle complex error objects that might be thrown from earlier parts of the code
+            if (typeof error === 'object' && error !== null) {
+                if (error.status === 400 && error.error && typeof error.error === 'object') {
+                    const errorMessages = Object.entries(error.error)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                    throw new Error(errorMessages);
+                }
+
+                if (error.error && typeof error.error === 'object') {
+                    const errorMessages = Object.entries(error.error)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                    throw new Error(errorMessages);
+                }
+
+                if (error.message && typeof error.message === 'object') {
+                    const errorMessages = Object.entries(error.message)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                    throw new Error(errorMessages);
+                }
+            }
+
+            // Default fallback
+            throw new Error(error.message || JSON.stringify(error) || 'Unknown error');
         }
     },
 

@@ -2,10 +2,20 @@ import React, { useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { contactFormArea } from "@/data/contactArea";
-import { requestService } from "src/services/RequestService";
 import { tokenManager } from "@/utils/tokenManager";
+import { requestService } from "src/services/RequestService";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { Paperclip, Send, AlertCircle } from "lucide-react";
 
 const { tagline, title } = contactFormArea;
+
+// Request type options
+const REQUEST_TYPES = [
+  { value: "REPORT_BUG", label: "Report a Bug" },
+  { value: "STRIPE_ACCOUNT", label: "Stripe Account" },
+  { value: "PROJECT_BANNER", label: "Project Banner" },
+  { value: "OTHER", label: "Other" }
+];
 
 const ContactFormArea = () => {
   const [formData, setFormData] = useState({
@@ -27,13 +37,13 @@ const ContactFormArea = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = tokenManager.getValidToken();
-    if (!token) {
-      toast.error("You must be logged in to submit a request.");
-      return;
-    }
-
     try {
+      const token = await tokenManager.getValidToken();
+      if (!token) {
+        toast.error("You must be logged in to submit a request.");
+        return;
+      }
+
       setLoading(true);
       toast.info("Submitting your request...");
 
@@ -56,87 +66,161 @@ const ContactFormArea = () => {
       toast.success("Request submitted successfully!");
       setFormData({ requestType: "REPORT_BUG", title: "", description: "", attachment: null });
     } catch (error) {
-      toast.error("Failed to submit request.");
+      console.error("Request submission error:", error);
+      toast.error(`Failed to submit request: ${error.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // Custom form input component for consistent styling
+  const FormInput = ({ label, type = "text", name, value, onChange, placeholder, required = false, className = "", children }) => (
+    <div className="mb-5">
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children || (
+        <input
+          type={type}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          required={required}
+          className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm ${className}`}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
-      <ToastContainer />
-      <div className="w-full max-w-2xl bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-2xl font-semibold text-center text-gray-800">{title}</h2>
-        <p className="text-gray-500 text-center mb-6">{tagline}</p>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Request Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Request Type</label>
-            <select
-              name="requestType"
-              value={formData.requestType}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
-            >
-              <option value="REPORT_BUG">Report a Bug</option>
-              <option value="STRIPE_ACCOUNT">Stripe Account</option>
-              <option value="PROJECT_BANNER">Project Banner</option>
-              <option value="OTHER">Other</option>
-            </select>
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100 py-20 px-4">
+      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
+      
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-800">{title}</h2>
+          <p className="text-gray-600 mt-2 text-lg">{tagline}</p>
+        </div>
+        
+        <div className="flex flex-col md:flex-row gap-12 items-stretch bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Left side - Lottie Animation */}
+          <div className="w-full md:w-1/2 bg-yellow-50 flex items-center justify-center p-8">
+            <div className="w-full h-full max-h-96 rounded-xl overflow-hidden">
+              <DotLottieReact
+                src="https://lottie.host/10057247-c158-4bc2-bc35-8be90442b710/nzL5AzCeqx.lottie"
+                loop
+                autoplay
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
           </div>
+          
+          {/* Right side - Contact Form */}
+          <div className="w-full md:w-1/2 p-8">
+            <form onSubmit={handleSubmit} className="space-y-2">
+              {/* Request Type */}
+              <FormInput label="Request Type" name="requestType">
+                <select
+                  name="requestType"
+                  value={formData.requestType}
+                  onChange={handleChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white appearance-none pr-10 shadow-sm"
+                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em" }}
+                >
+                  {REQUEST_TYPES.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormInput>
 
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Title</label>
-            <input
-              type="text"
-              name="title"
-              placeholder="Enter the title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
-              required
-            />
-          </div>
+              {/* Title */}
+              <FormInput
+                label="Title"
+                name="title"
+                placeholder="Enter the title of your request"
+                value={formData.title}
+                onChange={handleChange}
+                required
+              />
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              name="description"
-              rows="5"
-              placeholder="Enter the description"
-              value={formData.description}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition"
-              required
-            ></textarea>
-          </div>
+              {/* Description */}
+              <FormInput label="Description" name="description">
+                <textarea
+                  name="description"
+                  rows="5"
+                  placeholder="Please provide as much detail as possible"
+                  value={formData.description}
+                  onChange={handleChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm resize-none"
+                  required
+                ></textarea>
+              </FormInput>
 
-          {/* Attachment */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Upload Attachment</label>
-            <input
-              type="file"
-              name="attachment"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={handleChange}
-              className="w-full border border-dashed border-orange-500 p-3 rounded-lg bg-orange-100 text-gray-700 cursor-pointer"
-            />
-          </div>
+              {/* Attachment */}
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Upload Attachment</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    name="attachment"
+                    id="file-upload"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    onChange={handleChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="border border-dashed border-yellow-500 bg-yellow-50 rounded-lg p-4 flex items-center justify-center hover:bg-yellow-100 transition-colors">
+                    <div className="flex flex-col items-center text-center">
+                      <Paperclip className="h-6 w-6 text-yellow-600 mb-2" />
+                      <span className="text-sm font-medium text-gray-700">
+                        {formData.attachment ? formData.attachment.name : "Click or drag file to upload"}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Supports: PDF, DOC, PNG, JPG (max 10MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {formData.attachment && (
+                  <div className="mt-2 flex items-center text-sm text-green-600">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    <span>File selected: {formData.attachment.name}</span>
+                  </div>
+                )}
+              </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-center">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition"
-            >
-              {loading ? "Submitting..." : "Submit Request"}
-            </button>
+              {/* Submit Button */}
+              <div className="mt-8">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center shadow-md hover:shadow-lg ${
+                    loading ? "opacity-70 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {loading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting...
+                    </span>
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5 mr-2" />
+                      Submit Request
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
+        
+        <div className="mt-8 text-center text-sm text-gray-500">
+          <p>Need help? Contact our support team at <span className="text-yellow-600 font-medium">support@example.com</span></p>
+        </div>
       </div>
     </div>
   );

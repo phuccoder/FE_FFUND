@@ -81,20 +81,26 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
     }
   }, [id]);
 
-  const handleContinueClick = (phaseId) => {
-    // Ensure phaseId is a string for URL parameters
+  const handleContinueClick = (phaseId, milestoneId = null) => {
     const phaseIdParam = String(phaseId);
     const projectIdParam = String(id);
 
-    console.log(`Redirecting to payment with projectId=${projectIdParam} and phaseId=${phaseIdParam}`);
+    const query = {
+      projectId: projectIdParam,
+      phaseId: phaseIdParam
+    };
 
-    // Navigate to the payment page with project and phase IDs
+    if (milestoneId) {
+      query.milestoneId = String(milestoneId);
+      console.log(`Redirecting to payment with projectId=${projectIdParam}, phaseId=${phaseIdParam}, milestoneId=${milestoneId}`);
+    } else {
+      console.log(`Redirecting to payment with projectId=${projectIdParam}, phaseId=${phaseIdParam}`);
+    }
+
+    // Navigate to the payment page with project, phase, and optional milestone IDs
     router.push({
       pathname: '/payment',
-      query: {
-        projectId: projectIdParam,
-        phaseId: phaseIdParam
-      }
+      query
     });
   };
 
@@ -256,10 +262,15 @@ const ProjectDetailsSidebar = ({ getClassName, project }) => {
                   <h5 className="font-medium text-yellow-700 mb-1">{selectedMilestone.title}</h5>
                   <p className="text-sm text-gray-700 mb-2">{selectedMilestone.description}</p>
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>                    
-                    {phases[selectedPhaseId]?.status !== 'PLAN'  && (
+                    <span className="font-bold text-green-700">${selectedMilestone.price ? Number(selectedMilestone.price).toLocaleString() : "0"}</span>
+                    {selectedPhase?.status !== 'PLAN' && (
                       <button
-                        onClick={() => handleContinueClick(selectedPhaseId)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log("Backing milestone:", selectedMilestone.id, "in phase:", selectedPhaseId);
+                          handleContinueClick(selectedPhaseId, selectedMilestone.id);
+                        }}
                         className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded transition-colors"
                       >
                         Back This Milestone

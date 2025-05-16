@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { requestService } from "../../services/RequestService";
+import { useState, useEffect } from "react";
+import { requestService } from "src/services/RequestService";
+import { globalSettingService } from "../../services/globalSettingService";
 
 export default function ExtendTimeRequestForm() {
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -7,6 +8,41 @@ export default function ExtendTimeRequestForm() {
     const [description, setDescription] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: "", type: "" });
+    const [maxSuspendedTime, setMaxSuspendedTime] = useState(null);
+    const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+
+    // Fetch max suspended time from global settings
+    useEffect(() => {
+        const fetchMaxSuspendedTime = async () => {
+            setIsLoadingSettings(true);
+            try {
+                const response = await globalSettingService.getGlobalSettingByType('MAX_SUSPENDED_TIME');
+                
+                if (response && response.data && response.data.length > 0) {
+                    const setting = response.data[0];
+                    const timeValue = parseInt(setting.value);
+                    
+                    if (!isNaN(timeValue)) {
+                        console.log(`Setting max suspended time to ${timeValue} days`);
+                        setMaxSuspendedTime(timeValue);
+                    } else {
+                        console.warn('Invalid MAX_SUSPENDED_TIME value received');
+                        setMaxSuspendedTime(5); // Default fallback
+                    }
+                } else {
+                    console.warn('No MAX_SUSPENDED_TIME setting found, using default');
+                    setMaxSuspendedTime(5); // Default fallback
+                }
+            } catch (error) {
+                console.error('Error fetching MAX_SUSPENDED_TIME setting:', error);
+                setMaxSuspendedTime(5); // Default fallback on error
+            } finally {
+                setIsLoadingSettings(false);
+            }
+        };
+
+        fetchMaxSuspendedTime();
+    }, []);
 
     const toggleForm = () => {
         if (isFormOpen) {
@@ -107,6 +143,20 @@ export default function ExtendTimeRequestForm() {
                         <h3 className="text-lg font-medium text-gray-900">Extend Time Request</h3>
                         <p className="mt-1 text-sm text-gray-500">
                             Please fill in the details below to submit your extend time request.
+                            {maxSuspendedTime !== null && (
+                                <span className="font-medium"> 
+                                    Maximum allowed extension time is {maxSuspendedTime} days.
+                                </span>
+                            )}
+                            {isLoadingSettings && (
+                                <span className="ml-2 inline-flex items-center text-gray-500">
+                                    <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Loading settings...
+                                </span>
+                            )}
                         </p>
                     </div>
 
@@ -186,8 +236,15 @@ export default function ExtendTimeRequestForm() {
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Enter request description"
                                 required
+                                rows={4}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />
+                            {maxSuspendedTime !== null && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Please provide a clear explanation for why you need an extension (up to {maxSuspendedTime} days). 
+                                    Include any relevant information that will help with the approval process.
+                                </p>
+                            )}
                         </div>
 
                         <div className="pt-4">
