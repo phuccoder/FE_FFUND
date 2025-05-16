@@ -30,6 +30,12 @@ export default function TransactionTable({ transactions }) {
     );
   };
 
+  // Format currency values
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined) return '-';
+    return `$${parseFloat(amount).toFixed(2)}`;
+  };
+
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -50,6 +56,9 @@ export default function TransactionTable({ transactions }) {
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Amount
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Refund Amount
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
@@ -73,7 +82,21 @@ export default function TransactionTable({ transactions }) {
                     {transaction.milestoneName || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${transaction.amount?.toFixed(2)}
+                    {formatCurrency(transaction.amount)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {transaction.refundAmount ? (
+                      <span className="text-blue-600 font-medium">
+                        {formatCurrency(transaction.refundAmount)}
+                        {transaction.percentage && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({(transaction.percentage * 100).toFixed(0)}%)
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {renderStatusBadge(transaction.status)}

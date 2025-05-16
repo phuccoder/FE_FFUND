@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
 import PhaseUploadDocument from './PhaseUploadDocument';
 import InvestmentTable from '../FounderInvestment/InvestmentTable';
+import ExtendTimeRequestForm from '../Request/RequestExtendTime';
 
 export default function FundraisingInformation({ formData, updateFormData, projectId, isEditPage = false, readOnly = false }) {
   // Initialize with safe default values
@@ -1327,7 +1328,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
 
         )}
         {/* Show ExtendTimeRequestForm only if the last phase is COMPLETED */}
-        {/* {isEditPage && isLastPhaseCompleted && (
+        {isEditPage && isLastPhaseCompleted && (
           <div className="mt-6 border-t border-gray-200 pt-6">
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
               <div className="flex">
@@ -1346,7 +1347,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
             <h3 className="text-lg font-medium text-gray-900 mb-4">Request Time Extension</h3>
             <ExtendTimeRequestForm projectId={projectId} />
           </div>
-        )} */}
+        )}
         {/* Document Upload Modal */}
         {showDocumentModal && selectedPhase && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
