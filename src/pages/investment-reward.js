@@ -7,6 +7,7 @@ import Layout from '@/components/Layout/Layout';
 import Header from '@/components/Header/Header';
 import PageTitle from '@/components/Reuseable/PageTitle';
 import { shippingInformationService } from 'src/services/shippingInformationService';
+import projectService from 'src/services/projectService';
 import { toast } from 'react-toastify';
 
 export default function InvestmentReward() {
@@ -62,14 +63,27 @@ export default function InvestmentReward() {
 
     const fetchPhases = async () => {
         try {
-            const response = await investmentRewardService.getFundingPhaseByFounder();
+            // Lấy dự án hiện tại của founder
+            const currentProject = await projectService.getCurrentProjectByFounder();
+            const projectId = currentProject.id || currentProject.data?.id;
+
+            if (!projectId) {
+                console.error('No project ID available from current project data');
+                setError('Could not determine project ID. Please try again later.');
+                return;
+            }
+
+            // Gọi API lấy phases theo projectId
+            const response = await investmentRewardService.getFundingPhaseByProjectId(projectId);
             const phaseData = response.data.map((phase) => ({
                 id: phase.id,
                 phaseNumber: phase.phaseNumber,
+                status: phase.status
             }));
             setPhases(phaseData);
         } catch (err) {
             console.error('Failed to fetch phases:', err);
+            setError('Failed to load project phases. Please try again later.');
         }
     };
 
