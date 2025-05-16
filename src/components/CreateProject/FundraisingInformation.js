@@ -36,6 +36,9 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [expandedPhase, setExpandedPhase] = useState(null);
   const [phaseInvestments, setPhaseInvestments] = useState({});
   const [loadingInvestments, setLoadingInvestments] = useState(false);
+  const [platformFee, setPlatformFee] = useState(null);
+  const [isLoadingFee, setIsLoadingFee] = useState(false);
+
   const initialLoadDone = useRef(false);
   // Add debugging logs
   useEffect(() => {
@@ -888,6 +891,42 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
+  const fetchPlatformFee = async () => {
+    try {
+      setIsLoadingFee(true);
+      const feeData = await projectService.getPlatformValuePercentage();
+      if (feeData && feeData.data && feeData.data.value) {
+        setPlatformFee(feeData.data.value);
+      } else {
+        setPlatformFee(0.02);
+      }
+    } catch (error) {
+      console.error('Error fetching platform fee:', error);
+      setPlatformFee(0.02);
+    } finally {
+      setIsLoadingFee(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlatformFee();
+  }, []);
+
+  const calculateFees = (amount) => {
+    const amount_num = parseFloat(amount || 0);
+    if (isNaN(amount_num) || amount_num <= 0) return { platformFee: 0, stripeFee: 0, total: 0 };
+
+    const platformFeeAmount = amount_num * (platformFee || 0.02);
+    const stripeFeeAmount = (amount_num * 0.029) + 0.3;
+    const totalFees = platformFeeAmount + stripeFeeAmount;
+
+    return {
+      platformFee: platformFeeAmount,
+      stripeFee: stripeFeeAmount,
+      total: totalFees
+    };
+  };
+
   return (
     <div className="space-y-6">
       {/* Display any errors */}
@@ -982,6 +1021,25 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                 ) : (
                   <p className="mt-2">Please set a total target amount in the Basic Information section to see phase requirements.</p>
                 )}
+                <div className="mt-4 pt-3 border-t border-blue-200">
+                  <h4 className="text-sm font-medium text-blue-800 mb-1">Platform & Processing Fees</h4>
+                  <div className="text-sm text-blue-700">
+                    <p>For each successful investment transaction during a phase, the following fees will apply:</p>
+                    <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                      <li>FFUND Platform Fee: <span className="font-semibold">{((platformFee || 0.02) * 100).toFixed(1)}%</span></li>
+                      <li>Payment Processing (Stripe): <span className="font-semibold">2.9% + 30¢</span></li>
+                    </ul>
+                    <p className="mt-2 text-xs bg-white p-2 rounded border border-blue-200">
+                      Example: For a $1,000 investment to a phase, fees would total ${calculateFees(1000).total.toFixed(2)}
+                      (${(1000 * (platformFee || 0.02)).toFixed(2)} platform fee + ${((1000 * 0.029) + 0.3).toFixed(2)} processing fee),
+                      with ${(1000 - calculateFees(1000).total).toFixed(2)} going to your project.
+                    </p>
+                    <p className="mt-2 text-xs text-blue-600">
+                      <strong>Note:</strong> Each phase is funded independently and sequentially. After a phase is completed, FFUND will review your completed funding phase
+                      and release funds to you after verification is successful. These fees will be deducted from each transaction.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -999,6 +1057,37 @@ export default function FundraisingInformation({ formData, updateFormData, proje
             </div>
           )}
         </div>
+
+        {/* Hiển thị Platform & Processing Fees khi isEditPage */}
+        {isEditPage && (
+          <div className="mb-6 bg-blue-50 rounded-md p-3 border border-blue-200">
+            <h4 className="text-sm font-medium text-blue-800 mb-1">Platform & Processing Fees</h4>
+            <div className="text-sm text-blue-700">
+              <p>For each successful investment transaction during a phase, the following fees will apply:</p>
+              <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                <li>FFUND Platform Fee: <span className="font-semibold">{((platformFee || 0.02) * 100).toFixed(1)}%</span></li>
+                <li>Payment Processing (Stripe): <span className="font-semibold">2.9% + 30¢</span></li>
+              </ul>
+              <p className="mt-2 text-xs bg-white p-2 rounded border border-blue-200">
+                Example: For a $1,000 investment to a phase, fees would total ${calculateFees(1000).total.toFixed(2)}
+                (${(1000 * (platformFee || 0.02)).toFixed(2)} platform fee + ${((1000 * 0.029) + 0.3).toFixed(2)} processing fee),
+                with ${(1000 - calculateFees(1000).total).toFixed(2)} going to your project.
+              </p>
+              <div className="mt-2 text-xs text-blue-600 space-y-1">
+                <p>
+                  <strong>Fund Disbursement Process:</strong>
+                </p>
+                <ol className="list-decimal pl-5">
+                  <li>Each phase is funded independently and sequentially</li>
+                  <li>Upon phase completion, you must upload two required documents for verification</li>
+                  <li>FFUND will review these documents to ensure project milestones are met</li>
+                  <li>After successful verification, funds will be released to your account</li>
+                  <li>Platform and processing fees will be deducted from each transaction</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading indicator */}
         {loading && (
@@ -1221,6 +1310,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     <span className="text-gray-500 sm:text-sm">USD</span>
                   </div>
                 </div>
+                
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

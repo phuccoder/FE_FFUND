@@ -61,22 +61,21 @@ export default function RulesTerms({ formData, updateFormData }) {
       <div className="bg-white border border-gray-200 rounded-md p-6 shadow-md">
         <h3 className="text-xl font-bold text-gray-900">Platform Rules & Guidelines</h3>
         <div className="mt-4 text-base text-gray-700 space-y-4">
-          <p>By creating a project, you agree to comply with the following:</p>
+          <p>By creating a project, you agree to follow these simple rules:</p>
           <ol className="list-decimal pl-6 space-y-2">
-            <li>All information provided must be accurate and truthful.</li>
-            <li>Your project must comply with all applicable laws and regulations.</li>
-            <li>You must have the legal right to create and manage the project.</li>
-            <li>You agree to fulfill all promised rewards or refund backers accordingly.</li>
-            <li>You must communicate regularly with your backers about project progress.</li>
-            <li>You are responsible for all taxes and legal obligations related to your funding.</li>
-            <li>Prohibited projects include those involving illegal activities, offensive content, personal fundraising, and prohibited items.</li>
-            <li>The platform reserves the right to remove any project that violates these terms.</li>
-            <li>Platform fees of 4% will be deducted from successful campaigns (additional payment processing fees may apply).</li>
-            <li>You agree to provide additional verification if requested by our team.</li>
+            <li>Be honest - all project information must be truthful.</li>
+            <li>Follow the law - your project must be legal.</li>
+            <li>Own your project - you must have rights to create it.</li>
+            <li>Deliver rewards - fulfill what you promise to backers.</li>
+            <li>Keep backers updated - share regular progress updates.</li>
+            <li>Handle your taxes - you&apos;re responsible for any tax obligations.</li>
+            <li>No prohibited content - no illegal activities, offensive content, personal fundraising, or banned items.</li>
+            <li>We can remove projects - if they break our rules.</li>
+            <li>Verify when asked - provide extra verification if we request it.</li>
           </ol>
-          <p className="font-medium text-red-500">Fraud Warning:</p>
+          <p className="font-medium text-red-500 mt-3">Warning:</p>
           <p>
-            Fraudulent activities, including misrepresentation of projects, misuse of funds, or creating fake campaigns will be reported to relevant legal authorities and may result in permanent banning from the platform.
+            Dishonest behavior (fake projects, misusing funds, creating fake campaigns) will get you banned and reported to authorities.
           </p>
         </div>
       </div>

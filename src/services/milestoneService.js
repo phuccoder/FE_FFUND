@@ -6,6 +6,7 @@ const MILESTONE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/${id}`;
 const MILESTONE_CREATE_ENDPOINT_FOR_PHASE = (id) => `${API_BASE_URL}/milestone/${id}`;
 const MILESTONE_UPDATE_ENDPOINT = (id) => `${API_BASE_URL}/milestone/${id}`;
 const MILESTONE_DELETE_ENDPOINT = (id) => `${API_BASE_URL}/milestone/${id}`;
+const MILESTONE_VALUE_PERCENTAGE_ENDPOINT = (id) => `${API_BASE_URL}/settings/type?type=MILESTONE_VALUE_PERCENTAGE`;
 
 export const milestoneService = {
     /**
@@ -265,6 +266,56 @@ export const milestoneService = {
             
         } catch (error) {
             console.error('Failed to delete milestone:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Get milestone value percentage
+     * @returns {Promise<Response>}
+     */
+    getMilestoneValuePercentage: async () => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(MILESTONE_VALUE_PERCENTAGE_ENDPOINT(), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+            
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+            
+            // Try to parse the response as JSON
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
+                if (!response.ok) {
+                    throw new Error(responseText || `Error: ${response.status}`);
+                }
+                // Return null for non-JSON success responses
+                return null;
+            }
+            
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error || 
+                    result.message || 
+                    (typeof result === 'string' ? result : null) || 
+                    `Error: ${response.status}`;
+                
+                throw new Error(errorMessage);
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('Failed to get milestone value percentage:', error);
             throw error;
         }
     }

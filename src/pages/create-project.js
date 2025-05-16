@@ -9,6 +9,7 @@ import RequiredDocuments from '../components/CreateProject/RequiredDocuments';
 import PaymentInformation from '../components/CreateProject/PaymentInformation';
 import ProjectCreationNavigation from '../components/CreateProject/ProjectCreationNavigation';
 import ProjectCreationChecklist from '../components/CreateProject/ProjectCreationChecklist';
+import ProjectSubmitModal from '@/components/CreateProject/ProjectSubmitModal';
 import PageTitle from '@/components/Reuseable/PageTitle';
 import Layout from '@/components/Layout/Layout';
 import projectService from 'src/services/projectService';
@@ -81,6 +82,8 @@ function CreateProject() {
   });
   const [isEditAllowed, setIsEditAllowed] = useState(true);
   const [userRole, setUserRole] = useState(null);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState('confirm');
 
   useEffect(() => {
     const savedAgreement = localStorage.getItem('agreedToTerms');
@@ -711,13 +714,11 @@ function CreateProject() {
   };
 
   const handleSubmit = async () => {
-    // Check user role first
     if (userRole !== 'LEADER') {
       alert("Only users with the Leader role can submit projects.");
       return;
     }
 
-    // Get the project ID
     const projectId = formData.projectId || formData.basicInfo?.projectId;
 
     if (!projectId) {
@@ -725,56 +726,46 @@ function CreateProject() {
       return;
     }
 
+    setIsSubmitModalOpen(true);
+  };
+
+  const handleConfirmSubmit = async () => {
     try {
-      // Show confirmation dialog
-      const confirmSubmit = confirm(
-        "Once submitted, your project will be reviewed by our team. " +
-        "You won't be able to make changes during the review process. " +
-        "Are you sure you want to submit your project now?"
-      );
+      // Get projectId from formData before using it (this is the missing part)
+      const projectId = formData.projectId || formData.basicInfo?.projectId;
 
-      if (!confirmSubmit) return;
+      if (!projectId) {
+        throw new Error("Project ID not found. Please save your project before submitting.");
+      }
 
-      // Show loading state
       setIsSubmitting(true);
 
-      // Call the API to submit the project
       const result = await projectService.submitProject(projectId);
       console.log("Project submission result:", result);
 
-      // Show success message
-      alert('Your project has been successfully submitted for review! You will be notified when the review is complete.');
-
-      // Reload the project data to get the updated status
-      await loadProjectData();
-      window.location.href = '/';
+      setSubmitStatus('success');
 
     } catch (error) {
       console.error('Error submitting project:', error);
 
-      // Extract error message from response if available
       let errorMessage = 'Unknown error';
 
       try {
-        // If error has a response with JSON data
         if (error.response) {
-          // Try to parse the response data if it's a string
           let responseData = error.response.data;
           if (typeof responseData === 'string') {
             try {
               responseData = JSON.parse(responseData);
             } catch (e) {
-              // If it can't be parsed as JSON, use it as is
+              console.error('Error parsing error response:', e);
             }
           }
 
-          // Check possible locations for error message
           if (responseData.message) {
             errorMessage = responseData.message;
           } else if (responseData.error) {
             errorMessage = responseData.error;
           } else if (responseData.errors && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-            // Handle array of errors like in some REST APIs
             errorMessage = responseData.errors.map(err => err.message || err).join(', ');
           } else if (error.response.status === 400) {
             errorMessage = 'Bad request: Please check your project details';
@@ -788,18 +779,26 @@ function CreateProject() {
             errorMessage = 'Server error: Please try again later';
           }
         } else if (error.message) {
-          // If error is a simple message
           errorMessage = error.message;
         }
       } catch (parsingError) {
         console.error('Error parsing error response:', parsingError);
-        // Fallback to original error handling
         errorMessage = error.message || 'An unexpected error occurred';
       }
 
+      setIsSubmitModalOpen(false);
       setError(errorMessage);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsSubmitModalOpen(false);
+    if (submitStatus !== 'success') {
+      setTimeout(() => {
+        setSubmitStatus('confirm');
+      }, 300);
     }
   };
 
@@ -1023,6 +1022,13 @@ function CreateProject() {
                 <div className="mt-10">
                   <ProjectCreationChecklist formData={formData} sections={sections} />
                 </div>
+                  <ProjectSubmitModal
+                    isOpen={isSubmitModalOpen}
+                    onClose={handleCloseModal}
+                    onSubmit={handleConfirmSubmit}
+                    isSubmitting={isSubmitting}
+                    status={submitStatus}
+                  />
               </>
             )}
           </div>

@@ -29,9 +29,10 @@ const PROJECT_SUBMIT_ENDPOINT = (id) => `${API_BASE_URL}/project/submit/${id}`;
 const PROJECT_UPLOAD_IMAGE_ENDPOINT = (id) => `${API_BASE_URL}/project/upload-image/${id}`;
 const PROJECT_GET_PHASE_RULE_ENDPOINT = (totalTargetAmount) => `${API_BASE_URL}/rule/by-total?total=${totalTargetAmount}`;
 const PROJECT_GET_ALL_PHASE_RULE_ENDPOINT = `${API_BASE_URL}/rule/all`;
-const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
+const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/miletone/guest/phase/${id}`
 const PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
 const PROJECT_GET_INVESTMENT_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/investment/all/${id}`
+const PLATFORM_CHARGE_PERCENTAGE_ENDPOINT = `${API_BASE_URL}/settings/type?type=PLATFORM_CHARGE_PERCENTAGE`;
 /**
  * Project related API service methods
  */
@@ -1340,7 +1341,53 @@ const projectService = {
             console.error(`Error getting all phase rules:`, error);
             throw error;
         }
-    }
+    },
+
+    getPlatformValuePercentage: async () => {
+            try {
+                const token = await tokenManager.getValidToken();
+                const response = await fetch(PLATFORM_CHARGE_PERCENTAGE_ENDPOINT(), {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                });
+                
+                // Get response as text first for better error handling
+                const responseText = await response.text();
+                
+                // Try to parse the response as JSON
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('Error parsing response as JSON:', parseError);
+                    if (!response.ok) {
+                        throw new Error(responseText || `Error: ${response.status}`);
+                    }
+                    // Return null for non-JSON success responses
+                    return null;
+                }
+                
+                // If response wasn't successful, extract error message from result
+                if (!response.ok) {
+                    const errorMessage = result.error || 
+                        result.message || 
+                        (typeof result === 'string' ? result : null) || 
+                        `Error: ${response.status}`;
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                return result;
+                
+            } catch (error) {
+                console.error('Failed to get milestone value percentage:', error);
+                throw error;
+            }
+        }
 };
 
 export default projectService;

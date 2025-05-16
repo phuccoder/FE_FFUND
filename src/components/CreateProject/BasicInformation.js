@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import projectService from 'src/services/projectService';
 import ImageUpload from './ImageUpload';
@@ -55,6 +55,8 @@ export default function BasicInformation({ formData, updateFormData, editMode })
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [phaseRules, setPhaseRules] = useState([]);
   const [showPhaseRules, setShowPhaseRules] = useState(false);
+  const [platformFee, setPlatformFee] = useState(null);
+  const [isLoadingFee, setIsLoadingFee] = useState(false);
 
   // Load existing project data if we're in edit mode
   useEffect(() => {
@@ -600,6 +602,43 @@ export default function BasicInformation({ formData, updateFormData, editMode })
     }
   };
 
+  const fetchPlatformFee = useCallback(async () => {
+    try {
+      setIsLoadingFee(true);
+      const feeData = await projectService.getPlatformValuePercentage();
+      if (feeData && feeData.data && feeData.data.value) {
+        setPlatformFee(feeData.data.value);
+      } else {
+        setPlatformFee(0.02);
+      }
+    } catch (error) {
+      console.error('Error fetching platform fee:', error);
+      setPlatformFee(0.02);
+    } finally {
+      setIsLoadingFee(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPlatformFee();
+  }, [fetchPlatformFee]);
+
+  const calculateFees = (amount) => {
+    const amount_num = parseFloat(amount || 0);
+    if (isNaN(amount_num) || amount_num <= 0) return { platformFee: 0, stripeFee: 0, total: 0 };
+
+    const platformFeeAmount = amount_num * (platformFee || 0.02);
+    const stripeFeeAmount = (amount_num * 0.029) + 0.3;
+    const totalFees = platformFeeAmount + stripeFeeAmount;
+
+    return {
+      platformFee: platformFeeAmount,
+      stripeFee: stripeFeeAmount,
+      total: totalFees
+    };
+  };
+
+
 
   const statusOptions = [
     'DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'FUNDRAISING_COMPLETED', 'CANCELLED', 'SUSPENDED'
@@ -837,6 +876,38 @@ export default function BasicInformation({ formData, updateFormData, editMode })
             <p className="mt-1 text-sm text-gray-500">
               The total amount you aim to raise for your project. Minimum 1000$.
             </p>
+          )}
+          {form.totalTargetAmount > 0 && (
+            <div className="mt-3 bg-blue-50 rounded-md p-3 border border-blue-100">
+              <h4 className="text-sm font-medium text-blue-800 mb-1">Platform & Processing Fees</h4>
+              <div className="space-y-1 text-sm text-gray-600">
+                <div className="flex justify-between">
+                  <span>FFUND Platform Fee ({(platformFee * 100).toFixed(1)}%):</span>
+                  <span className="font-medium">${(form.totalTargetAmount * platformFee).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Payment Processing (Stripe 2.9% + 30¢):</span>
+                  <span className="font-medium">${((form.totalTargetAmount * 0.029) + 0.3).toFixed(2)}</span>
+                </div>
+                <div className="border-t border-blue-200 pt-1 mt-1 flex justify-between font-medium">
+                  <span>Total Fees:</span>
+                  <span>${calculateFees(form.totalTargetAmount).total.toFixed(2)}</span>
+                </div>
+
+                {/* Phần hiển thị số tiền thực nhận */}
+                <div className="mt-3 bg-white p-2 rounded-md border border-green-200">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-green-700">Your Net Amount:</span>
+                    <span className="font-bold text-xl text-green-700">
+                      ${(form.totalTargetAmount - calculateFees(form.totalTargetAmount).total).toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    This is the estimated amount you&apos;ll received after deducting all platform fees and processing fees when your project finishes the entire fundraising process
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

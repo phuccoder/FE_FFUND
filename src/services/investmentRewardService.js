@@ -39,9 +39,9 @@ export const investmentRewardService = {
         return response.json();
     },
 
-    getFundingPhaseByFounder: async () => {
+    getFundingPhaseByProjectId: async (projectId) => {
         const token = await tokenManager.getValidToken();
-        const response = await fetch(`${API_BASE_URL}/funding-phase/founder`, {
+        const response = await fetch(`${API_BASE_URL}/funding-phase/project/${projectId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -53,5 +53,5 @@ export const investmentRewardService = {
         }
 
         return response.json();
-    }
+    },
 }
