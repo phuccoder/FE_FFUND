@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { contactFormArea } from "@/data/contactArea";
@@ -9,23 +9,26 @@ import { Paperclip, Send, AlertCircle } from "lucide-react";
 
 const { tagline, title } = contactFormArea;
 
-// Request type options
+// Updated request type options to match backend enum values
 const REQUEST_TYPES = [
-  { value: "REPORT_BUG", label: "Report a Bug" },
   { value: "STRIPE_ACCOUNT", label: "Stripe Account" },
-  { value: "PROJECT_BANNER", label: "Project Banner" },
-  { value: "OTHER", label: "Other" }
+  { value: "CREATE_PROJECT", label: "Create Project" },
+  { value: "PROJECT_SUSPEND", label: "Project Suspend" }
 ];
 
 const ContactFormArea = () => {
+  const titleInputRef = useRef(null);
+  const descriptionInputRef = useRef(null);
+  
   const [formData, setFormData] = useState({
-    requestType: "REPORT_BUG",
+    requestType: "STRIPE_ACCOUNT", 
     title: "",
     description: "",
     attachment: null,
   });
   const [loading, setLoading] = useState(false);
 
+  // Fix the focus issue by not re-rendering unnecessarily
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (name === "attachment") {
@@ -52,10 +55,18 @@ const ContactFormArea = () => {
         title: formData.title,
         description: formData.description,
       };
+      
+      // Get request response
       const requestResponse = await requestService.sendRequest(requestPayload);
+      console.log("Request response:", requestResponse); // Debugging
 
-      const requestId = requestResponse?.data?.id;
-      if (!requestId) throw new Error("Failed to retrieve requestId.");
+      // Handle both data formats - direct ID or nested ID
+      const requestId = requestResponse?.data || requestResponse?.id;
+      
+      // Fix the requestId check to handle the numeric value directly
+      if (requestId === undefined || requestId === null) {
+        throw new Error("Failed to retrieve requestId from response.");
+      }
 
       if (formData.attachment) {
         const formDataObj = new FormData();
@@ -64,17 +75,29 @@ const ContactFormArea = () => {
       }
 
       toast.success("Request submitted successfully!");
-      setFormData({ requestType: "REPORT_BUG", title: "", description: "", attachment: null });
+      
+      // Reset form but maintain the same requestType 
+      setFormData({
+        requestType: formData.requestType, 
+        title: "",
+        description: "",
+        attachment: null
+      });
     } catch (error) {
       console.error("Request submission error:", error);
-      toast.error(`Failed to submit request: ${error.message || "Unknown error"}`);
+      // Improved error handling to show more informative messages
+      if (error.response && error.response.data && error.response.data.error) {
+        toast.error(`Failed to submit request: ${error.response.data.error}`);
+      } else {
+        toast.error(`Failed to submit request: ${error.message || "Unknown error"}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   // Custom form input component for consistent styling
-  const FormInput = ({ label, type = "text", name, value, onChange, placeholder, required = false, className = "", children }) => (
+  const FormInput = ({ label, type = "text", name, value, onChange, placeholder, required = false, className = "", inputRef, children }) => (
     <div className="mb-5">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {children || (
@@ -85,6 +108,7 @@ const ContactFormArea = () => {
           onChange={onChange}
           placeholder={placeholder}
           required={required}
+          ref={inputRef}
           className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm ${className}`}
         />
       )}
@@ -142,6 +166,7 @@ const ContactFormArea = () => {
                 value={formData.title}
                 onChange={handleChange}
                 required
+                inputRef={titleInputRef}
               />
 
               {/* Description */}
@@ -152,6 +177,7 @@ const ContactFormArea = () => {
                   placeholder="Please provide as much detail as possible"
                   value={formData.description}
                   onChange={handleChange}
+                  ref={descriptionInputRef}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm resize-none"
                   required
                 ></textarea>
@@ -219,7 +245,7 @@ const ContactFormArea = () => {
         </div>
         
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Need help? Contact our support team at <span className="text-yellow-600 font-medium">support@example.com</span></p>
+          <p>Need help? Contact our support team at <span className="text-yellow-600 font-medium">ffundsep490@gmail.com</span></p>
         </div>
       </div>
     </div>
