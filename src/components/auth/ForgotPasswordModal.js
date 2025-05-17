@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Forgot Password Modal Component
 export const ForgotPasswordModal = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,20 +37,25 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
         body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+      
       if (response.ok) {
-        toast.success('Password reset link has been sent to your email!', {
+        // Display the exact success message from the API
+        toast.success(data.message || 'Password reset link has been sent to your email!', {
           position: "top-right",
           autoClose: 5000,
         });
         setEmail('');
         onClose();
       } else {
-        toast.error('Failed to send reset link. Please try again.', {
+        // Display the error message from API if available
+        toast.error(data.message || 'Failed to send reset link. Please try again.', {
           position: "top-right",
           autoClose: 5000,
         });
       }
     } catch (error) {
+      console.error('Error sending reset password email:', error);
       toast.error('An error occurred. Please try again later.', {
         position: "top-right",
         autoClose: 5000,
@@ -110,7 +114,6 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
           </button>
         </form>
       </div>
-      <ToastContainer />
     </div>
   );
 };

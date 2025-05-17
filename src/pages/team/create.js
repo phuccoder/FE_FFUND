@@ -121,14 +121,10 @@ const CreateTeamPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Remove empty email fields
-    const filteredEmails = teamData.memberEmails.filter(email => email.trim() !== "");
-
     // Create and log the request body
     const requestBody = {
       teamName: teamData.teamName,
-      teamDescription: teamData.teamDescription,
-      memberEmails: filteredEmails
+      teamDescription: teamData.teamDescription
     };
 
     console.log('Creating team with request body:', requestBody);
@@ -139,8 +135,7 @@ const CreateTeamPage = () => {
       // Make the API call
       const response = await createTeam(
         teamData.teamName,
-        teamData.teamDescription,
-        filteredEmails
+        teamData.teamDescription
       );
 
       // Log the response
@@ -167,7 +162,6 @@ const CreateTeamPage = () => {
       setTeamData({
         teamName: "",
         teamDescription: "",
-        memberEmails: [""]
       });
 
       // Redirect after successful creation
@@ -232,98 +226,6 @@ const CreateTeamPage = () => {
                       required
                     />
                   </Form.Group>
-
-                  <div className="mb-3">
-                    <Form.Label>Invite Team Members</Form.Label>
-                    {teamData.memberEmails.map((email, index) => (
-                      <Row key={index} className="mb-2 align-items-center">
-                        <Col>
-                          <div className="position-relative" style={{ minHeight: "38px" }}>
-                            <Form.Control
-                              type="email"
-                              value={email}
-                              onChange={(e) => handleEmailChange(index, e.target.value)}
-                              placeholder="Enter member email"
-                              autoComplete="off"
-                            />
-
-                            {searchingIndex === index && searching && (
-                              <div className="position-absolute" style={{ right: '10px', top: '10px' }}>
-                                <Spinner animation="border" size="sm" style={{ color: '#FF8C00' }} />
-                              </div>
-                            )}
-
-                            {searchingIndex === index && searchResults.length > 0 && (
-                              <div
-                                className="position-absolute w-100 shadow-sm bg-white rounded border"
-                                style={{
-                                  zIndex: 9999, // Increased z-index to ensure it stays above other components
-                                  maxHeight: '200px',
-                                  overflowY: 'auto',
-                                  top: 'calc(100% + 5px)',
-                                  left: 0,
-                                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                                  position: 'absolute',
-                                  borderRadius: '4px',
-                                }}
-                              >
-                                {searchResults.map(founder => (
-                                  <div
-                                    key={founder.id}
-                                    onClick={() => selectFounder(founder)}
-                                    className="d-flex align-items-center py-2 px-3 border-bottom"
-                                    style={{
-                                      cursor: 'pointer',
-                                      backgroundColor: 'white',
-                                      transition: 'background-color 0.2s',
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                                  >
-                                    <div
-                                      className="rounded-circle text-white d-flex align-items-center justify-content-center me-2"
-                                      style={{
-                                        width: '30px',
-                                        height: '30px',
-                                        backgroundColor: '#FF8C00',
-                                        flexShrink: 0
-                                      }}
-                                    >
-                                      <span>{founder.fullName ? founder.fullName.charAt(0) : '?'}</span>
-                                    </div>
-                                    <div>
-                                      <div className="fw-bold">{founder.fullName || 'Unknown'}</div>
-                                      <div className="small text-muted">{founder.email}</div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </Col>
-                        <Col xs="auto">
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => removeEmailField(index)}
-                            disabled={teamData.memberEmails.length === 1}
-                          >
-                            Remove
-                          </Button>
-                        </Col>
-                      </Row>
-                    ))}
-
-                    <Button
-                      variant="outline-warning"
-                      size="sm"
-                      onClick={addEmailField}
-                      className="mt-2"
-                      style={{ borderColor: "#FF8C00", color: "#FF8C00" }}
-                    >
-                      + Add Another Email
-                    </Button>
-                  </div>
 
                   <div className="d-grid mt-4">
                     <Button

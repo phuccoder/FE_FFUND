@@ -1,15 +1,53 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import {
+  Box,
+  Button,
+  Checkbox,
+  CssBaseline,
+  FormControlLabel,
+  Divider,
+  FormLabel,
+  FormControl,
+  Link,
+  TextField,
+  Typography,
+  Stack,
+  Card,
+  CircularProgress,
+  Paper
+} from '@mui/material';
+
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { authenticate } from 'src/services/authenticate';
+import { GoogleIcon } from './CustomIcons';
+import Image from 'next/image';
+
+// Simple logo component
+const SitemarkIcon = () => (
+  <Box sx={{ textAlign: 'center', mb: 2 }}>
+    <Image
+      src="https://admin-ffund.vercel.app/logo192.png"
+      alt="logo"
+      width={180}
+      height={90}
+      priority
+      unoptimized
+    />
+  </Box>
+);
 
 export const LoginForm = () => {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+  const [emailError, setEmailError] = useState(false);
+  const [emailErrorMessage, setEmailErrorMessage] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
 
   const [formData, setFormData] = useState({
     username: '',
@@ -31,8 +69,37 @@ export const LoginForm = () => {
     setShowGoogleSetup(urlParams.has('showGoogleSetup'));
   }, []);
 
+  const validateInputs = () => {
+    let isValid = true;
+
+    if (!formData.username || !/\S+@\S+\.\S+/.test(formData.username)) {
+      setEmailError(true);
+      setEmailErrorMessage('Please enter a valid email address.');
+      isValid = false;
+    } else {
+      setEmailError(false);
+      setEmailErrorMessage('');
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setPasswordError(true);
+      setPasswordErrorMessage('Password must be at least 6 characters long.');
+      isValid = false;
+    } else {
+      setPasswordError(false);
+      setPasswordErrorMessage('');
+    }
+
+    return isValid;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateInputs()) {
+      return;
+    }
+
     setIsLoading(true);
 
     // Print out request body for debugging
@@ -169,9 +236,42 @@ export const LoginForm = () => {
     }
   };
 
+  // Container styles for both forms
+  const containerStyles = {
+    minHeight: '100%',
+    padding: { xs: 2, sm: 4 },
+    position: 'relative',
+    '&::before': {
+      content: '""',
+      display: 'block',
+      position: 'absolute',
+      zIndex: -1,
+      inset: 0,
+      backgroundImage: 'radial-gradient(ellipse at 50% 50%, hsl(36, 100%, 95%), hsl(36, 100%, 97%))',
+      backgroundRepeat: 'no-repeat',
+    }
+  };
+
+  // Card styles for both forms
+  const cardStyles = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignSelf: 'center',
+    width: '100%',
+    padding: 4,
+    gap: 2,
+    margin: 'auto',
+    maxWidth: '450px',
+    boxShadow: 'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
+  };
+
   if (showGoogleSetup) {
     return (
-      <div className="flex min-h-screen bg-orange-100 p-10">
+      <Stack
+        direction="column"
+        justifyContent="space-between"
+        sx={containerStyles}
+      >
         <ToastContainer
           position="top-right"
           autoClose={5000}
@@ -183,227 +283,281 @@ export const LoginForm = () => {
           draggable
           pauseOnHover
         />
-        <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="w-full p-6">
-            <div className="max-w-md mx-auto">
-              <h2 className="text-2xl font-bold mb-6 text-center">Complete Your Google Account Setup</h2>
-              <form onSubmit={handleGoogleSetupSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                    placeholder="Create a password"
-                    value={googleSetupData.password}
-                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, password: e.target.value })}
-                    required
-                  />
-                </div>
+        <Card variant="outlined" sx={cardStyles}>
+          <Typography
+            component="h1"
+            variant="h4"
+            sx={{ width: '100%', fontSize: 'clamp(2rem, 10vw, 2.15rem)', textAlign: 'center' }}
+          >
+            Complete Your Google Account Setup
+          </Typography>
+          <Box
+            component="form"
+            onSubmit={handleGoogleSetupSubmit}
+            noValidate
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100%',
+              gap: 2,
+            }}
+          >
+            <FormControl>
+              <FormLabel htmlFor="password">Password</FormLabel>
+              <TextField
+                id="password"
+                type="password"
+                placeholder="Create a password"
+                value={googleSetupData.password}
+                onChange={(e) => setGoogleSetupData({ ...googleSetupData, password: e.target.value })}
+                required
+                fullWidth
+                variant="outlined"
+              />
+            </FormControl>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="confirmPassword">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                    placeholder="Confirm your password"
-                    value={googleSetupData.confirmPassword}
-                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, confirmPassword: e.target.value })}
-                    required
-                  />
-                </div>
+            <FormControl>
+              <FormLabel htmlFor="confirmPassword">Confirm Password</FormLabel>
+              <TextField
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={googleSetupData.confirmPassword}
+                onChange={(e) => setGoogleSetupData({ ...googleSetupData, confirmPassword: e.target.value })}
+                required
+                fullWidth
+                variant="outlined"
+              />
+            </FormControl>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="role">
-                    Select Role
-                  </label>
-                  <select
-                    id="role"
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                    value={googleSetupData.role}
-                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, role: e.target.value })}
+            <FormControl>
+              <FormLabel htmlFor="role">Select Role</FormLabel>
+              <TextField
+                id="role"
+                select
+                SelectProps={{ native: true }}
+                value={googleSetupData.role}
+                onChange={(e) => setGoogleSetupData({ ...googleSetupData, role: e.target.value })}
+                required
+                fullWidth
+                variant="outlined"
+              >
+                <option value="">Select a role</option>
+                <option value="FOUNDER">Founder</option>
+                <option value="INVESTOR">Investor</option>
+              </TextField>
+            </FormControl>
+
+            {/* Conditional fields for FOUNDER role */}
+            {googleSetupData.role === 'FOUNDER' && (
+              <>
+                <FormControl>
+                  <FormLabel htmlFor="studentCode">Student Code</FormLabel>
+                  <TextField
+                    id="studentCode"
+                    type="text"
+                    placeholder="Enter your student code"
+                    value={googleSetupData.studentCode}
+                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, studentCode: e.target.value })}
                     required
+                    fullWidth
+                    variant="outlined"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel htmlFor="exeClass">EXE Class</FormLabel>
+                  <TextField
+                    id="exeClass"
+                    select
+                    SelectProps={{ native: true }}
+                    value={googleSetupData.exeClass}
+                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, exeClass: e.target.value })}
+                    required
+                    fullWidth
+                    variant="outlined"
                   >
-                    <option value="">Select a role</option>
-                    <option value="FOUNDER">Founder</option>
-                    <option value="INVESTOR">Investor</option>
-                  </select>
-                </div>
+                    <option value="EXE201">EXE201</option>
+                    <option value="EXE403">EXE403</option>
+                  </TextField>
+                </FormControl>
 
-                {/* Conditional fields for FOUNDER role */}
-                {googleSetupData.role === 'FOUNDER' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="studentCode">
-                        Student Code
-                      </label>
-                      <input
-                        id="studentCode"
-                        type="text"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                        placeholder="Enter your student code"
-                        value={googleSetupData.studentCode}
-                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, studentCode: e.target.value })}
-                        required
-                      />
-                    </div>
+                <FormControl>
+                  <FormLabel htmlFor="fptFacility">FPT Facility</FormLabel>
+                  <TextField
+                    id="fptFacility"
+                    select
+                    SelectProps={{ native: true }}
+                    value={googleSetupData.fptFacility}
+                    onChange={(e) => setGoogleSetupData({ ...googleSetupData, fptFacility: e.target.value })}
+                    required
+                    fullWidth
+                    variant="outlined"
+                  >
+                    <option value="CAN_THO">CAN THO</option>
+                    <option value="DA_NANG">DA NANG</option>
+                    <option value="HA_NOI">HA NOI</option>
+                    <option value="HO_CHI_MINH">HO CHI MINH</option>
+                    <option value="QUY_NHON">QUY NHON</option>
+                  </TextField>
+                </FormControl>
+              </>
+            )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="exeClass">
-                        EXE Class
-                      </label>
-                      <select
-                        id="exeClass"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                        value={googleSetupData.exeClass}
-                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, exeClass: e.target.value })}
-                        required
-                      >
-                        <option value="EXE201">EXE201</option>
-                        <option value="EXE403">EXE403</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="fptFacility">
-                        FPT Facility
-                      </label>
-                      <select
-                        id="fptFacility"
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                        value={googleSetupData.fptFacility}
-                        onChange={(e) => setGoogleSetupData({ ...googleSetupData, fptFacility: e.target.value })}
-                        required
-                      >
-                        <option value="CAN_THO">CAN THO</option>
-                        <option value="DA_NANG">DA NANG</option>
-                        <option value="HA_NOI">HA NOI</option>
-                        <option value="HO_CHI_MINH">HO CHI MINH</option>
-                        <option value="QUY_NHON">QUY NHON</option>
-                      </select>
-                    </div>
-                  </>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-orange-400"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex justify-center items-center space-x-2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>Setting up account...</span>
-                    </div>
-                  ) : (
-                    'Complete Setup'
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={isLoading}
+              sx={{
+                bgcolor: '#FF8C00',
+                '&:hover': { bgcolor: '#E67E00' },
+                py: 1.5
+              }}
+            >
+              {isLoading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} color="inherit" />
+                  <span>Setting up account...</span>
+                </Box>
+              ) : (
+                'Complete Setup'
+              )}
+            </Button>
+          </Box>
+        </Card>
+      </Stack>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-orange-100 p-10">
-      <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="w-full p-6">
-          <div className="max-w-md mx-auto">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                  placeholder="Enter your email"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  required
+    <Stack
+      direction="column"
+      justifyContent="space-between"
+      sx={containerStyles}
+    >
+      <CssBaseline enableColorScheme />
+      <Card variant="outlined" sx={cardStyles}>
+        <SitemarkIcon />
+        <Typography
+          component="h1"
+          variant="h5"
+          sx={{ width: '100%', fontSize: 'clamp(1.5rem, 8vw, 1.75rem)', textAlign: 'center' }}
+        >
+          Sign in
+        </Typography>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          noValidate
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            gap: 2,
+          }}
+        >
+          <FormControl>
+            <FormLabel htmlFor="email">Email</FormLabel>
+            <TextField
+              error={emailError}
+              helperText={emailErrorMessage}
+              id="email"
+              type="email"
+              name="email"
+              placeholder="your@email.com"
+              autoComplete="email"
+              autoFocus
+              required
+              fullWidth
+              variant="outlined"
+              color={emailError ? 'error' : 'primary'}
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            />
+          </FormControl>
+
+          <FormControl>
+            <FormLabel htmlFor="password">Password</FormLabel>
+            <TextField
+              error={passwordError}
+              helperText={passwordErrorMessage}
+              name="password"
+              placeholder="••••••"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              required
+              fullWidth
+              variant="outlined"
+              color={passwordError ? 'error' : 'primary'}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            />
+          </FormControl>
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={formData.rememberMe}
+                  onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                  value="remember"
+                  color="primary"
                 />
-              </div>
+              }
+              label="Remember me"
+            />
+            <Link
+              component="button"
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              variant="body2"
+            >
+              Forgot your password?
+            </Link>
+          </Box>
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            disabled={isLoading}
+            sx={{
+              bgcolor: '#FF8C00',
+              '&:hover': { bgcolor: '#E67E00' },
+              py: 1.5
+            }}
+          >
+            {isLoading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={20} color="inherit" />
+                <span>Signing in...</span>
+              </Box>
+            ) : (
+              'Sign in'
+            )}
+          </Button>
+        </Box>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="password">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-orange-500"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-              </div>
+        <Divider sx={{ my: 2 }}>or</Divider>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="rememberMe"
-                    type="checkbox"
-                    className="h-4 w-4 text-orange-600 focus:ring-yellow-500 border-gray-300 rounded"
-                    checked={formData.rememberMe}
-                    onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
-                  />
-                  <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-600">
-                    Remember for 30 days
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(true)}
-                  className="text-sm text-orange-600 hover:text-orange-500"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-yellow-500 text-white py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:bg-yellow-400"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex justify-center items-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
-              >
-                <div className="flex items-center justify-center">
-                  Sign in with Google
-                </div>
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleGoogleLogin}
+            startIcon={<GoogleIcon />}
+          >
+            Sign in with Google
+          </Button>
+        </Box>
+      </Card>
 
       <ForgotPasswordModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
       <ToastContainer />
-    </div>
+    </Stack>
   );
 };
