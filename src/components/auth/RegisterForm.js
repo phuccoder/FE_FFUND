@@ -144,7 +144,7 @@ export const RegisterForm = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-orange-100 p-10">
+    <div className="flex min-h-screen bg-orange-100 pt-0 p-10 ">
       {/* Important: Keep the ToastContainer here for notifications to show */}
       <ToastContainer
         position="top-right"
@@ -308,7 +308,7 @@ export const RegisterForm = () => {
                     <span>Creating Account...</span>
                   </div>
                 ) : (
-                  'Create Account'
+                  'Register'
                 )}
               </button>
             </form>

@@ -99,7 +99,6 @@ export const createTeam = async (teamName, teamDescription, memberEmails = []) =
       body: JSON.stringify({
         teamName,
         teamDescription,
-        memberEmails
       })
     });
 

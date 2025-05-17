@@ -31,7 +31,7 @@ const NoTeamSection = () => {
                 </Button>
               </Link>
               
-              <Link href="/team/invitations" passHref>
+              <Link href="/invitation" passHref>
                 <Button variant="outline-primary" size="lg">
                   <i className="fa fa-envelope me-2"></i>
                   Check for Invitations
