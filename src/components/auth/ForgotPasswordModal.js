@@ -38,7 +38,7 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         // Display the exact success message from the API
         toast.success(data.message || 'Password reset link has been sent to your email!', {

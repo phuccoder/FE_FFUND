@@ -4,7 +4,7 @@ import { tokenManager } from '../utils/tokenManager';
 const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth';
 const GOOGLE_CLIENT_ID = '304094440461-in6615ihk31rar586rh7nndp19ojoi2h.apps.googleusercontent.com';
-const CALLBACK_URL = 'https://ffund.duckdns.org/authenticate';
+const CALLBACK_URL = 'https://www.fptfund.site/authenticate';
 
 const authenticatedFetch = async (url, options = {}) => {
   const token = await tokenManager.getValidToken();

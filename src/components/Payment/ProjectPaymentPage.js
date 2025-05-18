@@ -573,7 +573,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             {phases
-              .filter(phase => phase.status === 'PROCESS') // Only show phases with status PROCESS
+              .filter(phase => phase.status === 'PROCESS')
               .map((phase) => (
                 <div
                   key={phase.id}

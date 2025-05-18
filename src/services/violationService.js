@@ -1,7 +1,8 @@
+import { tokenManager } from "@/utils/tokenManager";
 
 const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
-const GET_VIOLATION_BY_FOUNDER_ENDPOINT = (projectId) => `${API_BASE_URL}/violation/founder/${projectId}`;
+const GET_VIOLATION_BY_FOUNDER_ENDPOINT = (projectId) => `${API_BASE_URL}/violations/project/${projectId}/founder`;
 
 export const violationService = {
     getViolationByFounder: async (projectId) => {
