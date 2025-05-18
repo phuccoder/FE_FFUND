@@ -41,7 +41,7 @@ export const NotificationProvider = ({ children }) => {
     console.log('🔄 Setting up new WebSocket connection for user:', userId);
 
     const client = new WebSocketClient({
-      serverUrl: 'https://quanbeo.duckdns.org/ws',
+      serverUrl: 'https://ffund.duckdns.org/ws',
       onMessage: handleNotification,
       onConnect: () => {
         console.log('✅ WebSocket connected');
@@ -122,7 +122,7 @@ export const NotificationProvider = ({ children }) => {
         connectionStatus,
       }}
     >
-      <ToastContainer/>
+      <ToastContainer />
       {children}
     </NotificationContext.Provider>
   );

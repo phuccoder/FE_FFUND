@@ -16,7 +16,7 @@ const EmailVerification = () => {
 
       try {
         setIsLoading(true);
-        const response = await fetch('https://quanbeo.duckdns.org/api/v1/auth/verify-email', {
+        const response = await fetch('https://ffund.duckdns.org/api/v1/auth/verify-email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -34,7 +34,7 @@ const EmailVerification = () => {
             pauseOnHover: true,
             draggable: true,
           });
-          
+
           setTimeout(() => {
             router.push('/login-register');
           }, 5000);

@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
 
 export const investmentRewardService = {

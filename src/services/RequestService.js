@@ -4,7 +4,7 @@ import { get } from "http";
 import { title } from "process";
 
 // API endpoints
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const SEND_REQUEST_ENDPOINT = `${API_BASE_URL}/founder-request`;
 const UPLOAD_ATTACHMENT_ENDPOINT = `${API_BASE_URL}/founder-request/upload-attachment/{requestId}`;
 const GET_REQUESTS_BY_REQUEST_ID_ENDPOINT = `${API_BASE_URL}/founder-request/{requestId}`;

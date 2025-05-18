@@ -1,7 +1,7 @@
 /**
  * Service for handling project payment information and Stripe Connect integration
  */
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
 import { tokenManager } from '@/utils/tokenManager';
 
@@ -304,7 +304,7 @@ export const paymentInfoService = {
         }
     },
 
-    getPaymentInformationByProjectId : async (projectId) => {
+    getPaymentInformationByProjectId: async (projectId) => {
         try {
             const token = await tokenManager.getValidToken();
             const response = await fetch(`${API_BASE_URL}/project-payment-information/by-project-id/${projectId}`, {
@@ -319,7 +319,7 @@ export const paymentInfoService = {
             let result;
 
             if (response.status === 404) {
-                return null; 
+                return null;
             }
 
             try {
