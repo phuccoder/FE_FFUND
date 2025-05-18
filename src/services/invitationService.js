@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_URL = 'https://quanbeo.duckdns.org/api/v1/invitation';
+const API_URL = 'https://ffund.duckdns.org/api/v1/invitation';
 
 export const invitationService = {
   // Get all invitations with pagination
@@ -16,7 +16,7 @@ export const invitationService = {
 
       // Get response as text first for better error handling
       const responseText = await response.text();
-      
+
       // Try to parse the response as JSON
       let result;
       try {
@@ -28,14 +28,14 @@ export const invitationService = {
         }
         return [];
       }
-      
+
       // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorMessage = result.error || 
-          result.message || 
-          (typeof result === 'string' ? result : null) || 
+        const errorMessage = result.error ||
+          result.message ||
+          (typeof result === 'string' ? result : null) ||
           `Error: ${response.status}`;
-        
+
         throw new Error(errorMessage);
       }
 
@@ -59,7 +59,7 @@ export const invitationService = {
 
       // Get response as text first for better error handling
       const responseText = await response.text();
-      
+
       // Try to parse the response as JSON
       let result;
       try {
@@ -71,14 +71,14 @@ export const invitationService = {
         }
         return null;
       }
-      
+
       // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorMessage = result.error || 
-          result.message || 
-          (typeof result === 'string' ? result : null) || 
+        const errorMessage = result.error ||
+          result.message ||
+          (typeof result === 'string' ? result : null) ||
           `Error: ${response.status}`;
-        
+
         throw new Error(errorMessage);
       }
 
@@ -120,7 +120,7 @@ export const invitationService = {
 
       // Get response as text first for better error handling
       const responseText = await response.text();
-      
+
       // Try to parse the response as JSON
       let result;
       try {
@@ -133,14 +133,14 @@ export const invitationService = {
         // Return a success object if the response is ok but not valid JSON
         return { success: true, message: "Invitation status updated successfully" };
       }
-      
+
       // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorMessage = result.error || 
-          result.message || 
-          (typeof result === 'string' ? result : null) || 
+        const errorMessage = result.error ||
+          result.message ||
+          (typeof result === 'string' ? result : null) ||
           `Error: ${response.status}`;
-        
+
         throw new Error(errorMessage);
       }
 
@@ -177,7 +177,7 @@ export const invitationService = {
 
       // Get response as text first for better error handling
       const responseText = await response.text();
-      
+
       // Try to parse the response as JSON
       let result;
       try {
@@ -189,14 +189,14 @@ export const invitationService = {
         }
         return [];
       }
-      
+
       // If response wasn't successful, extract error message from result
       if (!response.ok) {
-        const errorMessage = result.error || 
-          result.message || 
-          (typeof result === 'string' ? result : null) || 
+        const errorMessage = result.error ||
+          result.message ||
+          (typeof result === 'string' ? result : null) ||
           `Error: ${response.status}`;
-        
+
         throw new Error(errorMessage);
       }
 

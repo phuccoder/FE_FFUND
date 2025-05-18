@@ -30,7 +30,7 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://quanbeo.duckdns.org/api/v1/auth/forgot-password', {
+      const response = await fetch('https://ffund.duckdns.org/api/v1/auth/forgot-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,11 +66,11 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative z-50 w-full max-w-md bg-white rounded-lg shadow-xl p-6 m-4">
         <button

@@ -10,7 +10,7 @@ import { getUserExtendedInfo } from './userService';
  */
 export const getTeamMemberDetail = async (memberId) => {
   try {
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/member/detail/${memberId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/member/detail/${memberId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -47,7 +47,7 @@ export const getTeamById = async (teamId) => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/${teamId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/${teamId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -90,7 +90,7 @@ export const createTeam = async (teamName, teamDescription, memberEmails = []) =
   try {
     const token = await tokenManager.getValidToken();
 
-    const response = await fetch('https://quanbeo.duckdns.org/api/v1/team', {
+    const response = await fetch('https://ffund.duckdns.org/api/v1/team', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -134,7 +134,7 @@ export const inviteMember = async (memberEmail) => {
 
     const requestBody = { memberEmail };
     console.log('inviteMember API request:', {
-      url: `https://quanbeo.duckdns.org/api/v1/team/invitations`,
+      url: `https://ffund.duckdns.org/api/v1/team/invitations`,
       method: 'POST',
       headers: {
         'Authorization': 'Bearer [TOKEN]', // Don't log actual token
@@ -143,7 +143,7 @@ export const inviteMember = async (memberEmail) => {
       body: requestBody
     });
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/invitations`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/invitations`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -184,7 +184,7 @@ export const getUserTeam = async () => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/current-team/member`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/current-team/member`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -260,7 +260,7 @@ export const updateMemberRole = async (memberId, teamRole) => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/member/role/${memberId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/member/role/${memberId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -303,7 +303,7 @@ export const removeMember = async (memberId) => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/member/${memberId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/member/${memberId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -341,7 +341,7 @@ export const deleteTeam = async (teamId) => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/${teamId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/${teamId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -379,7 +379,7 @@ export const getTeamMemberInfo = async (memberId) => {
       throw new Error('Authentication token is missing or invalid');
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/team-member-information/${memberId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/team-member-information/${memberId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -419,7 +419,7 @@ export const updateTeam = async (teamId, teamData) => {
       throw new Error("Team ID is required");
     }
 
-    const response = await fetch(`https://quanbeo.duckdns.org/api/v1/team/${teamId}`, {
+    const response = await fetch(`https://ffund.duckdns.org/api/v1/team/${teamId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
 const GET_VIOLATION_BY_FOUNDER_ENDPOINT = (projectId) => `${API_BASE_URL}/violation/founder/${projectId}`;
 

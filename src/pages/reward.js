@@ -30,7 +30,7 @@ function RewardPage() {
                 setLoading(true);
 
                 // Fetch investments data from the API
-                const response = await fetch('https://quanbeo.duckdns.org/api/v1/investment/user?page=0&size=100&sort=', {
+                const response = await fetch('https://ffund.duckdns.org/api/v1/investment/user?page=0&size=100&sort=', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -144,7 +144,7 @@ function RewardPage() {
         }
 
         try {
-            const response = await fetch(`https://quanbeo.duckdns.org/api/v1/milestone/guest/${investment.milestoneId}`, {
+            const response = await fetch(`https://ffund.duckdns.org/api/v1/milestone/guest/${investment.milestoneId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
