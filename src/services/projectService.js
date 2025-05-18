@@ -1,7 +1,7 @@
 import { tokenManager } from "@/utils/tokenManager";
 
 // API endpoints
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/get-all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const PROJECT_CREATE_ENDPOINT = `${API_BASE_URL}/project`;
@@ -11,8 +11,8 @@ const PROJECT_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/project/get-by-id/${id}`
 const PROJECT_CREATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_UPDATE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
 const PROJECT_DELETE_PHASE_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/${id}`;
-const PROJECT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/all`;
-const PROJECT_CURRENT_BY_FOUNDER_ENDPOINT = `https://quanbeo.duckdns.org/api/v1/project/founder/current`;
+const PROJECT_BY_FOUNDER_ENDPOINT = `https://ffund.duckdns.org/api/v1/project/founder/all`;
+const PROJECT_CURRENT_BY_FOUNDER_ENDPOINT = `https://ffund.duckdns.org/api/v1/project/founder/current`;
 const PROJECT_UPDATE_BASIC_INFO_ENDPOINT = (id) => `${API_BASE_URL}/project/update-basic-information/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/project/${id}`;
 const PROJECT_GET_FUNDING_PHASES_BY_PROJECTID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/funding-phase/guest/project/${id}`;
@@ -1381,50 +1381,50 @@ const projectService = {
     },
 
     getPlatformValuePercentage: async () => {
+        try {
+            const token = await tokenManager.getValidToken();
+            const response = await fetch(PLATFORM_CHARGE_PERCENTAGE_ENDPOINT(), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+            });
+
+            // Get response as text first for better error handling
+            const responseText = await response.text();
+
+            // Try to parse the response as JSON
+            let result;
             try {
-                const token = await tokenManager.getValidToken();
-                const response = await fetch(PLATFORM_CHARGE_PERCENTAGE_ENDPOINT(), {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                });
-                
-                // Get response as text first for better error handling
-                const responseText = await response.text();
-                
-                // Try to parse the response as JSON
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (parseError) {
-                    console.error('Error parsing response as JSON:', parseError);
-                    if (!response.ok) {
-                        throw new Error(responseText || `Error: ${response.status}`);
-                    }
-                    // Return null for non-JSON success responses
-                    return null;
-                }
-                
-                // If response wasn't successful, extract error message from result
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Error parsing response as JSON:', parseError);
                 if (!response.ok) {
-                    const errorMessage = result.error || 
-                        result.message || 
-                        (typeof result === 'string' ? result : null) || 
-                        `Error: ${response.status}`;
-                    
-                    throw new Error(errorMessage);
+                    throw new Error(responseText || `Error: ${response.status}`);
                 }
-                
-                return result;
-                
-            } catch (error) {
-                console.error('Failed to get milestone value percentage:', error);
-                throw error;
+                // Return null for non-JSON success responses
+                return null;
             }
+
+            // If response wasn't successful, extract error message from result
+            if (!response.ok) {
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
+                    `Error: ${response.status}`;
+
+                throw new Error(errorMessage);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error('Failed to get milestone value percentage:', error);
+            throw error;
         }
+    }
 };
 
 export default projectService;

@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
 const PHASE_DOCUMENT_GET_BY_PHASE_ENDPOINT = (phaseId) => `${API_BASE_URL}/phase-document/submitted/${phaseId}`;
 const PHASE_DOCUMENT_GET_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/phase-document/submitted/${id}`;
@@ -19,7 +19,7 @@ export const phaseDocumentService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch phase document by phase.");
@@ -43,7 +43,7 @@ export const phaseDocumentService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch phase document by ID.");
@@ -68,7 +68,7 @@ export const phaseDocumentService = {
                 },
                 body: formData,
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to create phase document.");
@@ -92,7 +92,7 @@ export const phaseDocumentService = {
                 },
                 body: formData,
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to update phase document.");
@@ -116,7 +116,7 @@ export const phaseDocumentService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch phase document by founder.");
@@ -140,7 +140,7 @@ export const phaseDocumentService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to submit all phase documents.");
@@ -155,6 +155,6 @@ export const phaseDocumentService = {
     }
 };
 
-    
+
 
 

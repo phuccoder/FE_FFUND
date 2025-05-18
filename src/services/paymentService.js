@@ -1,6 +1,6 @@
 const { tokenManager } = require("@/utils/tokenManager");
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const PAYMENT_INFO_GET_BY_PHASE_ENDPOINT = (id, page, size, sort) => `${API_BASE_URL}/investment/all/${id}?page=${page}&size=${size}&sort=${sort}`;
 const PAYMENT_INFO_GET_BY_USER_ENDPOINT = (page, size, sort) => `${API_BASE_URL}/investment/user?page=${page}&size=${size}&sort=${sort}`;
 const PAYMENT_INFO_GET_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/investment/${id}`;
@@ -18,7 +18,7 @@ const paymentInformationService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch payment info by phase.");
@@ -26,10 +26,10 @@ const paymentInformationService = {
 
             const data = await response.json();
             return data;
-            } catch (error) {
-                console.error('Error in getPaymentInfoByPhase:', error);
-                throw error;
-            }
+        } catch (error) {
+            console.error('Error in getPaymentInfoByPhase:', error);
+            throw error;
+        }
     },
 
     getPaymentInfoByUser: async (page, size, sort) => {
@@ -42,7 +42,7 @@ const paymentInformationService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch payment info by user.");
@@ -50,10 +50,10 @@ const paymentInformationService = {
 
             const data = await response.json();
             return data;
-            } catch (error) {
-                console.error('Error in getPaymentInfoByUser:', error);
-                throw error;
-            }
+        } catch (error) {
+            console.error('Error in getPaymentInfoByUser:', error);
+            throw error;
+        }
     },
 
     getPaymentInfoById: async (id) => {
@@ -66,7 +66,7 @@ const paymentInformationService = {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "Failed to fetch payment info by id.");
@@ -74,10 +74,10 @@ const paymentInformationService = {
 
             const data = await response.json();
             return data;
-            } catch (error) {
-                console.error('Error in getPaymentInfoById:', error);
-                throw error;
-            }
+        } catch (error) {
+            console.error('Error in getPaymentInfoById:', error);
+            throw error;
+        }
     },
 
     createPaymentInfoForPhase: async (id, paymentInfo) => {
@@ -99,10 +99,10 @@ const paymentInformationService = {
 
             const data = await response.json();
             return data;
-            } catch (error) {
-                console.error('Error in createPaymentInfoForPhase:', error);
-                throw error;
-            }
+        } catch (error) {
+            console.error('Error in createPaymentInfoForPhase:', error);
+            throw error;
+        }
     },
 
     createPaymentInfoForMilestone: async (id, paymentInfo) => {
@@ -124,11 +124,11 @@ const paymentInformationService = {
 
             const data = await response.json();
             return data;
-            
-            } catch (error) {
-                console.error('Error in createPaymentInfoForMilestone:', error);
-                throw error;
-            }
+
+        } catch (error) {
+            console.error('Error in createPaymentInfoForMilestone:', error);
+            throw error;
+        }
     },
 };
 

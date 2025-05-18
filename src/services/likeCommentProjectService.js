@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const LIKE_PROJECT_ENDPOINT = (projectId) => `${API_BASE_URL}/like-comment-project/like/${projectId}`;
 const UNLIKE_PROJECT_ENDPOINT = (projectId) => `${API_BASE_URL}/like-comment-project/unlike/${projectId}`;
 const COMMENT_PROJECT_ENDPOINT = (projectId) => `${API_BASE_URL}/like-comment-project/comment/${projectId}`;

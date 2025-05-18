@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 
 const TRANSACTION_GET_BY_INVESTOR_ENDPOINT = `${API_BASE_URL}/investment/user`;
 const TRANSACTION_GET_BY_FOUNDER_ENDPOINT = `${API_BASE_URL}/transactions/current`;
@@ -11,9 +11,9 @@ const buildUrl = (baseUrl, params) => {
             console.error('Invalid base URL:', baseUrl);
             throw new Error('Invalid base URL');
         }
-        
+
         const url = new URL(baseUrl);
-        
+
         if (params && typeof params === 'object') {
             Object.keys(params).forEach(key => {
                 if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
@@ -21,13 +21,13 @@ const buildUrl = (baseUrl, params) => {
                 }
             });
         }
-        
+
         return url.toString();
     } catch (error) {
         console.error('Error building URL:', error, 'Base URL:', baseUrl);
         let urlString = baseUrl;
         let hasQueryParams = urlString.includes('?');
-        
+
         if (params && typeof params === 'object') {
             Object.keys(params).forEach((key, index) => {
                 if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
@@ -36,7 +36,7 @@ const buildUrl = (baseUrl, params) => {
                 }
             });
         }
-        
+
         return urlString;
     }
 };
@@ -61,14 +61,14 @@ export const transactionService = {
     getTransactionsByInvestor: async (page = 0, size = 10, sort = '') => {
         try {
             const token = await tokenManager.getValidToken();
-            
+
             // Fix 3: Use buildUrl for investor endpoint
             const url = buildUrl(TRANSACTION_GET_BY_INVESTOR_ENDPOINT, {
                 page,
                 size,
                 sort: sort || undefined
             });
-            
+
             console.log('Fetching investor transactions from URL:', url);
 
             const response = await fetch(url, {
@@ -210,7 +210,7 @@ export const transactionService = {
                 },
             });
 
-           const responseText = await response.text();
+            const responseText = await response.text();
 
             let result;
             try {

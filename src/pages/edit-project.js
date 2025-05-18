@@ -22,6 +22,8 @@ import PageTitle from '@/components/Reuseable/PageTitle';
 import ProjectEvaluationPoint from '@/components/CreateProject/ProjectEvaluationPoint';
 import PaymentInformation from '@/components/CreateProject/PaymentInformation';
 import ExtendTimeRequestForm from '@/components/Request/RequestExtendTime';
+import ViolationsTable from '@/components/CreateProject/ViolationTable';
+import { violationService } from 'src/services/violationService';
 
 function EditProjectPage() {
   const router = useRouter();
@@ -38,6 +40,8 @@ function EditProjectPage() {
   const [existingUpdates, setExistingUpdates] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [violations, setViolations] = useState([]);
+  const [loadingViolations, setLoadingViolations] = useState(false);
 
   const debugFormData = () => {
     console.log("DEBUG - Current form state:", {
@@ -350,6 +354,29 @@ function EditProjectPage() {
     extractProjectIdFromRawData();
   }, [router.query]);
 
+  useEffect(() => {
+    const fetchViolations = async () => {
+      if (formData.projectId && projectStatus === 'BAN') {
+        setLoadingViolations(true);
+        try {
+          const violationsData = await violationService.getViolationByFounder(formData.projectId);
+          if (violationsData.data && Array.isArray(violationsData.data)) {
+            setViolations(violationsData.data);
+          } else {
+            setViolations(violationsData); // If response doesn't have .data property
+          }
+        } catch (error) {
+          console.error("Error fetching violations:", error);
+          setViolations([]);
+        } finally {
+          setLoadingViolations(false);
+        }
+      }
+    };
+
+    fetchViolations();
+  }, [formData.projectId, projectStatus]);
+
   const getProjectIdFromAllSources = async () => {
     // 1. Try URL query parameter (highest priority)
     if (router.isReady && router.query.projectId) {
@@ -584,6 +611,100 @@ function EditProjectPage() {
     } catch (error) {
       console.error("Error loading project story:", error);
       return null;
+    }
+  };
+
+  const loadProjectRewards = async (projectId) => {
+    try {
+      console.log("Fetching rewards/milestones for project ID:", projectId);
+
+      if (!projectId) {
+        console.error("No project ID provided for rewards loading");
+        return [];
+      }
+
+      // First, get the phases for the project
+      const phasesResponse = await projectService.getPhaseByProject(projectId);
+      console.log("Project phases loaded:", phasesResponse);
+
+      // Ensure we have an array of phases
+      const phases = Array.isArray(phasesResponse) ? phasesResponse :
+        (phasesResponse?.data && Array.isArray(phasesResponse.data)) ?
+          phasesResponse.data : [];
+
+      // Process all milestones for all phases
+      const processedMilestones = [];
+
+      // For each phase, get its milestones
+      for (const phase of phases) {
+        if (!phase.id) continue;
+
+        try {
+          console.log(`Fetching milestones for phase ID: ${phase.id}`);
+
+          // Get milestones for this phase
+          const milestonesData = await milestoneService.getMilestonesByPhaseId(phase.id);
+          console.log(`Milestones data loaded for phase ${phase.id}:`, milestonesData);
+
+          // Ensure we have an array of milestones
+          const milestonesArray = Array.isArray(milestonesData) ? milestonesData :
+            (milestonesData?.data && Array.isArray(milestonesData.data)) ?
+              milestonesData.data : [];
+
+          // For each milestone, fetch its items
+          for (const milestone of milestonesArray) {
+            try {
+              // Get items for this milestone
+              let items = [];
+              if (milestone.id) {
+                const itemsData = await milestoneItemService.getMilestoneItemsByMilestoneId(milestone.id);
+                items = Array.isArray(itemsData) ? itemsData :
+                  (itemsData?.data && Array.isArray(itemsData.data)) ?
+                    itemsData.data : [];
+              }
+
+              // Add milestone with its items to the processed array
+              processedMilestones.push({
+                ...milestone,
+                phaseId: phase.id, // Add phaseId for reference
+                projectId: projectId,
+                items: items
+              });
+            } catch (itemError) {
+              console.error("Error fetching items for milestone:", milestone.id, itemError);
+              // Still add the milestone without items
+              processedMilestones.push({
+                ...milestone,
+                phaseId: phase.id,
+                projectId: projectId,
+                items: []
+              });
+            }
+          }
+        } catch (phaseError) {
+          console.error(`Error fetching milestones for phase ${phase.id}:`, phaseError);
+        }
+      }
+
+      console.log(`Setting ${processedMilestones.length} rewards for project ${projectId}`);
+
+      // Update form data with rewards
+      setFormData(prevData => ({
+        ...prevData,
+        rewardInfo: processedMilestones
+      }));
+
+      return processedMilestones;
+    } catch (error) {
+      console.error(`Error loading project rewards for ID ${projectId}:`, error);
+
+      // Update with empty rewards to avoid null reference
+      setFormData(prevData => ({
+        ...prevData,
+        rewardInfo: []
+      }));
+
+      return [];
     }
   };
 
@@ -1353,11 +1474,6 @@ function EditProjectPage() {
       isAllowedStatus: isStatusAllowedForEditing(projectStatus)
     });
 
-    // If it's DRAFT, restrict editing in this page
-    if (normalizedStatus === 'DRAFT') {
-      return true;
-    }
-
     // If it's not in our allowed list, restrict editing
     return !isStatusAllowedForEditing(projectStatus);
   };
@@ -1462,7 +1578,21 @@ function EditProjectPage() {
               </div>
             </div>
           </div>
-          
+
+          {/* Violations section - only show for BAN status */}
+          {projectStatus === 'BAN' && (
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+              {loadingViolations ? (
+                <div className="text-center py-10">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <p className="mt-2 text-gray-600">Loading violations...</p>
+                </div>
+              ) : (
+                <ViolationsTable violations={violations} />
+              )}
+            </div>
+          )}
+
           {projectStatus === 'RESUBMIT' && (
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">

@@ -20,7 +20,9 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isPotentialProject, setIsPotentialProject] = useState(false);
   const [isCategoryPanelOpen, setIsCategoryPanelOpen] = useState(false);
+  const [isFundraisingCompleted, setIsFundraisingCompleted] = useState(false);
   const categoryPanelRef = React.useRef(null);
+  const moreFiltersRef = React.useRef(null);
 
 
   useEffect(() => {
@@ -84,18 +86,22 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       filters.push({ type: 'potentialProject', value: 'Potential Project' });
     }
 
+    if (isFundraisingCompleted) {
+      filters.push({ type: 'fundraisingCompleted', value: 'Fundraising Completed' });
+    }
+
     if (searchTerm) {
       filters.push({ type: 'searchTerm', value: searchTerm });
     }
 
     setActiveFilters(filters);
-  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, searchTerm]);
+  }, [selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, isFundraisingCompleted, searchTerm]);
 
   useEffect(() => {
     if (initialLoadComplete) {
       handleSearch();
     }
-  }, [sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, searchTerm]);
+  }, [sortOption, selectedMainCategory, selectedSubCategories, selectedLocation, selectedFundingStatus, isPotentialProject, isFundraisingCompleted, searchTerm]);
 
   useEffect(() => {
     const handleExternalFilters = (event) => {
@@ -221,6 +227,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       setSearchTerm("");
     } else if (filterType === 'potentialProject') {
       setIsPotentialProject(false);
+    } else if (filterType === 'fundraisingCompleted') {
+      setIsFundraisingCompleted(false);
     }
   };
 
@@ -249,6 +257,10 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
 
     if (isPotentialProject) {
       queryParts.push(`isClassPotential:eq:true`);
+    }
+
+    if (isFundraisingCompleted) {
+      queryParts.push(`status:eq:FUNDRAISING_COMPLETED`);
     }
 
     if (
@@ -289,6 +301,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
       return `with funding status "${filter.value}"`;
     } else if (filter.type === 'searchTerm') {
       return `named "${filter.value}"`;
+    } else if (filter.type === 'fundraisingCompleted') {
+      return "with Fundraising Completed";
     }
     return filter.value;
   };
@@ -454,12 +468,12 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
             <span className="text-gray-700 whitespace-nowrap">projects</span>
 
             {/* Active filters section */}
-            {activeFilters.filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm').length > 0 && (
+            {activeFilters.filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm' || filter.type === 'fundraisingCompleted').length > 0 && (
               <div className="flex items-center flex-wrap gap-2">
                 {activeFilters
-                  .filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm')
+                  .filter(filter => filter.type === 'potentialProject' || filter.type === 'fundingStatus' || filter.type === 'searchTerm' || filter.type === 'fundraisingCompleted')
                   .sort((a, b) => {
-                    const order = { 'potentialProject': 1, 'searchTerm': 2, 'fundingStatus': 3 };
+                    const order = { 'potentialProject': 1, 'searchTerm': 2, 'fundingStatus': 3, 'fundraisingCompleted': 4 };
                     return order[a.type] - order[b.type];
                   })
                   .map((filter, index) => {
@@ -476,6 +490,9 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
                     } else if (filter.type === 'searchTerm') {
                       beforeHighlight = "named ";
                       highlightedText = `"${filter.value}"`;
+                    } else if (filter.type === 'fundraisingCompleted') {
+                      beforeHighlight = "with ";
+                      highlightedText = "Fundraising Completed";
                     }
 
                     return (
@@ -538,7 +555,7 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
           </div>
 
           {/* Right side with More Filters button */}
-          <div className="relative ml-auto">
+          <div className="relative ml-auto" ref={moreFiltersRef}>
             <button
               onClick={toggleSearch}
               className="px-4 py-2 bg-green-500 text-white rounded-md shadow-md hover:bg-green-600 transition-colors duration-200 flex items-center whitespace-nowrap"
@@ -546,84 +563,113 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
               More Filters
             </button>
 
-            {/* Advanced Search Panel - Fixed z-index */}
+            {/* Advanced Search Panel - IMPROVED POSITIONING AND Z-INDEX */}
             {isSearchVisible && (
-              <div className="fixed right-4 top-[4.5rem] mt-1 bg-white border border-gray-300 rounded-md shadow-lg w-[450px] z-[8000] transition-all duration-200 ease-in-out">
-                {/* Header */}
-                <div className="py-2 px-4 border-b border-gray-200">
-                  <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
-                </div>
-                {/* Content area */}
-                <div className="p-4">
-                  {/* Project Name Search input at top */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1 text-gray-700">Project Name</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Enter project name..."
-                        className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
-                      />
-                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <FaSearch className="h-4 w-4 text-gray-500" />
-                      </span>
+              <div
+                className="fixed inset-0 bg-transparent"
+                style={{ zIndex: 9000 }}
+                onClick={() => setIsSearchVisible(false)}
+              >
+                <div
+                  className="absolute"
+                  style={{
+                    top: moreFiltersRef.current ? moreFiltersRef.current.getBoundingClientRect().bottom + 5 + 'px' : '0',
+                    right: window.innerWidth - (moreFiltersRef.current ? moreFiltersRef.current.getBoundingClientRect().right : 0) + 'px',
+                    zIndex: 9100
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="bg-white border border-gray-300 rounded-md shadow-lg w-[450px] transition-all duration-200 ease-in-out">
+                    {/* Header */}
+                    <div className="py-2 px-4 border-b border-gray-200">
+                      <h3 className="uppercase text-gray-700 font-medium text-sm mb-0">More filters</h3>
                     </div>
-                  </div>
+                    {/* Content area */}
+                    <div className="p-4">
+                      {/* Project Name Search input at top */}
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1 text-gray-700">Project Name</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Enter project name..."
+                            className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <FaSearch className="h-4 w-4 text-gray-500" />
+                          </span>
+                        </div>
+                      </div>
 
-                  {/* Two columns layout */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Left column */}
-                    <div className="col-span-1">
-                      <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
-                      <div
-                        onClick={() => setIsPotentialProject(!isPotentialProject)}
-                        className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
-                          ? "bg-green-50 text-green-700 font-medium"
-                          : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
-                          }`}
-                      >
-                        Projects Have Potential
+                      {/* Two columns layout */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Left column */}
+                        <div className="col-span-1">
+                          <h3 className="text-sm font-medium mb-2 text-gray-700">Quick Filters</h3>
+                          <div className="space-y-2">
+                            <div
+                              onClick={() => setIsPotentialProject(!isPotentialProject)}
+                              className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
+                                  ? "bg-green-50 text-green-700 font-medium"
+                                  : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
+                                }`}
+                            >
+                              Projects Have Potential
+                            </div>
+
+                            {/* New fundraising completed filter */}
+                            <div
+                              onClick={() => setIsFundraisingCompleted(!isFundraisingCompleted)}
+                              className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isFundraisingCompleted
+                                  ? "bg-green-50 text-green-700 font-medium"
+                                  : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
+                                }`}
+                            >
+                              Fundraising Completed
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right column: Funding Status */}
+                        <div className="col-span-1">
+                          <label className="block text-sm font-medium mb-2 text-gray-700">Funding Status</label>
+                          <select
+                            value={selectedFundingStatus}
+                            onChange={handleFundingStatusChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          >
+                            <option value="">All Statuses</option>
+                            {fundingPhaseStatuses.map((status) => (
+                              <option key={status} value={status}>
+                                {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right column: Funding Status */}
-                    <div className="col-span-1">
-                      <label className="block text-sm font-medium mb-2 text-gray-700">Funding Status</label>
-                      <select
-                        value={selectedFundingStatus}
-                        onChange={handleFundingStatusChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-400"
+                    {/* Footer with buttons */}
+                    <div className="py-2 px-4 border-t border-gray-200 flex justify-end space-x-3">
+                      <button
+                        onClick={() => setIsSearchVisible(false)}
+                        className="px-4 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
                       >
-                        <option value="">All Statuses</option>
-                        {fundingPhaseStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status === "PLAN" ? "Planning" : status === "PROCESS" ? "In Progress" : "Completed"}
-                          </option>
-                        ))}
-                      </select>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSearch();
+                          setIsSearchVisible(false);
+                        }}
+                        className="px-4 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
+                      >
+                        Apply Filters
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Footer with buttons */}
-                <div className="py-2 px-4 border-t border-gray-200 flex justify-end space-x-3">
-                  <button
-                    onClick={toggleSearch}
-                    className="px-4 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleSearch();
-                      toggleSearch();
-                    }}
-                    className="px-4 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
-                  >
-                    Apply Filters
-                  </button>
                 </div>
               </div>
             )}

@@ -222,7 +222,7 @@ const ExploreArea = ({ searchParams }) => {
                                 {isSearching && (
                                     <button
                                         className="btn btn-outline-primary mt-3"
-                                        onClick={() => window.location.href = "/project-1"}
+                                        onClick={() => window.location.href = "/projects-1"}
                                     >
                                         Clear search
                                     </button>

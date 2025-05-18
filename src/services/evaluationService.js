@@ -1,6 +1,6 @@
 import { tokenManager } from '@/utils/tokenManager';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ffund.duckdns.org/api/v1';
 
 const GET_EVALUATION_BY_FOUNDER_ENDPOINT = (projectId) => `${API_BASE_URL}/evaluation/founder/${projectId}`;
 

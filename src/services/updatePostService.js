@@ -1,6 +1,6 @@
 const { tokenManager } = require("@/utils/tokenManager");
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1'; // Replace with your actual API base URL
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1'; // Replace with your actual API base URL
 const UPDATE_POST_GET_BY_PROJECT = (id) => `${API_BASE_URL}/project-update-post/by-project-id/${id}`;
 const UPDATE_POST_GET_BY_ID = (id) => `${API_BASE_URL}/project-update-post/${id}`;
 const UPDATE_POST_CREATE = (id) => `${API_BASE_URL}/project-update-post/${id}`;

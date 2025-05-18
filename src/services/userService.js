@@ -8,21 +8,21 @@ import { tokenManager } from '../utils/tokenManager';
 export const getUserById = async () => {
     try {
         const token = await tokenManager.getValidToken();
-        const userId = localStorage.getItem('userId'); 
+        const userId = localStorage.getItem('userId');
         console.log('userId:', userId);
 
         if (!token) {
             throw new Error('Authentication token is missing or invalid');
         }
 
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/user/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/user/${userId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
-        
+
         if (!response.ok) {
             throw new Error(`Error: ${response.status}`);
         }
@@ -51,7 +51,7 @@ export const updateUser = async (userData) => {
         const userId = localStorage.getItem('userId'); // Retrieve userId from localStorage
         const { fullName, username, telephoneNumber, identifyNumber, userInformation, userFfundLink } = userData;
 
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/user/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/user/${userId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -90,7 +90,7 @@ export const uploadAvatar = async (file) => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('https://quanbeo.duckdns.org/api/v1/user/upload-avatar', {
+        const response = await fetch('https://ffund.duckdns.org/api/v1/user/upload-avatar', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -123,7 +123,7 @@ export const getUserExtendedInfo = async () => {
             throw new Error('Authentication token is missing or invalid');
         }
 
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/founder-information/${userId}`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -146,7 +146,7 @@ export const getUserExtendedInfo = async () => {
         }
 
         const result = await response.json();
-        
+
         if (result.status === 200 && result.data) {
             return result.data;
         } else {
@@ -167,7 +167,7 @@ export const createUserExtendedInfo = async (founderData) => {
     try {
         const token = await tokenManager.getValidToken();
         const userId = localStorage.getItem('userId');
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/founder-information/${userId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -197,7 +197,7 @@ export const updateUserExtendedInfo = async (founderData) => {
     try {
         const token = await tokenManager.getValidToken();
         const userId = localStorage.getItem('userId');
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/founder-information/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/founder-information/${userId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -227,11 +227,11 @@ export const uploadStudentPortfolio = async (file) => {
     try {
         const token = await tokenManager.getValidToken();
         const userId = localStorage.getItem('userId');
-        
+
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`https://quanbeo.duckdns.org/api/v1/founder-information/upload-portfolio/${userId}`, {
+        const response = await fetch(`https://ffund.duckdns.org/api/v1/founder-information/upload-portfolio/${userId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

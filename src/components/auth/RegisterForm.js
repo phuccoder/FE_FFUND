@@ -50,8 +50,8 @@ export const RegisterForm = () => {
     try {
       const apiUrl =
         activeRole === 'FOUNDER'
-          ? 'https://quanbeo.duckdns.org/api/v1/auth/register/founder'
-          : 'https://quanbeo.duckdns.org/api/v1/auth/register';
+          ? 'https://ffund.duckdns.org/api/v1/auth/register/founder'
+          : 'https://ffund.duckdns.org/api/v1/auth/register';
 
       const response = await fetch(apiUrl, {
         method: 'POST',

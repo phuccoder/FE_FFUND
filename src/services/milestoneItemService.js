@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const MILESTONE_ITEM_GET_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/item/${id}`;
 const MILESTONE_ITEM_CREATE_ENDPOINT = (id) => `${API_BASE_URL}/item/${id}`;
 const MILESTONE_ITEM_UPDATE_ENDPOINT = (id) => `${API_BASE_URL}/item/${id}`;
@@ -141,18 +141,18 @@ export const milestoneItemService = {
             console.log(`Uploading image for item ID: ${itemId}`);
             console.log('Image file:', imageFile ? {
                 name: imageFile.name,
-                size: imageFile.size, 
+                size: imageFile.size,
                 type: imageFile.type
             } : 'No file provided');
-            
+
             const token = await tokenManager.getValidToken();
             const formData = new FormData();
 
             formData.append('file', imageFile);
-            
+
             console.log(`Using endpoint: ${MILESTONE_ITEM_UPLOAD_IMAGE_ENDPOINT(itemId)}`);
             console.groupEnd();
-            
+
             const response = await fetch(MILESTONE_ITEM_UPLOAD_IMAGE_ENDPOINT(itemId), {
                 method: 'PATCH',
                 headers: {
@@ -162,13 +162,13 @@ export const milestoneItemService = {
                 },
                 body: formData
             });
-    
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`Upload failed with status ${response.status}: ${errorText}`);
                 throw new Error(`HTTP error! Status: ${response.status}, Details: ${errorText}`);
             }
-    
+
             const data = await response.json();
             console.log('Upload successful:', data);
             return data;

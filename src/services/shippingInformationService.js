@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const SHIPPING_INFORMATION_GET_BY_INVESMENT_ID_ENDPOINT = (id) => `${API_BASE_URL}/shipping-information/${id}`;
 const SHIPPING_INFORMATION_CREATE_ENDPOINT = (investmentId, userAddressId) => `${API_BASE_URL}/shipping-information/${investmentId}/${userAddressId}`;
 const SHIPPING_INFORMATION_UPDATE_ENDPOINT = (id, userAddressId) => `${API_BASE_URL}/shipping-information/${id}/${userAddressId}`;

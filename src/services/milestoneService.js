@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/phase/${id}`;
 const MILESTONE_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/milestone/${id}`;
 const MILESTONE_CREATE_ENDPOINT_FOR_PHASE = (id) => `${API_BASE_URL}/milestone/${id}`;
@@ -26,10 +26,10 @@ export const milestoneService = {
                     'Authorization': `Bearer ${token}`
                 },
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -42,25 +42,25 @@ export const milestoneService = {
                 // Return empty array for non-JSON success responses
                 return [];
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to get milestones by phase id:', error);
             throw error;
         }
     },
-    
+
     /**
      * Get a milestone by id
      * @param {number} milestoneId
@@ -78,10 +78,10 @@ export const milestoneService = {
                     'Authorization': `Bearer ${token}`
                 },
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -94,25 +94,25 @@ export const milestoneService = {
                 // Return null for non-JSON success responses
                 return null;
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to get milestone by id:', error);
             throw error;
         }
     },
-    
+
     /**
      * Create a milestone for a phase
      * @param {number} phaseId
@@ -131,10 +131,10 @@ export const milestoneService = {
                 },
                 body: JSON.stringify(milestoneData)
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -147,25 +147,25 @@ export const milestoneService = {
                 // Return success object for non-JSON success responses
                 return { success: true, message: "Milestone created successfully" };
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to create milestone for phase:', error);
             throw error;
         }
     },
-    
+
     /**
      * Update a milestone
      * @param {number} milestoneId
@@ -184,10 +184,10 @@ export const milestoneService = {
                 },
                 body: JSON.stringify(milestoneData)
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -200,25 +200,25 @@ export const milestoneService = {
                 // Return success object for non-JSON success responses
                 return { success: true, message: "Milestone updated successfully" };
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to update milestone:', error);
             throw error;
         }
     },
-    
+
     /**
      * Delete a milestone
      * @param {number} milestoneId
@@ -235,10 +235,10 @@ export const milestoneService = {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -251,19 +251,19 @@ export const milestoneService = {
                 // Return success object for non-JSON success responses
                 return { success: true, message: "Milestone deleted successfully" };
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to delete milestone:', error);
             throw error;
@@ -285,10 +285,10 @@ export const milestoneService = {
                     'Authorization': `Bearer ${token}`
                 },
             });
-            
+
             // Get response as text first for better error handling
             const responseText = await response.text();
-            
+
             // Try to parse the response as JSON
             let result;
             try {
@@ -301,19 +301,19 @@ export const milestoneService = {
                 // Return null for non-JSON success responses
                 return null;
             }
-            
+
             // If response wasn't successful, extract error message from result
             if (!response.ok) {
-                const errorMessage = result.error || 
-                    result.message || 
-                    (typeof result === 'string' ? result : null) || 
+                const errorMessage = result.error ||
+                    result.message ||
+                    (typeof result === 'string' ? result : null) ||
                     `Error: ${response.status}`;
-                
+
                 throw new Error(errorMessage);
             }
-            
+
             return result;
-            
+
         } catch (error) {
             console.error('Failed to get milestone value percentage:', error);
             throw error;

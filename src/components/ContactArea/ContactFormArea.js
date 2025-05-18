@@ -9,7 +9,7 @@ import { Paperclip, Send, AlertCircle } from "lucide-react";
 
 const { tagline, title } = contactFormArea;
 
-// Updated request type options to match backend enum values
+
 const REQUEST_TYPES = [
   { value: "STRIPE_ACCOUNT", label: "Stripe Account" },
   { value: "CREATE_PROJECT", label: "Create Project" },

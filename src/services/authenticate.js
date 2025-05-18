@@ -1,10 +1,10 @@
 import { toast } from 'react-toastify';
 import { tokenManager } from '../utils/tokenManager';
 
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/auth';
 const GOOGLE_CLIENT_ID = '304094440461-in6615ihk31rar586rh7nndp19ojoi2h.apps.googleusercontent.com';
-const CALLBACK_URL = 'https://quanbeo.duckdns.org/authenticate';
+const CALLBACK_URL = 'https://www.fptfund.site/authenticate';
 
 const authenticatedFetch = async (url, options = {}) => {
   const token = await tokenManager.getValidToken();
@@ -34,7 +34,7 @@ export const authenticate = {
         ...formData,
         password: '***********' // Don't log actual password
       });
-  
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -45,13 +45,13 @@ export const authenticate = {
           password: formData.password
         }),
       });
-  
+
       console.log('Login response status:', response.status);
-  
+
       // Get response text first to see actual error message
       const responseText = await response.text();
       console.log('Login response text:', responseText);
-  
+
       // Try to parse JSON if possible
       let data;
       try {
@@ -69,7 +69,7 @@ export const authenticate = {
           status: response.status
         };
       }
-  
+
       // If response is not OK, throw an error with the message from the server
       if (!response.ok) {
         throw {
@@ -79,10 +79,10 @@ export const authenticate = {
           data: data
         };
       }
-  
+
       // Check if the structure has a nested 'data' property
       const payload = data.data || data;
-  
+
       if (!payload.accessToken) {
         console.error('Missing accessToken in response:', data);
         throw {
@@ -90,11 +90,11 @@ export const authenticate = {
           data: data
         };
       }
-  
+
       tokenManager.setTokens(payload.accessToken, payload.refreshToken);
       localStorage.setItem('role', payload.role);
       localStorage.setItem('userId', payload.userId);
-  
+
       return {
         data: payload // Return consistent structure
       };
@@ -281,7 +281,7 @@ export const authenticate = {
       localStorage.setItem('userId', payload.userId);
 
       return {
-        data: payload 
+        data: payload
       };
     } catch (error) {
       console.error('Setup error:', error);
@@ -292,9 +292,9 @@ export const authenticate = {
   // Refresh the authentication token
   refreshToken: async (refreshToken) => {
     try {
-      const tokenValue = typeof refreshToken === 'object' && refreshToken.token ? 
+      const tokenValue = typeof refreshToken === 'object' && refreshToken.token ?
         refreshToken.token : refreshToken;
-        
+
       const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
         method: 'POST',
         headers: {
@@ -302,7 +302,7 @@ export const authenticate = {
         },
         body: JSON.stringify({ token: tokenValue }),
       });
-  
+
       if (response.ok) {
         const data = await response.json();
         return data;

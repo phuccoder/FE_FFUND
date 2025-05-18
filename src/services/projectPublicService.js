@@ -1,5 +1,5 @@
 // API endpoints
-const API_BASE_URL = 'https://quanbeo.duckdns.org/api/v1'; // Replace with your actual API base URL
+const API_BASE_URL = 'https://ffund.duckdns.org/api/v1'; // Replace with your actual API base URL
 const CATEGORIES_ENDPOINT = `${API_BASE_URL}/category/all`;
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/sub-category/get-all`;
 const CATEGORY_BY_ID_ENDPOINT = (id) => `${API_BASE_URL}/category/${id}`;
@@ -28,17 +28,17 @@ const projectService = {
                     'accept': '*/*'
                 }
             });
-    
+
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-    
+
             const result = await response.json();
 
             if (!result || !result.data || !Array.isArray(result.data.data)) {
                 return [];
             }
-    
+
             return result.data.data || [];
         } catch (error) {
             console.error('Error fetching all projects:', error);
@@ -49,7 +49,7 @@ const projectService = {
         try {
             const query = searchParams.query;
             const sort = searchParams.sort || '+createdAt';
-    
+
             const response = await fetch(
                 `${API_BASE_URL}/project/search?page=${page}&size=${size}&sort=${sort}&query=${query}`,
                 {
@@ -59,7 +59,7 @@ const projectService = {
                     },
                 }
             );
-            
+
             return await response.json();
         } catch (error) {
             console.error("Error fetching projects search:", error);
@@ -89,7 +89,7 @@ const projectService = {
         }
     },
 
-    getUpdatePostByProjectId : async (projectId) => {
+    getUpdatePostByProjectId: async (projectId) => {
         try {
             const response = await fetch(PROJECT_GET_UPDATE_POST_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
@@ -97,15 +97,15 @@ const projectService = {
                     'Content-Type': 'application/json'
                 }
             });
-    
+
             // Check if the response is OK
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
-    
+
             const result = await response.json();
             console.log("Received update posts data:", result);
-    
+
             return result.data || result;
         } catch (error) {
             console.error(`Error fetching update posts for project ${projectId}:`, error);
@@ -206,9 +206,9 @@ const projectService = {
             throw error;
         }
     },
-    
+
     getMilestoneByPhaseId: async (phaseId) => {
-        try{
+        try {
 
             const response = await fetch(PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT(phaseId), {
                 method: 'GET',
@@ -223,7 +223,7 @@ const projectService = {
             }
 
             const responseData = await response.json();
-            
+
             // Ensure the data has the correct structure
             if (responseData && responseData.data && Array.isArray(responseData.data)) {
                 return responseData.data;
@@ -237,7 +237,7 @@ const projectService = {
             throw error;
         }
     },
-    
+
     getPhasesForGuest: async (projectId) => {
         try {
             // Send GET request without authorization token for guest access
@@ -270,7 +270,7 @@ const projectService = {
 
     getProjectStoryByProjectIdForGuest: async (projectId) => {
         try {
-            
+
             const response = await fetch(PROJECT_GET_PROJECT_STORY_BY_PROJECTID_ENDPOINT(projectId), {
                 method: 'GET',
                 headers: {

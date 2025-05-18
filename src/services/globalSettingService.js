@@ -1,6 +1,6 @@
 import { tokenManager } from "@/utils/tokenManager";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quanbeo.duckdns.org/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ffund.duckdns.org/api/v1';
 
 const GET_GLOBAL_SETTING_BY_TYPES_ENDPOINT = (types) => {
     const typesArray = Array.isArray(types) ? types : [types];
