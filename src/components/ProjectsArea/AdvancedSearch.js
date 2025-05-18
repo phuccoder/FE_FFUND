@@ -612,8 +612,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
                             <div
                               onClick={() => setIsPotentialProject(!isPotentialProject)}
                               className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isPotentialProject
-                                  ? "bg-green-50 text-green-700 font-medium"
-                                  : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
+                                ? "bg-green-50 text-green-700 font-medium"
+                                : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
                                 }`}
                             >
                               Projects Have Potential
@@ -623,8 +623,8 @@ const AdvancedSearch = ({ onSearch, defaultCategory = "All", defaultSubCategory 
                             <div
                               onClick={() => setIsFundraisingCompleted(!isFundraisingCompleted)}
                               className={`px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${isFundraisingCompleted
-                                  ? "bg-green-50 text-green-700 font-medium"
-                                  : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
+                                ? "bg-green-50 text-green-700 font-medium"
+                                : "text-gray-700 hover:bg-gray-50 hover:text-green-600"
                                 }`}
                             >
                               Fundraising Completed

@@ -122,7 +122,7 @@ export const NotificationProvider = ({ children }) => {
         connectionStatus,
       }}
     >
-      <ToastContainer/>
+      <ToastContainer />
       {children}
     </NotificationContext.Provider>
   );
