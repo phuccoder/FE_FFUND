@@ -80,16 +80,6 @@ export const LoginForm = () => {
       setEmailError(false);
       setEmailErrorMessage('');
     }
-
-    if (!formData.password || formData.password.length < 6) {
-      setPasswordError(true);
-      setPasswordErrorMessage('Password must be at least 6 characters long.');
-      isValid = false;
-    } else {
-      setPasswordError(false);
-      setPasswordErrorMessage('');
-    }
-
     return isValid;
   };
 

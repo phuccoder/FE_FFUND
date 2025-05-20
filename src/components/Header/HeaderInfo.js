@@ -6,7 +6,7 @@ import { ChevronDown, LogOut, User, FileText, Users, ClipboardList, Mail, Bell, 
 import { authenticate } from "src/services/authenticate";
 import Link from "../Reuseable/Link";
 import NotificationDropdown from "@/components/Notifications/NotificationDropdown";
-import { FaMoneyBill } from "react-icons/fa";
+import { FaMoneyBill, FaMoneyCheck } from "react-icons/fa";
 
 const MENU_ITEMS = {
   FOUNDER: [
@@ -18,6 +18,7 @@ const MENU_ITEMS = {
     { label: 'Investment Reward', icon: Container, href: '/investment-reward' },
     { label: 'Request', icon: ClipboardList, href: '/request-report' },
     { label: "Investment", icon: FileText, href: "/founder-investments" },
+    { label: 'Payout', icon: FaMoneyCheck, href: '/payout' },
   ],
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },

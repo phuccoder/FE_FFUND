@@ -18,7 +18,7 @@ export default function PhaseUploadDocument({ phaseId, onUploadSuccess }) {
   const [submittingDocuments, setSubmittingDocuments] = useState(false);
   const formContainerRef = useRef(null);
   const hasProgressReport = uploadedDocuments.some(doc => doc.type === 'PROGRESS_REPORT');
-  const hasFundUsageReport = uploadedDocuments.some(doc => doc.type === 'FUND_USAGE_REPORT');
+  const hasFundUsageReport = uploadedDocuments.some(doc => doc.type === 'FUND_USAGE_PLAN');
   const canSubmitDocuments = hasProgressReport && hasFundUsageReport;
   
   useEffect(() => {
@@ -327,7 +327,7 @@ export default function PhaseUploadDocument({ phaseId, onUploadSuccess }) {
                 disabled={isEditMode}
               >
                 <option value="PROGRESS_REPORT">Progress Report</option>
-                <option value="FUND_USAGE_REPORT">Fund Usage Report</option>
+                <option value="FUND_USAGE_PLAN">Fund Usage Plan</option>
               </select>
             </div>
             
