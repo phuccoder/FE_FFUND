@@ -651,35 +651,16 @@ function EditProjectPage() {
             (milestonesData?.data && Array.isArray(milestonesData.data)) ?
               milestonesData.data : [];
 
-          // For each milestone, fetch its items
+          // Process each milestone (items are already included in the response)
           for (const milestone of milestonesArray) {
-            try {
-              // Get items for this milestone
-              let items = [];
-              if (milestone.id) {
-                const itemsData = await milestoneItemService.getMilestoneItemsByMilestoneId(milestone.id);
-                items = Array.isArray(itemsData) ? itemsData :
-                  (itemsData?.data && Array.isArray(itemsData.data)) ?
-                    itemsData.data : [];
-              }
-
-              // Add milestone with its items to the processed array
-              processedMilestones.push({
-                ...milestone,
-                phaseId: phase.id, // Add phaseId for reference
-                projectId: projectId,
-                items: items
-              });
-            } catch (itemError) {
-              console.error("Error fetching items for milestone:", milestone.id, itemError);
-              // Still add the milestone without items
-              processedMilestones.push({
-                ...milestone,
-                phaseId: phase.id,
-                projectId: projectId,
-                items: []
-              });
-            }
+            // Add milestone to the processed array with its included items
+            processedMilestones.push({
+              ...milestone,
+              phaseId: phase.id, // Add phaseId for reference
+              projectId: projectId,
+              // Use items from the milestone response or default to empty array
+              items: milestone.items || []
+            });
           }
         } catch (phaseError) {
           console.error(`Error fetching milestones for phase ${phase.id}:`, phaseError);
