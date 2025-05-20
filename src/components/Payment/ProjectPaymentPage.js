@@ -211,8 +211,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
   // Calculate total including platform fee
   const calculateTotal = (amount) => {
     const numericAmount = parseFloat(amount) || 0;
-    const fee = calculatePlatformFee(numericAmount);
-    return numericAmount + fee;
+    return numericAmount;
   };
 
   const handleTermsAgreement = () => {
@@ -958,15 +957,13 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                         : calculatePlatformFee(customAmount).toFixed(2)}
                     </span>
                   </div>
-                  <div className="border-t border-gray-100 pt-2 mt-2">
-                    <div className="flex justify-between font-semibold">
-                      <span>Total:</span>
-                      <span className="text-yellow-600">
-                        ${paymentType === "milestone" && selectedMilestone
-                          ? (parseFloat(selectedMilestone.price) + parseFloat(selectedMilestone.price) * platformChargePercentage).toFixed(2)
-                          : calculateTotal(customAmount).toFixed(2)}
-                      </span>
-                    </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total:</span>
+                    <span className="text-yellow-600">
+                      ${paymentType === "milestone" && selectedMilestone
+                        ? parseFloat(selectedMilestone.price).toFixed(2)
+                        : parseFloat(customAmount).toFixed(2)}
+                    </span>
                   </div>
                 </div>
                 {loadingSettings && (
@@ -1112,19 +1109,35 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                   )}
 
                   {/* Platform Fee */}
-                  <div className="bg-white p-3 rounded-lg shadow-sm mb-3">
-                    <h4 className="font-medium text-gray-800 mb-2 flex items-center">
-                      <span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>
-                      Platform Fee
-                    </h4>
-                    <div className="grid grid-cols-1 gap-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Fee ({(platformChargePercentage * 100).toFixed(0)}%):</span>
-                        <span className="font-medium text-gray-800">
+                  <h4 className="font-medium text-gray-800 mb-3">Fee Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Amount:</span>
+                      <span className="font-medium">
+                        ${paymentType === "milestone" && selectedMilestone
+                          ? selectedMilestone.price
+                          : parseFloat(customAmount).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Platform Fee ({(platformChargePercentage * 100).toFixed(0)}%):</span>
+                      <span className="font-medium">
+                        ${paymentType === "milestone" && selectedMilestone
+                          ? (selectedMilestone.price * platformChargePercentage).toFixed(2)
+                          : calculatePlatformFee(customAmount).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-100 pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Your contribution:</span>
+                        <span className="text-yellow-600">
                           ${paymentType === "milestone" && selectedMilestone
-                            ? (selectedMilestone.price * platformChargePercentage).toFixed(2)
-                            : calculatePlatformFee(customAmount).toFixed(2)}
+                            ? parseFloat(selectedMilestone.price).toFixed(2)
+                            : parseFloat(customAmount).toFixed(2)}
                         </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span>The platform fee will be included automatically after successful funding.</span>
                       </div>
                     </div>
                   </div>
@@ -1158,11 +1171,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                     <span className="font-medium text-gray-700">Total:</span>
                     <span className="text-xl font-bold text-yellow-600">
                       ${paymentType === "milestone" && selectedMilestone
-                        ? (parseFloat(selectedMilestone.price) + parseFloat(selectedMilestone.price) * platformChargePercentage).toFixed(2)
-                        : calculateTotal(customAmount).toFixed(2)}
+                        ? parseFloat(selectedMilestone.price).toFixed(2)
+                        : parseFloat(customAmount).toFixed(2)}
                     </span>
                   </div>
-
                   {/* Payment info */}
                   <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-yellow-100">
                     <p className="flex items-center">
@@ -1193,7 +1205,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                       Platform fee ({(platformChargePercentage * 100).toFixed(0)}%): <span className="font-medium">${calculatePlatformFee(customAmount).toFixed(2)}</span>
                     </p>
                     <p className="text-lg font-medium text-gray-800 mt-3 pt-3 border-t border-gray-100">
-                      Total: <span className="text-yellow-600 font-bold">${calculateTotal(customAmount).toFixed(2)}</span>
+                      Total: <span className="text-yellow-600 font-bold">${parseFloat(customAmount).toFixed(2)}</span>
                     </p>
                   </div>
                 )}

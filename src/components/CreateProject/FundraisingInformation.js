@@ -4,6 +4,8 @@ import projectService from 'src/services/projectService';
 import PhaseUploadDocument from './PhaseUploadDocument';
 import InvestmentTable from '../FounderInvestment/InvestmentTable';
 import ExtendTimeRequestForm from '../Request/RequestExtendTime';
+import { PayoutCard } from '../Payout/PayoutCard';
+import { payoutService } from 'src/services/payoutService';
 
 export default function FundraisingInformation({ formData, updateFormData, projectId, isEditPage = false, readOnly = false }) {
   // Initialize with safe default values
@@ -38,6 +40,9 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   const [loadingInvestments, setLoadingInvestments] = useState(false);
   const [platformFee, setPlatformFee] = useState(null);
   const [isLoadingFee, setIsLoadingFee] = useState(false);
+  const [activeTab, setActiveTab] = useState('investments');
+  const [phasePayouts, setPhasePayouts] = useState({});
+  const [loadingPayouts, setLoadingPayouts] = useState(false);
 
   const initialLoadDone = useRef(false);
   // Add debugging logs
@@ -437,15 +442,83 @@ export default function FundraisingInformation({ formData, updateFormData, proje
     }
   };
 
-  const togglePhaseInvestments = (phaseId) => {
+
+
+  const fetchPhasePayouts = async (phaseId) => {
+    if (!phaseId) return;
+
+    try {
+      setLoadingPayouts(true);
+
+      console.log("Fetching payouts for phase ID:", phaseId);
+      const payoutsData = await payoutService.getPayoutByPhase(phaseId);
+
+      console.log("Raw payouts API response:", payoutsData);
+      let processedPayouts = [];
+
+      // Handle different response structures
+      if (payoutsData && payoutsData.data) {
+        // If data is nested in a data property
+        processedPayouts = Array.isArray(payoutsData.data) ? payoutsData.data : [payoutsData.data];
+      } else if (payoutsData && Array.isArray(payoutsData)) {
+        // If data is directly an array
+        processedPayouts = payoutsData;
+      } else if (payoutsData) {
+        // If data is a single object
+        processedPayouts = [payoutsData];
+      }
+
+      // Transform data if necessary to match PayoutCard's expected format
+      const formattedPayouts = processedPayouts.map(payout => ({
+        id: payout.id || '',
+        amount: parseFloat(payout.amount || 0),
+        stripe_fee: parseFloat(payout.stripe_fee || 0),
+        profit: parseFloat(payout.profit || 0),
+        payoutDate: payout.payoutDate || new Date().toISOString().split('T')[0],
+        projectId: payout.projectId || projectId,
+        phaseId: payout.phaseId || phaseId,
+        phaseNumber: payout.phaseNumber || ''
+      }));
+
+      console.log(`Processed and formatted ${formattedPayouts.length} payouts for phase ${phaseId}:`, formattedPayouts);
+
+      setPhasePayouts(prev => ({
+        ...prev,
+        [phaseId]: formattedPayouts
+      }));
+
+      console.log(`Loaded ${formattedPayouts.length} payouts for phase ${phaseId}`);
+    } catch (err) {
+      console.error(`Error fetching payouts for phase ${phaseId}:`, err);
+      setPhasePayouts(prev => ({
+        ...prev,
+        [phaseId]: []
+      }));
+    } finally {
+      setLoadingPayouts(false);
+    }
+  };
+
+  const togglePhaseDetails = (phaseId) => {
     if (expandedPhase === phaseId) {
       setExpandedPhase(null);
     } else {
       setExpandedPhase(phaseId);
-      // Fetch investments if we haven't already
-      if (!phaseInvestments[phaseId]) {
+      if (activeTab === 'investments' && !phaseInvestments[phaseId]) {
         fetchPhaseInvestments(phaseId);
       }
+      if (activeTab === 'payouts' && !phasePayouts[phaseId]) {
+        fetchPhasePayouts(phaseId);
+      }
+    }
+  };
+
+  const switchTab = (tab, phaseId) => {
+    setActiveTab(tab);
+    if (tab === 'investments' && !phaseInvestments[phaseId]) {
+      fetchPhaseInvestments(phaseId);
+    } else if (tab === 'payouts' && !phasePayouts[phaseId]) {
+      fetchPhasePayouts(phaseId);
     }
   };
 
@@ -878,10 +951,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
   };
 
   const handleUploadSuccess = (documentId, documentUrl) => {
-    setSuccess(`Document uploaded successfully! Document ID: ${documentId}`);
-    setTimeout(() => {
-      setShowDocumentModal(false);
-    }, 2000);
+    setSuccess(`Document uploaded successfully!`);
   };
 
   const openDocumentModal = (phase) => {
@@ -1231,7 +1301,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                       {/* Investment toggle button */}
                       <button
                         type="button"
-                        onClick={() => togglePhaseInvestments(phase.id)}
+                        onClick={() => togglePhaseDetails(phase.id)}
                         className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         <svg
@@ -1243,20 +1313,79 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
-                        {expandedPhase === phase.id ? 'Hide Investments' : 'View Investments'}
+                        {expandedPhase === phase.id ? 'Hide Details' : 'View Details'}
                       </button>
                     </div>
 
                     {/* Investments accordion content */}
                     {expandedPhase === phase.id && (
                       <div className="mt-4 border-t border-gray-200 pt-4">
-                        <h4 className="text-sm font-medium text-gray-900 mb-2">Phase Investments</h4>
-                        <InvestmentTable
-                          phaseId={phase.id}
-                          investments={phaseInvestments[phase.id] || []}
-                          loading={loadingInvestments}
-                          formatCurrency={formatCurrency}
-                        />
+                        {/* Tab navigation */}
+                        <div className="flex border-b border-gray-200 mb-4">
+                          <button
+                            className={`px-4 py-2 text-sm font-medium ${activeTab === 'investments'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                            onClick={() => switchTab('investments', phase.id)}
+                          >
+                            Investments
+                          </button>
+                          <button
+                            className={`px-4 py-2 text-sm font-medium ${activeTab === 'payouts'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                            onClick={() => switchTab('payouts', phase.id)}
+                          >
+                            Payouts
+                          </button>
+                        </div>
+
+                        {/* Tab content */}
+                        {activeTab === 'investments' && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">Phase Investments</h4>
+                            <InvestmentTable
+                              phaseId={phase.id}
+                              investments={phaseInvestments[phase.id] || []}
+                              loading={loadingInvestments}
+                              formatCurrency={formatCurrency}
+                            />
+                          </div>
+                        )}
+
+                        {activeTab === 'payouts' && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">Phase Payouts</h4>
+                            {loadingPayouts ? (
+                              <div className="flex justify-center py-8">
+                                <svg className="animate-spin h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span className="ml-2">Loading payouts...</span>
+                              </div>
+                            ) : (phasePayouts[phase.id]?.length > 0 ? (
+                              <div className="space-y-4">
+                                {phasePayouts[phase.id].map(payout => (
+                                  <PayoutCard
+                                    key={payout.id}
+                                    payout={{
+                                      ...payout,
+                                      projectTitle: formData?.basicInfo?.title || "Project",
+                                      phaseNumber: phase.phaseNumber,
+                                      projectId: projectId
+                                    }}
+                                    showHeader={false}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="py-8 text-center bg-gray-50 rounded-md">
+                                <p className="text-gray-500">No payouts available for this phase yet.</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1310,7 +1439,7 @@ export default function FundraisingInformation({ formData, updateFormData, proje
                     <span className="text-gray-500 sm:text-sm">USD</span>
                   </div>
                 </div>
-                
+
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

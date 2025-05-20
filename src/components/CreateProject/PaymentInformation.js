@@ -510,7 +510,7 @@ export default function PaymentInformation({ projectData, updateFormData, readOn
                   </h3>
                   <div className="mt-2 text-sm text-gray-600">
                     {payoutAvailable ? (
-                      <p>Your project is eligible for payouts. You can now withdraw funds from your Stripe balance to your bank account.</p>
+                      <p>Your project is eligible for payouts. You can now request for withdraw funds from your Stripe balance to your bank account.</p>
                     ) : (
                       <p>Your project will be available for payouts when funds transfer from pending balance to your Stripe balance and current phase end. Currently:</p>
                     )}
