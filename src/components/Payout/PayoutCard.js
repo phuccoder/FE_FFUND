@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, DollarSign, Calendar, BarChart } from 'lucide-react';
 
-// Reusable PayoutCard component that can be used elsewhere
 export const PayoutCard = ({ payout, showHeader = true }) => {
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };

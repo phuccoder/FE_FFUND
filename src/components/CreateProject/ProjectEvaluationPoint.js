@@ -10,17 +10,17 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   const [error, setError] = useState(null);
   const [totalScore, setTotalScore] = useState({ actual: 0, maximum: 0 });
   const [latestTotalScore, setLatestTotalScore] = useState({ actual: 0, maximum: 0 });
-  const [isLatestExpanded, setIsLatestExpanded] = useState(false); 
+  const [isLatestExpanded, setIsLatestExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
   const [versionGroups, setVersionGroups] = useState({});
   const [latestVersion, setLatestVersion] = useState(0);
   const [previousVersion, setPreviousVersion] = useState(0);
-  
+
   // Global settings thresholds
   const [thresholds, setThresholds] = useState({
-    excellent: 0.90, 
-    pass: 0.70,      
-    resubmit: 0.30   
+    excellent: 0.90,
+    pass: 0.70,
+    resubmit: 0.30
   });
   const [loadingThresholds, setLoadingThresholds] = useState(true);
 
@@ -29,29 +29,31 @@ const ProjectEvaluationPoint = ({ projectId }) => {
     const fetchThresholds = async () => {
       setLoadingThresholds(true);
       try {
-        const response = await globalSettingService.getGlobalSettingByType('');
-        
+        // Fix: Pass an array with the required types instead of an empty string
+        const types = ['PASS_PERCENTAGE', 'RESUBMIT_PERCENTAGE', 'PASS_EXCELLENT_PERCENTAGE'];
+        const response = await globalSettingService.getGlobalSettingByType(types);
+
         if (response && response.data && Array.isArray(response.data)) {
           const settings = response.data;
 
           const passExcellentSetting = settings.find(s => s.type === 'PASS_EXCELLENT_PERCENTAGE');
           const passSetting = settings.find(s => s.type === 'PASS_PERCENTAGE');
           const resubmitSetting = settings.find(s => s.type === 'RESUBMIT_PERCENTAGE');
-          
+
           const newThresholds = { ...thresholds };
-          
+
           if (passExcellentSetting) {
             newThresholds.excellent = parseFloat(passExcellentSetting.value);
           }
-          
+
           if (passSetting) {
             newThresholds.pass = parseFloat(passSetting.value);
           }
-          
+
           if (resubmitSetting) {
             newThresholds.resubmit = parseFloat(resubmitSetting.value);
           }
-          
+
           setThresholds(newThresholds);
           console.log('Evaluation thresholds loaded:', newThresholds);
         }
@@ -61,7 +63,7 @@ const ProjectEvaluationPoint = ({ projectId }) => {
         setLoadingThresholds(false);
       }
     };
-    
+
     fetchThresholds();
   }, []);
 
@@ -127,8 +129,8 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   };
 
   const getScoreColor = (percentage) => {
-    const percentageValue = percentage / 100; 
-    
+    const percentageValue = percentage / 100;
+
     if (percentageValue >= thresholds.excellent) return 'bg-green-500';
     if (percentageValue >= thresholds.pass) return 'bg-blue-500';
     if (percentageValue >= thresholds.resubmit) return 'bg-yellow-500';
@@ -136,8 +138,8 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   };
 
   const getTextColor = (percentage) => {
-    const percentageValue = percentage / 100; 
-    
+    const percentageValue = percentage / 100;
+
     if (percentageValue >= thresholds.excellent) return 'text-green-700';
     if (percentageValue >= thresholds.pass) return 'text-blue-700';
     if (percentageValue >= thresholds.resubmit) return 'text-yellow-700';
@@ -146,8 +148,8 @@ const ProjectEvaluationPoint = ({ projectId }) => {
 
   // Updated to use dynamically loaded thresholds
   const getScoreDescription = (percentage) => {
-    const percentageValue = percentage / 100; 
-    
+    const percentageValue = percentage / 100;
+
     if (percentageValue >= thresholds.excellent) return 'Excellent';
     if (percentageValue >= thresholds.pass) return 'Great';
     if (percentageValue >= thresholds.resubmit * 2) return 'Good';
@@ -179,8 +181,8 @@ const ProjectEvaluationPoint = ({ projectId }) => {
   };
 
   const getScoreIcon = (percentage) => {
-    const percentageValue = percentage / 100; 
-    
+    const percentageValue = percentage / 100;
+
     if (percentageValue >= thresholds.excellent) {
       return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">

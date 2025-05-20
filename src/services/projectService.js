@@ -32,7 +32,7 @@ const PROJECT_GET_ALL_PHASE_RULE_ENDPOINT = `${API_BASE_URL}/rule/all`;
 const PROJECT_GET_MILESTONE_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/miletone/guest/phase/${id}`
 const PROJECT_GET_MILESTONE_BY_PHASEID_FOR_GUEST_ENDPOINT = (id) => `${API_BASE_URL}/milestone/guest/phase/${id}`
 const PROJECT_GET_INVESTMENT_BY_PHASEID_ENDPOINT = (id) => `${API_BASE_URL}/investment/all/${id}`
-const PLATFORM_CHARGE_PERCENTAGE_ENDPOINT = `${API_BASE_URL}/settings/type?type=PLATFORM_CHARGE_PERCENTAGE`;
+const PLATFORM_CHARGE_PERCENTAGE_ENDPOINT = () => `${API_BASE_URL}/settings/all/by-type?types=PLATFORM_CHARGE_PERCENTAGE`;
 /**
  * Project related API service methods
  */
@@ -1421,7 +1421,7 @@ const projectService = {
             return result;
 
         } catch (error) {
-            console.error('Failed to get milestone value percentage:', error);
+            console.error('Failed to get platform value percentage:', error);
             throw error;
         }
     }
