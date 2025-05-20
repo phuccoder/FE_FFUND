@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { contactFormArea } from "@/data/contactArea";
@@ -9,7 +9,6 @@ import { Paperclip, Send, AlertCircle } from "lucide-react";
 
 const { tagline, title } = contactFormArea;
 
-
 const REQUEST_TYPES = [
   { value: "STRIPE_ACCOUNT", label: "Stripe Account" },
   { value: "CREATE_PROJECT", label: "Create Project" },
@@ -19,24 +18,27 @@ const REQUEST_TYPES = [
 const ContactFormArea = () => {
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
-  
+
   const [formData, setFormData] = useState({
-    requestType: "STRIPE_ACCOUNT", 
+    requestType: "STRIPE_ACCOUNT",
     title: "",
     description: "",
     attachment: null,
   });
   const [loading, setLoading] = useState(false);
 
-  // Fix the focus issue by not re-rendering unnecessarily
-  const handleChange = (e) => {
+  // Fixed handleChange function using useCallback to prevent re-renders
+  const handleChange = useCallback((e) => {
     const { name, value, files } = e.target;
-    if (name === "attachment") {
-      setFormData((prev) => ({ ...prev, attachment: files[0] }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+
+    setFormData((prev) => {
+      if (name === "attachment") {
+        return { ...prev, attachment: files[0] || null };
+      } else {
+        return { ...prev, [name]: value };
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,14 +57,14 @@ const ContactFormArea = () => {
         title: formData.title,
         description: formData.description,
       };
-      
+
       // Get request response
       const requestResponse = await requestService.sendRequest(requestPayload);
       console.log("Request response:", requestResponse); // Debugging
 
       // Handle both data formats - direct ID or nested ID
       const requestId = requestResponse?.data || requestResponse?.id;
-      
+
       // Fix the requestId check to handle the numeric value directly
       if (requestId === undefined || requestId === null) {
         throw new Error("Failed to retrieve requestId from response.");
@@ -75,10 +77,10 @@ const ContactFormArea = () => {
       }
 
       toast.success("Request submitted successfully!");
-      
+
       // Reset form but maintain the same requestType 
       setFormData({
-        requestType: formData.requestType, 
+        requestType: formData.requestType,
         title: "",
         description: "",
         attachment: null
@@ -96,35 +98,16 @@ const ContactFormArea = () => {
     }
   };
 
-  // Custom form input component for consistent styling
-  const FormInput = ({ label, type = "text", name, value, onChange, placeholder, required = false, className = "", inputRef, children }) => (
-    <div className="mb-5">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {children || (
-        <input
-          type={type}
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required={required}
-          ref={inputRef}
-          className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm ${className}`}
-        />
-      )}
-    </div>
-  );
-
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 py-20 px-4">
       <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
-      
+
       <div className="container mx-auto max-w-6xl">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-800">{title}</h2>
           <p className="text-gray-600 mt-2 text-lg">{tagline}</p>
         </div>
-        
+
         <div className="flex flex-col md:flex-row gap-12 items-stretch bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Left side - Lottie Animation */}
           <div className="w-full md:w-1/2 bg-yellow-50 flex items-center justify-center p-8">
@@ -137,12 +120,13 @@ const ContactFormArea = () => {
               />
             </div>
           </div>
-          
+
           {/* Right side - Contact Form */}
           <div className="w-full md:w-1/2 p-8">
             <form onSubmit={handleSubmit} className="space-y-2">
               {/* Request Type */}
-              <FormInput label="Request Type" name="requestType">
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
                 <select
                   name="requestType"
                   value={formData.requestType}
@@ -156,21 +140,26 @@ const ContactFormArea = () => {
                     </option>
                   ))}
                 </select>
-              </FormInput>
+              </div>
 
               {/* Title */}
-              <FormInput
-                label="Title"
-                name="title"
-                placeholder="Enter the title of your request"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                inputRef={titleInputRef}
-              />
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  placeholder="Enter the title of your request"
+                  required
+                  ref={titleInputRef}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm"
+                />
+              </div>
 
               {/* Description */}
-              <FormInput label="Description" name="description">
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   name="description"
                   rows="5"
@@ -181,7 +170,7 @@ const ContactFormArea = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm resize-none"
                   required
                 ></textarea>
-              </FormInput>
+              </div>
 
               {/* Attachment */}
               <div className="mb-5">
@@ -220,9 +209,8 @@ const ContactFormArea = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center shadow-md hover:shadow-lg ${
-                    loading ? "opacity-70 cursor-not-allowed" : ""
-                  }`}
+                  className={`w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center shadow-md hover:shadow-lg ${loading ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
                 >
                   {loading ? (
                     <span className="flex items-center">
@@ -243,7 +231,7 @@ const ContactFormArea = () => {
             </form>
           </div>
         </div>
-        
+
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>Need help? Contact our support team at <span className="text-yellow-600 font-medium">ffundsep490@gmail.com</span></p>
         </div>

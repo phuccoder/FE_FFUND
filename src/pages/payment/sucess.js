@@ -75,7 +75,7 @@ const PaymentSuccessPage = () => {
             <div className="flex">
               <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0" />
               <p className="text-sm text-blue-800 ml-3">
-                <span className="font-medium">Important:</span> If you invested in a milestone with physical rewards, 
+                <span className="font-medium">Important:</span> If you invested in a milestone with physical rewards,
                 please visit the Rewards page to add your shipping address for delivery.
               </p>
             </div>
@@ -100,7 +100,7 @@ const PaymentSuccessPage = () => {
               <Gift className="mr-2 w-5 h-5" />
               Manage Rewards & Shipping
             </Link>
-            
+
             <Link
               href="/transaction"
               className="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center"
@@ -110,7 +110,7 @@ const PaymentSuccessPage = () => {
             </Link>
 
             <Link
-              href="/projects-1"
+              href="/projects"
               className="w-full border border-gray-300 bg-white text-gray-700 font-medium py-2 px-4 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center"
             >
               <ArrowLeft className="mr-2 w-5 h-5" />

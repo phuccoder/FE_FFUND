@@ -8,7 +8,7 @@ const { facts, shape1, shape2 } = funFacts;
 
 const FunFacts = ({ className = "" }) => {
   return (
-    <section className={`fun-facts-area ${className}`}>
+    <section style={{ marginBottom: "130px" }} className={`fun-facts-area ${className}`}>
       <Container>
         <Row>
           {facts.map((fact) => (

@@ -21,7 +21,7 @@ const MANAGER_ADMIN_RESTRICTED_PATHS = [
   'investment-reward',
   '/invitation',
   'payment',
-  'projects-1',
+  'projects',
   '/request/report',
   '/reward',
   '/single-project',
@@ -45,8 +45,8 @@ export const AuthProvider = ({ children }) => {
 
   // Check if a path is restricted for managers and admins
   const isRestrictedForManagerAdmin = (path) => {
-    return MANAGER_ADMIN_RESTRICTED_PATHS.some(restrictedPath => 
-      path === restrictedPath || 
+    return MANAGER_ADMIN_RESTRICTED_PATHS.some(restrictedPath =>
+      path === restrictedPath ||
       path.startsWith(`${restrictedPath}/`) ||
       // Handle dynamic routes
       (restrictedPath.includes('[') && path.match(new RegExp(restrictedPath.replace(/\[.*?\]/g, '[^/]+'))))
@@ -57,11 +57,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Skip if still loading auth state
     if (isLoading) return;
-    
+
     // Check if current user is MANAGER or ADMIN and trying to access a restricted page
-    if (isAuthenticated && 
-        (userRole === 'MANAGER' || userRole === 'ADMIN') && 
-        isRestrictedForManagerAdmin(router.pathname)) {
+    if (isAuthenticated &&
+      (userRole === 'MANAGER' || userRole === 'ADMIN') &&
+      isRestrictedForManagerAdmin(router.pathname)) {
       router.push('/access-denied');
     }
   }, [router.pathname, isAuthenticated, userRole, isLoading]);
@@ -72,22 +72,22 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       const isAuth = await authenticate.isAuthenticated();
       setIsAuthenticated(isAuth);
-      
+
       if (isAuth) {
         const role = localStorage.getItem('role');
         setUserRole(role);
         setTeamRole(localStorage.getItem('teamRole'));
-        
+
         // Check current route when auth state is first determined
-        if ((role === 'MANAGER' || role === 'ADMIN') && 
-            isRestrictedForManagerAdmin(router.pathname)) {
+        if ((role === 'MANAGER' || role === 'ADMIN') &&
+          isRestrictedForManagerAdmin(router.pathname)) {
           router.push('/access-denied');
         }
       } else {
         setUserRole(null);
         setTeamRole(null);
       }
-      
+
       setIsLoading(false);
     };
 
@@ -106,21 +106,21 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authenticate.login(credentials);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
-      
+
       setIsAuthenticated(true);
       setUserRole(data.data.role);
       setTeamRole(data.data.teamRole);
-      
+
       // Check if the user is manager/admin and redirect if needed
-      if ((data.data.role === 'MANAGER' || data.data.role === 'ADMIN') && 
-          isRestrictedForManagerAdmin(router.pathname)) {
+      if ((data.data.role === 'MANAGER' || data.data.role === 'ADMIN') &&
+        isRestrictedForManagerAdmin(router.pathname)) {
         router.push('/access-denied');
       }
-      
+
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -137,13 +137,13 @@ export const AuthProvider = ({ children }) => {
   // Utility function to check if current user can access a path
   const canAccessPath = (path) => {
     if (!isAuthenticated) return false;
-    
+
     // MANAGER and ADMIN cannot access restricted paths
-    if ((userRole === 'MANAGER' || userRole === 'ADMIN') && 
-        isRestrictedForManagerAdmin(path)) {
+    if ((userRole === 'MANAGER' || userRole === 'ADMIN') &&
+      isRestrictedForManagerAdmin(path)) {
       return false;
     }
-    
+
     return true;
   };
 

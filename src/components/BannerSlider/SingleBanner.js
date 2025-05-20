@@ -14,9 +14,8 @@ const SingleBanner = ({
 
   return (
     <div
-      className={`banner-area bg_cover d-flex ${
-        isBannerThree ? "banner-3-area align-items-end" : "align-items-center"
-      }`}
+      className={`banner-area bg_cover d-flex ${isBannerThree ? "banner-3-area align-items-end" : "align-items-center"
+        }`}
       style={{
         backgroundImage: `url(/assets/images/${bg})`
       }}
@@ -31,9 +30,8 @@ const SingleBanner = ({
         >
           <Col lg={8}>
             <div
-              className={`banner-content${
-                !isBannerTwo && !isBannerThree ? " text-center" : ""
-              }`}
+              className={`banner-content${!isBannerTwo && !isBannerThree ? " text-center" : ""
+                }`}
             >
               {!isBannerTwo && !isBannerThree && (
                 <div
@@ -53,9 +51,9 @@ const SingleBanner = ({
               </h3>
               <Link
                 className={`main-btn${isActive ? " animated zoomIn" : ""}`}
-                href="/projects-1"
+                href="/projects"
               >
-                Back a Project
+                Explore Projects
               </Link>
             </div>
           </Col>
@@ -65,7 +63,7 @@ const SingleBanner = ({
         <div
           className={`banner-line${isActive ? " animated fadeInRightBig" : ""}`}
         >
-          <Image 
+          <Image
             src={`/assets/images/${banner}`}
             alt="banner"
             unoptimized
@@ -75,21 +73,21 @@ const SingleBanner = ({
       {isBannerTwo && (
         <>
           <div className="banner-color-shadow">
-            <Image 
+            <Image
               src={`/assets/images/${banner}`}
               alt="banner"
               unoptimized
             />
           </div>
           <div className="banner-line">
-            <Image 
+            <Image
               src={`/assets/images/${banner1}`}
               alt="banner line 1"
               unoptimized
             />
           </div>
           <div className="banner-line-2">
-            <Image 
+            <Image
               src={`/assets/images/${banner2}`}
               alt="banner line 2"
               unoptimized

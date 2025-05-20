@@ -295,7 +295,7 @@ p {
   height: 100%;
 }
 .main-btn.main-btn-2 {
-  background-color: #1b1f2e;
+  background-color: #fc914e;
   color: #fff;
 }
 .main-btn.main-btn-2::before {
@@ -1498,10 +1498,10 @@ p {
   z-index: 99;
   height: 80px;
   width: 80px;
-  background: rgba(255, 255, 255, 0.7);
+  background: #d1d5db94;
   text-align: center;
   line-height: 80px;
-  color: #838694;
+  color: #fc914e  ;
   cursor: pointer;
   font-size: 18px;
   -webkit-transition: all 0.3s ease-out 0s;
@@ -3006,7 +3006,7 @@ p {
 }
 .fun-facts-area .fun-facts-item .icon i {
   font-size: 60px;
-  color: #4eFC91;
+  color: #000000;
   -webkit-transition: all 0.3s ease-out 0s;
   -moz-transition: all 0.3s ease-out 0s;
   -ms-transition: all 0.3s ease-out 0s;
@@ -3023,7 +3023,7 @@ p {
   display: none;
 }
 .fun-facts-area .fun-facts-item > span {
-  color: #d6cffa;
+  color: #000000;
   display: block;
 }
 .fun-facts-area .fun-facts-item:hover .icon::before {
@@ -3035,7 +3035,7 @@ p {
   width: 20px;
 }
 .fun-facts-area .fun-facts-item:hover .icon i {
-  color: #222;
+  color: #fff;
 }
 .fun-facts-area .fun-facts-item.last-item::before {
   display: none;
