@@ -19,7 +19,7 @@ export default function Payment() {
             // Check if we have parameters
             if (projectId || phaseId || milestoneId) {
                 console.log("Captured URL params: projectId=", projectId, "phaseId=", phaseId, "milestoneId=", milestoneId);
-                
+
                 // Save these parameters to local storage so they're available after redirects
                 if (projectId) localStorage.setItem('paymentProjectId', projectId);
                 if (phaseId) localStorage.setItem('paymentPhaseId', phaseId);
@@ -30,9 +30,9 @@ export default function Payment() {
                 const storedPhaseId = localStorage.getItem('paymentPhaseId');
                 const storedMilestoneId = localStorage.getItem('paymentMilestoneId');
                 if (storedProjectId) {
-                    console.log("Using stored parameters: projectId=", storedProjectId, 
-                                "phaseId=", storedPhaseId, 
-                                "milestoneId=", storedMilestoneId);
+                    console.log("Using stored parameters: projectId=", storedProjectId,
+                        "phaseId=", storedPhaseId,
+                        "milestoneId=", storedMilestoneId);
                 }
             }
         }
@@ -106,7 +106,7 @@ export default function Payment() {
                 <div className="text-center p-8">
                     <h2 className="text-xl text-red-600 mb-4">{error || "Project not found"}</h2>
                     <button
-                        onClick={() => router.push("/projects-1")}
+                        onClick={() => router.push("/projects")}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                         Return to Projects
@@ -122,7 +122,7 @@ export default function Payment() {
     return (
         <Layout>
             <Header />
-            <PageTitle title="Payment" />         
+            <PageTitle title="Payment" />
             <ProjectPaymentPage
                 project={project}
                 selectedPhaseId={phaseIdToUse ? parseInt(phaseIdToUse) : null}

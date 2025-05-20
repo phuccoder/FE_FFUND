@@ -77,7 +77,7 @@ const SimilarProjects = ({ project }) => {
   const handleSeeMore = () => {
     if (project?.category?.name && project?.subCategories?.length) {
       router.push({
-        pathname: "/projects-1",
+        pathname: "/projects",
         query: {
           category: project.category.name,
           subCategory: project.subCategories[0].name,
@@ -85,7 +85,7 @@ const SimilarProjects = ({ project }) => {
         },
       });
     } else {
-      router.push("/projects-1");
+      router.push("/projects");
     }
   };
 

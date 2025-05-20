@@ -58,7 +58,7 @@ const Projects = () => {
       }
 
       // Xóa query params sau khi đã xử lý để tránh tự động tìm kiếm lại khi refresh
-      router.replace("/projects-1", undefined, { shallow: true });
+      router.replace("/projects", undefined, { shallow: true });
     }
   }, [router.isReady, autoSearch, category, subCategory, router]);
 
@@ -70,7 +70,7 @@ const Projects = () => {
   return (
     <Layout>
       <Header />
-      <PageFront/>
+      <PageFront />
       <Suspense fallback={<LoadingFallback />}>
         <AdvancedSearch
           onSearch={handleSearch}
