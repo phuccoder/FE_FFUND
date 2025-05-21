@@ -701,7 +701,7 @@ export default function BasicInformation({ formData, updateFormData, editMode })
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-green-800">Success!</h3>
                 <div className="mt-2 text-sm text-green-700">
-                  <p>Your project has been created successfully {form.projectId ? 'updated' : 'created'}</p>
+                  <p>Your project has been successfully {form.projectId ? 'updated' : 'created'}</p>
                 </div>
               </div>
             </div>
@@ -823,18 +823,29 @@ export default function BasicInformation({ formData, updateFormData, editMode })
             name="shortDescription"
             rows={3}
             value={form.shortDescription || ''}
-            onChange={handleChange}
+            onChange={(e) => {
+              // Limit the input to 300 characters
+              if (e.target.value.length <= 300) {
+                handleChange(e);
+              }
+            }}
             onBlur={handleBlur}
             className={`mt-1 block w-full border ${error.validation.shortDescription ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
             placeholder="Describe your project in a few sentences"
+            maxLength={300}
             required
           />
           {error.validation.shortDescription ? (
             <p className="mt-1 text-sm text-red-600">{error.validation.shortDescription}</p>
           ) : (
-            <p className="mt-1 text-sm text-gray-500">
-              This will appear in search results and project listings. Max 160 characters.
-            </p>
+            <div className="mt-1 flex justify-between">
+              <p className="text-sm text-gray-500">
+                This will appear in search results and project listings.
+              </p>
+              <span className={`text-sm ${form.shortDescription?.length > 250 ? 'text-orange-500' : 'text-gray-500'}`}>
+                {form.shortDescription?.length || 0}/300
+              </span>
+            </div>
           )}
         </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 export const RegisterForm = () => {
@@ -145,18 +145,7 @@ export const RegisterForm = () => {
 
   return (
     <div className="flex min-h-screen bg-orange-100 pt-0 p-10 ">
-      {/* Important: Keep the ToastContainer here for notifications to show */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={true}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+      
 
       <div className="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="w-full p-6">

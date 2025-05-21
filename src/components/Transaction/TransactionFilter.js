@@ -34,7 +34,7 @@ export default function TransactionFilter({ onFilterChange, projects = [], proje
               <option value="">All Statuses</option>
               <option value="PAID">Paid</option>
               <option value="PENDING">Pending</option>
-              <option value="CANCEL">Cancelled</option>
+              <option value="REFUND">Refund</option>
             </Form.Select>
           </Form.Group>
 

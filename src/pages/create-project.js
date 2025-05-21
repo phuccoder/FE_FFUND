@@ -729,13 +729,21 @@ function CreateProject() {
     setIsSubmitModalOpen(true);
   };
 
+
   const handleConfirmSubmit = async () => {
     try {
-      // Get projectId from formData before using it (this is the missing part)
       const projectId = formData.projectId || formData.basicInfo?.projectId;
 
       if (!projectId) {
         throw new Error("Project ID not found. Please save your project before submitting.");
+      }
+
+      // Check description length before submitting
+      const description = formData.basicInfo?.shortDescription || formData.basicInfo?.projectDescription || '';
+      if (description.length > 300) {
+        setIsSubmitModalOpen(false);
+        setError("Project description must be 300 characters or less");
+        return;
       }
 
       setIsSubmitting(true);
@@ -750,40 +758,22 @@ function CreateProject() {
 
       let errorMessage = 'Unknown error';
 
-      try {
-        if (error.response) {
-          let responseData = error.response.data;
-          if (typeof responseData === 'string') {
-            try {
-              responseData = JSON.parse(responseData);
-            } catch (e) {
-              console.error('Error parsing error response:', e);
-            }
-          }
+      if (error.response && error.response.data) {
+        const responseData = error.response.data;
 
-          if (responseData.message) {
-            errorMessage = responseData.message;
-          } else if (responseData.error) {
-            errorMessage = responseData.error;
-          } else if (responseData.errors && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-            errorMessage = responseData.errors.map(err => err.message || err).join(', ');
-          } else if (error.response.status === 400) {
-            errorMessage = 'Bad request: Please check your project details';
-          } else if (error.response.status === 401) {
-            errorMessage = 'Authentication required: Please log in again';
-          } else if (error.response.status === 403) {
-            errorMessage = 'You do not have permission to submit this project';
-          } else if (error.response.status === 404) {
-            errorMessage = 'Project not found: Please refresh and try again';
-          } else if (error.response.status >= 500) {
-            errorMessage = 'Server error: Please try again later';
-          }
-        } else if (error.message) {
-          errorMessage = error.message;
+        if (responseData.error && typeof responseData.error === 'object') {
+          const fieldErrors = Object.entries(responseData.error)
+            .map(([field, message]) => `${field}: ${message}`)
+            .join('\n');
+
+          errorMessage = `Validation errors:\n${fieldErrors}`;
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (typeof responseData.error === 'string') {
+          errorMessage = responseData.error;
         }
-      } catch (parsingError) {
-        console.error('Error parsing error response:', parsingError);
-        errorMessage = error.message || 'An unexpected error occurred';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
       setIsSubmitModalOpen(false);
@@ -802,25 +792,31 @@ function CreateProject() {
     }
   };
 
+  // Update the validateForm function:
+
   const validateForm = () => {
-    // Basic validation
     if (!formData.termsAgreed) return false;
+
     if (!formData.basicInfo.title || !formData.basicInfo.category) return false;
+
+    const description = formData.basicInfo.shortDescription || formData.basicInfo.projectDescription || '';
+    if (description.length > 300) {
+      alert("Project description must be 300 characters or less");
+      return false;
+    }
+
     if (!hasPhases()) return false;
     if (formData.rewardInfo.length === 0) return false;
     if (!isProjectStoryComplete()) return false;
 
-    // Check if each phase has at least one reward
     const phaseIds = formData.fundraisingInfo.phases.map(phase => phase.id);
     const rewardPhaseIds = formData.rewardInfo.map(reward => reward.phaseId);
 
-    // Payment info check - we don't block submission on this but show a warning
     if (!formData.paymentInfo || !formData.paymentInfo.status || formData.paymentInfo.status !== 'LINKED') {
       const proceedWithoutPayment = confirm('Your payment information is not set up or not linked yet. You can still submit your project, but you will not be able to receive payments until you connect your Stripe account. Do you want to proceed?');
       if (!proceedWithoutPayment) return false;
     }
 
-    // Make sure each phase has at least one reward
     return phaseIds.every(phaseId => rewardPhaseIds.includes(phaseId));
   };
 
@@ -1004,6 +1000,7 @@ function CreateProject() {
                     </button>
                   )}
                 </div>
+
                 {error && (
                   <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
                     <div className="flex">
@@ -1014,7 +1011,16 @@ function CreateProject() {
                       </div>
                       <div className="ml-3">
                         <h3 className="text-sm font-medium text-red-800">Error</h3>
-                        <p className="text-sm text-red-700 mt-1">{error}</p>
+                        <div className="text-sm text-red-700 mt-1">
+                          {typeof error === 'object' ?
+                            Object.entries(error).map(([field, message]) => (
+                              <p key={field} className="mb-1">• {field}: {message}</p>
+                            ))
+                            : error.split('\n').map((line, i) => (
+                              <p key={i} className="mb-1">• {line}</p>
+                            ))
+                          }
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1022,13 +1028,13 @@ function CreateProject() {
                 <div className="mt-10">
                   <ProjectCreationChecklist formData={formData} sections={sections} />
                 </div>
-                  <ProjectSubmitModal
-                    isOpen={isSubmitModalOpen}
-                    onClose={handleCloseModal}
-                    onSubmit={handleConfirmSubmit}
-                    isSubmitting={isSubmitting}
-                    status={submitStatus}
-                  />
+                <ProjectSubmitModal
+                  isOpen={isSubmitModalOpen}
+                  onClose={handleCloseModal}
+                  onSubmit={handleConfirmSubmit}
+                  isSubmitting={isSubmitting}
+                  status={submitStatus}
+                />
               </>
             )}
           </div>

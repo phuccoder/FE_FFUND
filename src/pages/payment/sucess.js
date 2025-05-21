@@ -7,11 +7,44 @@ import Layout from '@/components/Layout/Layout';
 import PageTitle from '@/components/Reuseable/PageTitle';
 import Header from '@/components/Header/Header';
 import { useRouter } from 'next/router';
+import { globalSettingService } from 'src/services/globalSettingService';
 
 const PaymentSuccessPage = () => {
   const router = useRouter();
   const { session_id } = router.query;
   const [isLoaded, setIsLoaded] = useState(false);
+  const [platformChargePercentage, setPlatformChargePercentage] = useState(0.02);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  useEffect(() => {
+    // Fetch platform charge percentage from global settings
+    const fetchPlatformChargePercentage = async () => {
+      setLoadingSettings(true);
+      try {
+        const response = await globalSettingService.getGlobalSettingByType('PLATFORM_CHARGE_PERCENTAGE');
+
+        if (response && response.data) {
+          const setting = Array.isArray(response.data) ? response.data[0] : response.data;
+          const percentageValue = parseFloat(setting.value);
+
+          if (!isNaN(percentageValue)) {
+            console.log(`Setting platform charge percentage to ${percentageValue}`);
+            setPlatformChargePercentage(percentageValue);
+          } else {
+            console.warn('Invalid PLATFORM_CHARGE_PERCENTAGE value received');
+          }
+        } else {
+          console.warn('No PLATFORM_CHARGE_PERCENTAGE setting found, using default');
+        }
+      } catch (error) {
+        console.error('Error fetching PLATFORM_CHARGE_PERCENTAGE setting:', error);
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    fetchPlatformChargePercentage();
+  }, []);
 
   useEffect(() => {
     // Log the session ID when available and set page as loaded
@@ -85,7 +118,7 @@ const PaymentSuccessPage = () => {
             <div className="flex">
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
               <p className="text-sm text-yellow-800 ml-3">
-                Please note: Stripe processing fees (2.9% + $0.30) and platform maintenance costs (2%)
+                Please note: Stripe processing fees (2.9% + $0.30) and platform maintenance costs ({(platformChargePercentage * 100).toFixed(0)}%)
                 are included in this transaction and are non-refundable as per our terms of service.
               </p>
             </div>

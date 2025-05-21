@@ -87,9 +87,6 @@ function ProfilePage() {
                                     <Tab.Pane eventKey="basic">
                                         <BasicProfileInfo />
                                     </Tab.Pane>
-                                    <Tab.Pane eventKey="request-report">
-                                        <RequestManager />
-                                    </Tab.Pane>
                                     {userRole === 'INVESTOR' && (
                                         <Tab.Pane eventKey="address">
                                             <UserAddressManager />

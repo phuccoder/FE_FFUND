@@ -9,8 +9,9 @@ import PageTitle from '@/components/Reuseable/PageTitle';
 import { shippingInformationService } from 'src/services/shippingInformationService';
 import projectService from 'src/services/projectService';
 import { toast } from 'react-toastify';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function InvestmentReward() {
+function InvestmentReward() {
     const [rewards, setRewards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -619,3 +620,9 @@ export default function InvestmentReward() {
         </Layout>
     );
 };
+
+export default function InvestmentRewardPage(){
+    <ProtectedRoute requiredRoles={"FOUNDER"}>
+        <InvestmentReward/>
+    </ProtectedRoute>
+}

@@ -377,14 +377,6 @@ export default function RewardInformation({ formData, updateFormData, projectDat
         const phaseGoal = phaseFundingGoal.toFixed(2);
         const milestonesTotal = totalMilestoneAmount.toFixed(2);
 
-        if (milestonesTotal !== phaseGoal) {
-            return {
-                isValid: false,
-                message: `Total of all milestones (${formatCurrency(milestonesTotal)}) 
-                      must equal the phase funding goal (${formatCurrency(phaseGoal)})`
-            };
-        }
-
         return { isValid: true };
     };
 

@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { contactFormArea } from "@/data/contactArea";
 import { tokenManager } from "@/utils/tokenManager";
 import { requestService } from "src/services/RequestService";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { Paperclip, Send, AlertCircle } from "lucide-react";
+import { Paperclip, Send, AlertCircle, Lock } from "lucide-react";
 
 const { tagline, title } = contactFormArea;
 
@@ -26,9 +26,34 @@ const ContactFormArea = () => {
     attachment: null,
   });
   const [loading, setLoading] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [isRoleChecking, setIsRoleChecking] = useState(true);
+
+  // Check user role on component mount
+  useEffect(() => {
+    const checkUserRole = () => {
+      try {
+        if (typeof window !== 'undefined') {
+          const role = localStorage.getItem('role');
+          setUserRole(role);
+        }
+      } catch (error) {
+        console.error("Error getting user role:", error);
+      } finally {
+        setIsRoleChecking(false);
+      }
+    };
+
+    checkUserRole();
+  }, []);
+
+  // Determine if the form should be enabled based on user role
+  const isFormEnabled = userRole === "FOUNDER";
 
   // Fixed handleChange function using useCallback to prevent re-renders
   const handleChange = useCallback((e) => {
+    if (!isFormEnabled) return;
+    
     const { name, value, files } = e.target;
 
     setFormData((prev) => {
@@ -38,10 +63,16 @@ const ContactFormArea = () => {
         return { ...prev, [name]: value };
       }
     });
-  }, []);
+  }, [isFormEnabled]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!isFormEnabled) {
+      toast.error("Only project founders can submit requests.");
+      return;
+    }
+    
     try {
       const token = await tokenManager.getValidToken();
       if (!token) {
@@ -98,6 +129,25 @@ const ContactFormArea = () => {
     }
   };
 
+  // Render role-based access notification
+  const renderRoleNotification = () => {
+    if (isRoleChecking) return null;
+    
+    if (!isFormEnabled) {
+      return (
+        <div className="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-md">
+          <div className="flex items-center">
+            <Lock className="h-5 w-5 text-amber-500 mr-2" />
+            <p className="text-amber-700 font-medium">
+              Only project founders can submit requests. Please contact support if you need assistance.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 py-20 px-4">
       <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
@@ -123,7 +173,10 @@ const ContactFormArea = () => {
 
           {/* Right side - Contact Form */}
           <div className="w-full md:w-1/2 p-8">
-            <form onSubmit={handleSubmit} className="space-y-2">
+            {/* Role-based access notification */}
+            {renderRoleNotification()}
+
+            <form onSubmit={handleSubmit} className={`space-y-2 ${!isFormEnabled ? 'opacity-60' : ''}`}>
               {/* Request Type */}
               <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
@@ -131,7 +184,8 @@ const ContactFormArea = () => {
                   name="requestType"
                   value={formData.requestType}
                   onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white appearance-none pr-10 shadow-sm"
+                  disabled={!isFormEnabled}
+                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white appearance-none pr-10 shadow-sm ${!isFormEnabled ? 'cursor-not-allowed' : ''}`}
                   style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundRepeat: "no-repeat", backgroundSize: "1.5em 1.5em" }}
                 >
                   {REQUEST_TYPES.map(option => (
@@ -152,8 +206,9 @@ const ContactFormArea = () => {
                   onChange={handleChange}
                   placeholder="Enter the title of your request"
                   required
+                  disabled={!isFormEnabled}
                   ref={titleInputRef}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm"
+                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm ${!isFormEnabled ? 'cursor-not-allowed' : ''}`}
                 />
               </div>
 
@@ -166,8 +221,9 @@ const ContactFormArea = () => {
                   placeholder="Please provide as much detail as possible"
                   value={formData.description}
                   onChange={handleChange}
+                  disabled={!isFormEnabled}
                   ref={descriptionInputRef}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm resize-none"
+                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition bg-white shadow-sm resize-none ${!isFormEnabled ? 'cursor-not-allowed' : ''}`}
                   required
                 ></textarea>
               </div>
@@ -182,13 +238,14 @@ const ContactFormArea = () => {
                     id="file-upload"
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
                     onChange={handleChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    disabled={!isFormEnabled}
+                    className={`absolute inset-0 w-full h-full opacity-0 ${isFormEnabled ? 'cursor-pointer' : 'cursor-not-allowed'} z-10`}
                   />
-                  <div className="border border-dashed border-yellow-500 bg-yellow-50 rounded-lg p-4 flex items-center justify-center hover:bg-yellow-100 transition-colors">
+                  <div className={`border border-dashed border-yellow-500 bg-yellow-50 rounded-lg p-4 flex items-center justify-center ${isFormEnabled ? 'hover:bg-yellow-100' : ''} transition-colors`}>
                     <div className="flex flex-col items-center text-center">
                       <Paperclip className="h-6 w-6 text-yellow-600 mb-2" />
                       <span className="text-sm font-medium text-gray-700">
-                        {formData.attachment ? formData.attachment.name : "Click or drag file to upload"}
+                        {formData.attachment ? formData.attachment.name : isFormEnabled ? "Click or drag file to upload" : "File upload disabled"}
                       </span>
                       <p className="text-xs text-gray-500 mt-1">
                         Supports: PDF, DOC, PNG, JPG (max 10MB)
@@ -208,9 +265,8 @@ const ContactFormArea = () => {
               <div className="mt-8">
                 <button
                   type="submit"
-                  disabled={loading}
-                  className={`w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center shadow-md hover:shadow-lg ${loading ? "opacity-70 cursor-not-allowed" : ""
-                    }`}
+                  disabled={loading || !isFormEnabled}
+                  className={`w-full bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center shadow-md hover:shadow-lg ${(loading || !isFormEnabled) ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
                   {loading ? (
                     <span className="flex items-center">
@@ -220,6 +276,11 @@ const ContactFormArea = () => {
                       </svg>
                       Submitting...
                     </span>
+                  ) : !isFormEnabled ? (
+                    <>
+                      <Lock className="h-5 w-5 mr-2" />
+                      Founder Access Only
+                    </>
                   ) : (
                     <>
                       <Send className="h-5 w-5 mr-2" />
