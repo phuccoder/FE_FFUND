@@ -208,11 +208,11 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
     return numericAmount * platformChargePercentage;
   };
 
-  // Calculate total including platform fee
-  const calculateTotal = (amount) => {
+  const calculateStripeFee = (amount) => {
     const numericAmount = parseFloat(amount) || 0;
-    return numericAmount;
+    return (numericAmount * 0.029) + 0.30;
   };
+
 
   const handleTermsAgreement = () => {
     const newValue = !agreedToTerms;
@@ -957,6 +957,14 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                         : calculatePlatformFee(customAmount).toFixed(2)}
                     </span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Stripe Fee (2.9% + $0.30):</span>
+                    <span className="font-medium">
+                      ${paymentType === "milestone" && selectedMilestone
+                        ? calculateStripeFee(selectedMilestone.price).toFixed(2)
+                        : calculateStripeFee(customAmount).toFixed(2)}
+                    </span>
+                  </div>
                   <div className="flex justify-between font-semibold">
                     <span>Total:</span>
                     <span className="text-yellow-600">
@@ -1031,7 +1039,15 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
               </Accordion>
 
               <Accordion title="What if I want to change my pledge?">
-                <p>You can change or cancel your pledge before proceeding to pay</p>
+                <p>You can change or cancel your pledge before proceeding to pay.</p>
+              </Accordion>
+
+              <Accordion title="When will a project phase is refunded?">
+                <p>A project phase will be available for refund if too many reports were being sent to our system, and the current phase isn&apos;t being payout to the FOUNDER. After a phase finish it&apos;s payout process, you won&apos;t be able to receive the refund amount.</p>
+              </Accordion>
+
+              <Accordion title="What if I want to make a refund request?">
+                <p>The refund process is handled manually by our MANAGER users, so if you find something harmful to your benefits or illegal and violated actions occured during the funding process, you can make a report to our system and we will review it carefully. The refund process will be occured when our teams confirm that this project has to many violations based on the reports that we summarry.</p>
               </Accordion>
 
               <Accordion title="If this project is funded, how do I get my reward?">
@@ -1040,6 +1056,10 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
 
               <Accordion title="Will I be charged more later?">
                 <p>That depends. When you redeem your proof of pledge, you may be required to pay applicable sales or value-added tax and/or shipping fees, depending on the reward and where it is being delivered.</p>
+              </Accordion>
+
+              <Accordion title="What if the project creator doesn’t deliver?">
+                <p>We work hard to verify the authenticity of projects, but we cannot guarantee that every project will be completed. If a project is not completed, you may not receive your reward. However, you can report that project to our team and if enough reports, we may consider to refund the investment amount you have made into the chosen phase.</p>
               </Accordion>
             </div>
           </div>
@@ -1127,6 +1147,14 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                           : calculatePlatformFee(customAmount).toFixed(2)}
                       </span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Stripe Fee (2.9% + $0.30):</span>
+                      <span className="font-medium">
+                        ${paymentType === "milestone" && selectedMilestone
+                          ? calculateStripeFee(selectedMilestone.price).toFixed(2)
+                          : calculateStripeFee(customAmount).toFixed(2)}
+                      </span>
+                    </div>
                     <div className="border-t border-gray-100 pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Your contribution:</span>
@@ -1137,7 +1165,7 @@ const ProjectPaymentPage = ({ project, selectedPhaseId = null, selectedMilestone
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        <span>The platform fee will be included automatically after successful funding.</span>
+                        <span>Payment processing and platform fees are automatically included after successful funding.</span>
                       </div>
                     </div>
                   </div>

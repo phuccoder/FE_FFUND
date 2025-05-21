@@ -14,9 +14,9 @@ export default function TransactionTable({ transactions }) {
         bgColor = 'bg-yellow-100';
         textColor = 'text-yellow-800';
         break;
-      case 'CANCEL':
-        bgColor = 'bg-red-100';
-        textColor = 'text-red-800';
+      case 'REFUND':
+        bgColor = 'bg-indigo-100';
+        textColor = 'text-indigo-800';
         break;
       default:
         bgColor = 'bg-gray-100';

@@ -23,7 +23,7 @@ const MENU_ITEMS = {
   INVESTOR: [
     { label: 'Profile', icon: User, href: '/profile' },
     { label: 'Funded Project', icon: FileText, href: '/funded-projects' },
-    { label: 'Request/Report', icon: ClipboardList, href: '/request-report' },
+    { label: 'Report', icon: ClipboardList, href: '/request-report' },
     { label: 'Manage Reward', icon: Mail, href: '/reward' },
     { label: 'Investment', icon: FaMoneyBill, href: '/investment' }
   ]

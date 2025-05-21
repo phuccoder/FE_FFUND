@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 
 import { ForgotPasswordModal } from './ForgotPasswordModal';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { authenticate } from 'src/services/authenticate';
 import { GoogleIcon } from './CustomIcons';
@@ -262,17 +262,6 @@ export const LoginForm = () => {
         justifyContent="space-between"
         sx={containerStyles}
       >
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={true}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
         <Card variant="outlined" sx={cardStyles}>
           <Typography
             component="h1"
@@ -547,7 +536,6 @@ export const LoginForm = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
-      <ToastContainer />
     </Stack>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requestService } from "src/services/RequestService";
 
 export default function ExtendTimeRequestForm({ projectId }) {
@@ -9,6 +9,7 @@ export default function ExtendTimeRequestForm({ projectId }) {
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: "", type: "" });
     const [isLeader, setIsLeader] = useState(false);
+    const MAX_EXTEND_DAYS = 30; 
 
     useEffect(() => {
         const teamRole = localStorage.getItem('teamRole');
@@ -236,6 +237,7 @@ export default function ExtendTimeRequestForm({ projectId }) {
                                 value={extendDay}
                                 onChange={(e) => setExtendDay(e.target.value)}
                                 min="1"
+                                max={MAX_EXTEND_DAYS}
                                 required
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />

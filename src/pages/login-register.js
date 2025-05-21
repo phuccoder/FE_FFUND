@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { ToastContainer } from 'react-toastify';
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('login');
@@ -28,6 +29,7 @@ export default function AuthPage() {
 
   return (
     <>
+    <ToastContainer />
       <Head>
         <title>{activeTab === 'login' ? 'Log In' : 'Sign Up'} | FFund</title>
         <meta name="description" content="Access your FFund account or create a new one" />

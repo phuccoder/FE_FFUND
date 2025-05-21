@@ -22,6 +22,8 @@ function PayoutPage() {
     const [currentProject, setCurrentProject] = useState(null);
     const router = useRouter();
     const { projectId, phaseId } = router.query;
+    const [projectPaymentInfo, setProjectPaymentInfo] = useState({});
+    const [dashboardLoading, setDashboardLoading] = useState({});
 
     useEffect(() => {
         const fetchPayouts = async () => {
@@ -32,16 +34,16 @@ function PayoutPage() {
                 if (phaseId) {
                     // For a specific phase, fetch its payouts directly
                     const result = await payoutService.getPayoutByPhase(phaseId);
-                    
+
                     // If we have data for this phase, process it
                     if (result && result.data) {
                         const payoutData = result.data;
-                        const validPayouts = Array.isArray(payoutData) 
+                        const validPayouts = Array.isArray(payoutData)
                             ? payoutData.filter(p => p && typeof p === 'object')
                             : (payoutData && typeof payoutData === 'object' ? [payoutData] : []);
-                        
+
                         setPayouts(validPayouts);
-                        
+
                         // If we have a valid payout, fetch the project details too
                         if (validPayouts.length > 0 && validPayouts[0].projectId) {
                             try {
@@ -49,12 +51,12 @@ function PayoutPage() {
                                 if (projectData) {
                                     setCurrentProject(projectData);
                                 }
-                                
+
                                 // Also fetch all phases for this project
                                 const phases = await projectService.getPhaseByProject(validPayouts[0].projectId);
                                 if (phases && phases.length > 0) {
                                     setProjectPhases(phases);
-                                    
+
                                     // Mark the current phase as having payouts
                                     setPhasesWithPayouts([parseInt(phaseId)]);
                                 }
@@ -66,7 +68,7 @@ function PayoutPage() {
                         try {
                             const allPhases = await projectService.getAllPhases();
                             const currentPhase = allPhases.find(p => p.id.toString() === phaseId.toString());
-                            
+
                             if (currentPhase && currentPhase.projectId) {
                                 const projectData = await projectService.getProjectById(currentPhase.projectId);
                                 setCurrentProject(projectData);
@@ -79,7 +81,7 @@ function PayoutPage() {
                         } catch (phaseErr) {
                             console.log('Error fetching phase details:', phaseErr);
                         }
-                        
+
                         setPayouts([]);
                     }
                 } else if (projectId) {
@@ -87,7 +89,7 @@ function PayoutPage() {
                     if (projectData) {
                         setCurrentProject(projectData);
                     }
-                    
+
                     const phases = await projectService.getPhaseByProject(projectId);
                     if (!phases || phases.length === 0) {
                         setProjectPhases([]);
@@ -99,18 +101,18 @@ function PayoutPage() {
 
                     let allProjectPayouts = [];
                     let phasesWithPayoutsList = [];
-                    
+
                     for (const phase of phases) {
                         try {
                             const phaseResult = await payoutService.getPayoutByPhase(phase.id);
-                            
+
                             if (phaseResult && phaseResult.data) {
                                 const payoutData = Array.isArray(phaseResult.data)
                                     ? phaseResult.data
                                     : [phaseResult.data];
-                                
+
                                 if (payoutData.length > 0) {
-                                    
+
                                     const enhancedPayouts = payoutData.map(payout => ({
                                         ...payout,
                                         phaseStatus: phase.status,
@@ -120,7 +122,7 @@ function PayoutPage() {
                                         raiseAmount: phase.raiseAmount,
                                         phaseNumber: phase.phaseNumber
                                     }));
-                                    
+
                                     allProjectPayouts = [...allProjectPayouts, ...enhancedPayouts];
                                     phasesWithPayoutsList.push(phase.id);
                                 }
@@ -129,7 +131,7 @@ function PayoutPage() {
                             console.log(`No payouts found for phase ${phase.id}`);
                         }
                     }
-                    
+
                     setPayouts(allProjectPayouts);
                     setPhasesWithPayouts(phasesWithPayoutsList);
                 } else {
@@ -171,7 +173,7 @@ function PayoutPage() {
                                                         phaseEndDate: phase.endDate,
                                                         phaseNumber: phase.phaseNumber
                                                     }));
-                                                    
+
                                                 allPayouts = [...allPayouts, ...projectPayouts];
                                                 phasesWithPayoutsList.push(phase.id);
                                             }
@@ -203,10 +205,35 @@ function PayoutPage() {
         }
     }, [projectId, phaseId, router.isReady]);
 
+    useEffect(() => {
+        const fetchProjectPaymentInfo = async () => {
+            const uniqueProjectIds = Object.values(payoutsByProject).map(summary => summary.projectId);
+            const paymentInfoMap = {};
+
+            for (const projectId of uniqueProjectIds) {
+                if (projectId) {
+                    try {
+                        const paymentInfo = await paymentInfoService.getPaymentInfo(projectId);
+                        if (paymentInfo) {
+                            paymentInfoMap[projectId] = paymentInfo;
+                        }
+                    } catch (err) {
+                        console.error(`Error fetching payment info for project ${projectId}:`, err);
+                    }
+                }
+            }
+
+            setProjectPaymentInfo(paymentInfoMap);
+        };
+        if (Object.keys(payoutsByProject).length > 0) {
+            fetchProjectPaymentInfo();
+        }
+    }, [payoutsByProject]);
+
     // Group payouts by project
     const payoutsByProject = payouts.reduce((acc, payout) => {
         if (!payout || !payout.projectId) return acc;
-        
+
         if (!acc[payout.projectId]) {
             acc[payout.projectId] = {
                 projectId: payout.projectId,
@@ -216,16 +243,16 @@ function PayoutPage() {
                 payoutCount: 0
             };
         }
-        
+
         acc[payout.projectId].payouts.push(payout);
         acc[payout.projectId].totalAmount += typeof payout.amount === 'number' ? payout.amount : 0;
         acc[payout.projectId].payoutCount += 1;
-        
+
         return acc;
     }, {});
 
-    const visiblePhases = phaseId 
-        ? projectPhases 
+    const visiblePhases = phaseId
+        ? projectPhases
         : projectPhases.filter(phase => phasesWithPayouts.includes(phase.id));
 
     const handleViewDetails = (payout) => {
@@ -249,25 +276,50 @@ function PayoutPage() {
 
     const renderPhaseStatus = (status) => {
         if (!status) return null;
-        
+
         const statusColors = {
             'COMPLETED': 'bg-green-100 text-green-800',
             'ACTIVE': 'bg-blue-100 text-blue-800',
             'PLAN': 'bg-yellow-100 text-yellow-800',
             'CANCELLED': 'bg-red-100 text-red-800'
         };
-        
+
         return (
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
                 {status}
             </span>
         );
     };
-    
+
+    const handleViewDashboard = async (projectId) => {
+        try {
+            if (!projectPaymentInfo[projectId]) {
+                throw new Error("Payment information not available for this project");
+            }
+
+            const paymentInfoId = projectPaymentInfo[projectId].id;
+            setDashboardLoading(prev => ({ ...prev, [projectId]: true }));
+
+            const response = await paymentInfoService.createDashboardLink(paymentInfoId);
+
+            if (response && response.data) {
+                // Open the dashboard URL in a new tab
+                window.open(response.data, '_blank');
+            } else {
+                throw new Error("Could not generate dashboard link");
+            }
+        } catch (err) {
+            console.error("Error opening Stripe dashboard:", err);
+            alert(`Error: ${err.message || "Failed to open Stripe dashboard"}`);
+        } finally {
+            setDashboardLoading(prev => ({ ...prev, [projectId]: false }));
+        }
+    };
+
     return (
         <>
             <Layout>
-                <Header/>
+                <Header />
                 <PageTitle title="Payouts" />
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Project context when viewing a specific project */}
@@ -277,17 +329,11 @@ function PayoutPage() {
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-900">{currentProject.title}</h1>
                                     <p className="mt-1 text-sm text-gray-500">
-                                        {currentProject.description && currentProject.description.length > 100 
-                                            ? `${currentProject.description.substring(0, 100)}...` 
+                                        {currentProject.description && currentProject.description.length > 100
+                                            ? `${currentProject.description.substring(0, 100)}...`
                                             : currentProject.description}
                                     </p>
                                 </div>
-                                <button
-                                    onClick={() => router.push(`/projects/${currentProject.id}`)}
-                                    className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                                >
-                                    View Project <ArrowRight className="ml-2 h-4 w-4" />
-                                </button>
                             </div>
                         </div>
                     )}
@@ -297,13 +343,13 @@ function PayoutPage() {
                         <div className="mb-8">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-semibold text-gray-800">
-                                    {visiblePhases.length === projectPhases.length 
-                                        ? "Project Phases" 
+                                    {visiblePhases.length === projectPhases.length
+                                        ? "Project Phases"
                                         : "Phases with Payouts"}
                                 </h2>
-                                
+
                                 {visiblePhases.length < projectPhases.length && (
-                                    <button 
+                                    <button
                                         onClick={() => router.push(`/projects/${currentProject.id}`)}
                                         className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
                                     >
@@ -311,18 +357,17 @@ function PayoutPage() {
                                     </button>
                                 )}
                             </div>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {visiblePhases.map((phase, index) => (
-                                    <div 
-                                        key={phase.id} 
-                                        className={`border rounded-lg shadow-sm overflow-hidden ${
-                                            phaseId && phase.id.toString() === phaseId.toString() 
-                                                ? 'ring-2 ring-orange-500' 
-                                                : phasesWithPayouts.includes(phase.id)
-                                                    ? 'border-green-200 bg-green-50' 
-                                                    : 'border-gray-200'
-                                        }`}
+                                    <div
+                                        key={phase.id}
+                                        className={`border rounded-lg shadow-sm overflow-hidden ${phaseId && phase.id.toString() === phaseId.toString()
+                                            ? 'ring-2 ring-orange-500'
+                                            : phasesWithPayouts.includes(phase.id)
+                                                ? 'border-green-200 bg-green-50'
+                                                : 'border-gray-200'
+                                            }`}
                                     >
                                         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                             <div className="flex justify-between items-center">
@@ -330,7 +375,7 @@ function PayoutPage() {
                                                 {renderPhaseStatus(phase.status)}
                                             </div>
                                         </div>
-                                        
+
                                         <div className="px-4 py-3">
                                             <div className="grid grid-cols-2 gap-4 mb-3">
                                                 <div>
@@ -342,28 +387,27 @@ function PayoutPage() {
                                                     <p className="font-medium">{formatCurrency(phase.raiseAmount)}</p>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="mb-3">
                                                 <p className="text-xs text-gray-500">Duration</p>
                                                 <p className="text-sm">{formatDate(phase.startDate)} - {formatDate(phase.endDate)}</p>
                                             </div>
-                                            
+
                                             <div className="mt-4 flex justify-between">
                                                 <div className="text-sm">
                                                     <span className="text-gray-500">Investors: </span>
                                                     <span className="font-medium">{phase.totalInvestors || 0}</span>
                                                 </div>
-                                                
+
                                                 <button
                                                     onClick={() => router.push(`/payout?phaseId=${phase.id}`)}
-                                                    className={`text-sm font-medium ${
-                                                        phaseId && phase.id.toString() === phaseId.toString()
-                                                            ? 'text-orange-600'
-                                                            : 'text-blue-600 hover:text-blue-800'
-                                                    }`}
+                                                    className={`text-sm font-medium ${phaseId && phase.id.toString() === phaseId.toString()
+                                                        ? 'text-orange-600'
+                                                        : 'text-blue-600 hover:text-blue-800'
+                                                        }`}
                                                 >
-                                                    {phaseId && phase.id.toString() === phaseId.toString() 
-                                                        ? 'Currently Viewing' 
+                                                    {phaseId && phase.id.toString() === phaseId.toString()
+                                                        ? 'Currently Viewing'
                                                         : phasesWithPayouts.includes(phase.id)
                                                             ? 'View Payouts'
                                                             : 'No Payouts Yet'}
@@ -401,12 +445,6 @@ function PayoutPage() {
                                                 <p className="text-lg font-medium text-gray-800">{summary.payoutCount}</p>
                                             </div>
                                         </div>
-                                        <button
-                                            className="mt-3 w-full flex items-center justify-center px-4 py-2 text-sm bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors"
-                                            onClick={() => router.push(`/projects/${summary.projectId}`)}
-                                        >
-                                            View Project <ArrowRight className="ml-1 h-4 w-4" />
-                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -419,16 +457,16 @@ function PayoutPage() {
                             {payouts.length > 0 ? (
                                 <div>
                                     <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                                        {phaseId 
+                                        {phaseId
                                             ? `Payouts for Phase ${payouts[0]?.phaseNumber || ''}`
-                                            : projectId 
+                                            : projectId
                                                 ? `Payouts for ${currentProject?.title || 'This Project'}`
                                                 : 'Recent Payouts'}
                                     </h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {payouts.map(payout => (
                                             <div key={payout.id || Math.random()} className="relative bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                                                <div className="bg-gradient-to-r from-orange-500 to-yellow-400 px-6 py-4">
+                                                <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 px-6 py-4">
                                                     <h3 className="text-white font-bold text-lg">Payout Summary</h3>
                                                 </div>
 
@@ -483,11 +521,11 @@ function PayoutPage() {
                                             </div>
                                             <h3 className="mt-3 text-lg font-medium text-gray-900">No Payouts Available Yet</h3>
                                             <p className="mt-2 text-sm text-gray-500">
-                                                {phaseId 
+                                                {phaseId
                                                     ? `This phase doesn't have any payouts processed yet.`
                                                     : `This project has ${projectPhases.length} phase(s), but no payouts have been processed yet.`}
                                             </p>
-                                            
+
                                             {projectPhases.length > 0 && (
                                                 <div className="mt-4">
                                                     <p className="text-sm font-medium text-gray-700">Project Phases</p>
@@ -516,7 +554,7 @@ function PayoutPage() {
                             )}
                         </>
                     )}
-                    
+
                     {/* Loading state */}
                     {isLoading && (
                         <div className="flex justify-center items-center py-12">
@@ -549,7 +587,7 @@ function PayoutPage() {
 
                                 <div className="p-6">
                                     <h2 className="text-2xl font-bold text-gray-900 mb-4">Payout Details</h2>
-                                    
+
                                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                         <div className="flex justify-between mb-2">
                                             <div>
@@ -563,7 +601,7 @@ function PayoutPage() {
                                             )}
                                         </div>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                         <div>
                                             <p className="text-sm text-gray-500">Payout ID</p>
@@ -574,7 +612,7 @@ function PayoutPage() {
                                             <p className="font-medium">{formatDate(selectedPayout.payoutDate)}</p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="border-t border-gray-200 pt-4">
                                         <h4 className="font-medium text-gray-700 mb-3">Financial Details</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -592,7 +630,7 @@ function PayoutPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {selectedPayout.targetAmount && selectedPayout.raiseAmount && (
                                         <div className="border-t border-gray-200 pt-4 mt-4">
                                             <h4 className="font-medium text-gray-700 mb-3">Phase Performance</h4>
@@ -609,8 +647,8 @@ function PayoutPage() {
                                             <div className="mt-3">
                                                 <p className="text-sm text-gray-500">Funding Progress</p>
                                                 <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                                                    <div 
-                                                        className="bg-green-600 h-2.5 rounded-full" 
+                                                    <div
+                                                        className="bg-green-600 h-2.5 rounded-full"
                                                         style={{ width: `${Math.min(100, (selectedPayout.raiseAmount / selectedPayout.targetAmount) * 100)}%` }}
                                                     ></div>
                                                 </div>
