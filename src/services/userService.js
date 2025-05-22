@@ -91,7 +91,7 @@ export const uploadAvatar = async (file) => {
         formData.append('file', file);
 
         const response = await fetch('https://ffund.duckdns.org/api/v1/user/upload-avatar', {
-            method: 'POST',
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`
             },

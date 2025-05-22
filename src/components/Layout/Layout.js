@@ -10,7 +10,7 @@ const Layout = ({ children }) => {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>FFund - Crowdfunding Platform for FPT college students </title>
+        <title>FPT FUND</title>
       </Head>
       <main id="wrapper" className="animated fadeIn">
         {children}

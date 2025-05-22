@@ -216,29 +216,32 @@ export const requestService = {
                 body: JSON.stringify(request)
             });
 
+            // Handle non-success responses by properly parsing the error message
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+
+                // If the response is JSON, try to parse the error message
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+
+                    // Extract the error message - check all possible fields
+                    const errorMessage = errorData.error ||
+                        errorData.message ||
+                        errorData.errorMessage ||
+                        `Failed with status: ${response.status}`;
+
+                    throw new Error(errorMessage);
+                } else {
+                    throw new Error(`Failed with status: ${response.status} ${response.statusText}`);
+                }
+            }
+
             // Handle empty responses
             if (response.status === 204) {
                 return { success: true };
             }
 
-            // Handle non-JSON responses
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status} ${response.statusText}`);
-                }
-                return { success: true, message: "Operation completed successfully" };
-            }
-
-            if (!response.ok) {
-                try {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `Failed with status: ${response.status}`);
-                } catch (jsonError) {
-                    throw new Error(`Failed with status: ${response.status} ${response.statusText}`);
-                }
-            }
-
+            // Try to parse JSON for success responses
             try {
                 const result = await response.json();
                 return result;

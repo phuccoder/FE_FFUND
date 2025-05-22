@@ -621,8 +621,10 @@ function InvestmentReward() {
     );
 };
 
-export default function InvestmentRewardPage(){
-    <ProtectedRoute requiredRoles={"FOUNDER"}>
-        <InvestmentReward/>
-    </ProtectedRoute>
+export default function InvestmentRewardPage() {
+    return (
+        <ProtectedRoute requiredRoles={["FOUNDER"]}>
+            <InvestmentReward />
+        </ProtectedRoute>
+    );
 }

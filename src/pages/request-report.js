@@ -385,7 +385,7 @@ function RequestManager() {
                                         <strong>Updated At:</strong>{' '}
                                         {selectedItem.updatedAt
                                             ? format(new Date(selectedItem.updatedAt), 'dd MMM yyyy HH:mm')
-                                            : 'N/A'}
+                                            : 'Unscheduled'}
                                     </div>
                                 </div>
                             </div>

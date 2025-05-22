@@ -106,7 +106,6 @@ const HeaderInfo = ({ socials, searchColor }) => {
 
   return (
     <div className="header-info d-flex align-items-center">
-      {socials && <Social socials={socials} />}
 
       {isLoggedIn ? (
         <>

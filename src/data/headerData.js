@@ -60,7 +60,7 @@ const headerData = {
   navItems,
   email: "ffundsep490@gmail.com",
   phone: "666 888 0000",
-  address: "66 Broklyn Street, USA",
+  address: "Lot E2a-7, Road D1, High-Tech Park, Thu Duc City",
   socials,
 };
 

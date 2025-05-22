@@ -29,7 +29,7 @@ const footerData = {
   logo,
   bg,
   socials: socials2,
-  text: "Lorem quas utamur delicata qui, vix ei prima mentitum omnesque. Duo corrumpit cotidieque ne.",
+  text: "We are a team of passionate individuals dedicated to helping startups and investors connect.",
   text2:
     "Sign up for our latest news & articles. We won’t give you spam mails.",
   shape,
@@ -41,51 +41,21 @@ const footerData = {
     },
     {
       id: 2,
-      text: "How It Works",
-      href: "/team",
+      text: "Knowledge hub",
+      href: "/faq",
     },
     {
       id: 3,
-      text: "Knowledge hub",
-      href: "/case",
-    },
-    {
-      id: 4,
-      text: "Success Stories",
-      href: "/blog",
-    },
-    {
-      id: 5,
       text: "Contact",
       href: "/contact",
     },
-    {
-      id: 6,
-      text: "Education",
-      href: "/about",
-    },
-    {
-      id: 7,
-      text: "Design",
-      href: "/about",
-    },
-    {
-      id: 8,
-      text: "Film & Video",
-      href: "/about",
-    },
-    {
-      id: 9,
-      text: "Technology",
-      href: "/about",
-    },
-    {
-      id: 10,
-      text: "Games",
-      href: "/about",
-    },
   ],
-  author: "Krowd",
+  address: "Lot E2a-7, Road D1, High-Tech Park, Thu Duc City",
+  contactInfo: {
+    email: "ffundsep490@gmail.com",
+    phone: "+84 123 456 789"
+  },
+  author: "FFund",
   year: new Date().getFullYear(),
 };
 

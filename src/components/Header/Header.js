@@ -45,7 +45,6 @@ const Header = ({ className = "" }) => {
                   </li>
                 </ul>
               </div>
-              <Social socials={socials} />
             </div>
           </Col>
         </Row>

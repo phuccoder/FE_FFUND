@@ -266,7 +266,7 @@ function PayoutPage() {
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
+        if (!dateString) return 'Unscheduled';
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -495,7 +495,7 @@ function PayoutPage() {
                                                         <div className="text-right">
                                                             <p className="text-sm text-gray-500">Payout Date</p>
                                                             <p className="font-medium text-gray-800">
-                                                                {payout.payoutDate ? formatDate(payout.payoutDate) : 'N/A'}
+                                                                {payout.payoutDate ? formatDate(payout.payoutDate) : 'Unscheduled'}
                                                             </p>
                                                         </div>
                                                     </div>

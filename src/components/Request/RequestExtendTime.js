@@ -9,7 +9,7 @@ export default function ExtendTimeRequestForm({ projectId }) {
     const [isLoading, setIsLoading] = useState(false);
     const [notification, setNotification] = useState({ show: false, message: "", type: "" });
     const [isLeader, setIsLeader] = useState(false);
-    const MAX_EXTEND_DAYS = 30; 
+    const MAX_EXTEND_DAYS = 30;
 
     useEffect(() => {
         const teamRole = localStorage.getItem('teamRole');
@@ -55,7 +55,9 @@ export default function ExtendTimeRequestForm({ projectId }) {
                 message: "Only team leaders can submit extend time requests.",
                 type: "error",
             });
+            return;
         }
+
         setIsLoading(true);
 
         try {
@@ -79,9 +81,11 @@ export default function ExtendTimeRequestForm({ projectId }) {
                 setIsFormOpen(false);
             }, 2000);
         } catch (error) {
+            const errorMessage = error.message || "An unexpected error occurred";
+
             setNotification({
                 show: true,
-                message: `Error: ${error.message}`,
+                message: errorMessage,
                 type: "error",
             });
         } finally {
@@ -197,7 +201,10 @@ export default function ExtendTimeRequestForm({ projectId }) {
                                     )}
                                 </div>
                                 <div className="ml-3">
-                                    <p className="text-sm">{notification.message}</p>
+                                    <p className="text-sm font-medium">
+                                        {notification.type === "success" ? "Success" : "Error"}
+                                    </p>
+                                    <p className="text-sm mt-1">{notification.message}</p>
                                 </div>
                             </div>
                         </div>
